@@ -39,7 +39,7 @@ allowed-tools:
 - **{home}** = `$WRITING_MASTER_HOME` 或 `~/.writing-master`
 - **{skill_dir}** = 本 skill 目录
 - **读取: <路径>** = 真实读取该文件，不是注释
-- **CLI**: 确定性操作走 `writing-master` 命令（需在 PATH）
+- **状态管理**: 由 AI 直接创建和维护目录结构与状态文件，无需外部工具
 
 ---
 
@@ -80,7 +80,7 @@ allowed-tools:
 
 ### Step 0: 初始化任务
 
-1. 运行 `writing-master diagnose --json` 检查环境
+1. 检查环境（确认 {home} 目录存在，不存在则创建）
 2. 创建任务目录：`{home}/runs/YYYYMMDD-XXX/`
 3. 初始化状态文件：`status.json`
 
@@ -137,9 +137,7 @@ allowed-tools:
 ```
 
 **完成后**：
-```bash
-writing-master run step brief completed
-```
+保存 brief 到 `{home}/runs/{task_id}/brief.md`，更新 `status.json` 中 brief 步骤状态为 "completed"
 
 ---
 
@@ -172,9 +170,7 @@ writing-master run step brief completed
 ```
 
 **完成后**：
-```bash
-writing-master run step research completed
-```
+保存 knowledge.md 到 `{home}/runs/{task_id}/knowledge.md`，更新 `status.json` 中 research 步骤状态为 "completed"
 
 ---
 
@@ -211,9 +207,7 @@ writing-master run step research completed
 ```
 
 **完成后**：
-```bash
-writing-master run step topic completed --choice "选题1"
-```
+保存选题讨论和用户选择到 `{home}/runs/{task_id}/topic.md`，更新 `status.json` 中 topic 步骤状态为 "completed"
 
 ---
 
@@ -233,9 +227,7 @@ writing-master run step topic completed --choice "选题1"
 - ✅ 真实案例和个人经历
 
 **完成后**：
-```bash
-writing-master run step style completed
-```
+保存风格学习结果到 `{home}/runs/{task_id}/style.md`，更新 `status.json` 中 style 步骤状态为 "completed"
 
 ---
 
@@ -252,9 +244,7 @@ writing-master run step style completed
 4. 进入正式写作
 
 **完成后**：
-```bash
-writing-master run step drainage completed
-```
+保存创意排水过程和"清水"创意到 `{home}/runs/{task_id}/drainage.md`，更新 `status.json` 中 drainage 步骤状态为 "completed"
 
 ---
 
@@ -270,9 +260,7 @@ writing-master run step drainage completed
 **保存**：`draft-v1.md`
 
 **完成后**：
-```bash
-writing-master run step draft completed
-```
+保存初稿到 `{home}/runs/{task_id}/draft-v1.md`，更新 `status.json` 中 draft 步骤状态为 "completed"
 
 ---
 
@@ -300,11 +288,11 @@ writing-master run step draft completed
 - 标点、排版
 
 **完成后**：
-```bash
-writing-master run step review1 completed
-writing-master run step review2 completed
-writing-master run step review3 completed
-```
+保存三遍审校结果：
+- `{home}/runs/{task_id}/draft-v2.md`（第一遍：内容审校）
+- `{home}/runs/{task_id}/draft-v3.md`（第二遍：风格审校）
+- `{home}/runs/{task_id}/final.md`（第三遍：细节打磨）
+更新 `status.json` 中 review1、review2、review3 步骤状态为 "completed"
 
 ---
 
@@ -322,25 +310,17 @@ writing-master run step review3 completed
 **等待用户选择**
 
 **完成后**：
-```bash
-writing-master run step title completed --choice "标题2"
-```
+保存标题方案和用户选择到 `{home}/runs/{task_id}/title.md`，将最终标题添加到 `final.md` 顶部，更新 `status.json` 中 title 步骤状态为 "completed"，整体状态更新为 "completed"
 
 ---
 
 ## 🎨 可选后续动作
 
 ### A. 配图
-```bash
-writing-master visual --mode cover  # 只要封面
-writing-master visual --mode full   # 完整配图
-```
+转到 `writing-visual` skill 或提示用户手动配图
 
 ### B. 排版与发布
-```bash
-writing-master publish --theme sspai  # 排版预览
-writing-master publish --push        # 推送草稿箱
-```
+转到 `writing-publish` skill 或提示用户手动排版发布
 
 ---
 
@@ -361,24 +341,21 @@ writing-master publish --push        # 推送草稿箱
 
 ## 💾 状态管理
 
-每步完成后更新 `status.json`，支持断点续写：
+每步完成后更新 `status.json`，支持断点续写。
 
-```bash
-# 用户说"继续上次"
-writing-master run list
-writing-master run resume <task_id>
-```
+用户说"继续上次"时：
+1. 读取 `{home}/runs/` 下最近的未完成任务
+2. 查看 `status.json` 确定当前步骤
+3. 从该步骤继续执行
 
 ---
 
 ## 🚨 错误处理
 
 步骤失败时：
-```bash
-writing-master run step <step_name> failed --error "原因"
-```
-
-保留当前任务，下次恢复后只重做失败步骤。
+1. 在 `status.json` 中标记该步骤状态为 "failed"
+2. 记录错误原因
+3. 保留当前任务，下次恢复后重做失败步骤
 
 ---
 
