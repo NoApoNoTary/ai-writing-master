@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Writing Master CLI 便捷启动脚本
+# 设置 PYTHONPATH 后调用 Python 模块
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+export PYTHONPATH="$PROJECT_ROOT/src:$PYTHONPATH"
+
+exec python3 -m writing_master "$@"

@@ -90,12 +90,20 @@
 
 ```bash
 # 方式1: 一键安装（推荐）
-git clone https://github.com/YOUR_USERNAME/ai-writing-master.git ~/ai-writing-master
+git clone https://github.com/NoApoNoTary/ai-writing-master.git ~/ai-writing-master
 cd ~/ai-writing-master && bash install.sh
 
-# 方式2: 手动安装
+# 方式2: 手动安装 Skills
 cd ~/.claude/skills/
 ln -s ~/ai-writing-master/skills/* .
+
+# 方式3: 安装 CLI 工具（可选）
+cd ~/ai-writing-master
+export PATH="$PWD/bin:$PATH"  # 添加到 ~/.bashrc 或 ~/.zshrc
+
+# 验证安装
+writing-master --version
+writing-master --help
 ```
 
 ### 使用
@@ -161,8 +169,33 @@ AI:
 - **AI模型**: Claude Opus 4.8 / Fable 5
 - **开发工具**: Claude Code / Cursor
 - **文件格式**: Markdown
-- **CLI工具**: Python (uv/pipx)
+- **CLI工具**: Python 3.11+ (可选，不依赖 pip)
 - **状态管理**: YAML + JSON
+
+### CLI 工具能力
+
+不依赖 AI，独立可用：
+
+```bash
+# 质量评分（5维度检测）
+writing-master quality article.md --verbose
+
+# 相似度检测（防洗稿）
+writing-master similarity source.md rewritten.md
+
+# 状态目录
+writing-master home
+```
+
+**质量评分维度**：
+- 准确性（25%）：事实核对提醒
+- 套话检测（20%）：14类AI套话黑名单
+- 句子变化（15%）：句长标准差检查
+- 段落节奏（10%）：段落长度多样性
+- 副词密度（15%）：过度修饰检测
+- 词汇丰富度（15%）：字符bigram多样性
+
+**相似度算法**：字符3-gram Jaccard相似度，阈值≤0.6
 
 ---
 
@@ -173,6 +206,17 @@ ai-writing-master/
 ├── README.md                         # 项目说明
 ├── install.sh                        # 一键安装脚本
 ├── LICENSE                           # MIT 协议
+├── pyproject.toml                    # Python 包配置
+│
+├── bin/                              # CLI 启动脚本
+│   └── writing-master                # 命令行入口
+│
+├── src/                              # Python CLI 实现
+│   └── writing_master/
+│       ├── cli.py                    # 主调度器
+│       └── commands/                 # 子命令
+│           ├── quality.py            # 质量评分
+│           └── similarity.py         # 相似度检测
 │
 ├── skills/                           # Skills 目录（复制即用）
 │   ├── writing-master/               # 主入口：完整创作流程
