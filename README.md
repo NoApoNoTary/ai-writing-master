@@ -505,7 +505,7 @@ ai-writing-master/
 - [x] 状态管理
 
 ### v1.1 (1-2周)
-- [ ] CLI 工具开发
+- [x] CLI 工具开发（quality + similarity）
 - [ ] 完整示例文档
 - [ ] 视频教程
 - [ ] 单元测试
@@ -521,6 +521,57 @@ ai-writing-master/
 - [ ] 团队协作
 - [ ] 插件生态
 - [ ] 多语言支持
+
+---
+
+## 🔗 推荐配合工具
+
+### cheat-on-content - 内容效果预测系统
+
+如果你想知道**哪些内容会爆**、想**数据驱动地提升选题能力**，强烈推荐配合使用：
+
+**核心价值**：
+- 📊 打分 → 🎯 盲预测 → 🚀 发布 → 📈 T+3天复盘 → 🧬 进化判断力
+- 把每次"我感觉这条会爆"变成可校准的实验
+- 一个月后你会有**只属于你的爆款公式**
+
+**与 ai-writing-master 的配合**：
+```
+ai-writing-master          cheat-on-content
+      ↓                           ↓
+  选题 → 写作 → 审校           打分 → 预测
+      ↓                           ↓
+    final.md ────────────→   发布 → 复盘
+                                  ↓
+                              进化 rubric
+                                  ↓
+                          下次选题更准确 ←──┐
+                                            │
+                          影响下一轮 ────────┘
+```
+
+**完美互补**：
+- ✅ ai-writing-master 负责**生产高质量内容**
+- ✅ cheat-on-content 负责**选择正确方向**和**复盘学习**
+- ✅ 一个让内容写得好，一个让你知道什么该写
+
+**快速开始**：
+```bash
+# 1. 安装 cheat-on-content
+git clone https://github.com/XBuilderLAB/cheat-on-content.git ~/cheat-on-content
+cd ~/cheat-on-content && bash install.sh
+
+# 2. 在内容项目目录初始化
+初始化 cheat-on-content
+
+# 3. 对 writing-master 生成的文章进行预测
+启动预测 ~/.writing-master/runs/20260724-001/final.md
+
+# 4. 发布3天后复盘
+复盘 videos/2026-07-24_001/
+```
+
+**项目地址**：https://github.com/XBuilderLAB/cheat-on-content
 
 ---
 
