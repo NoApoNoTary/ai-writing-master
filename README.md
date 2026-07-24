@@ -2,6 +2,8 @@
 
 **融合深度流程与模块化设计的多平台写作系统**
 
+写作从两个问题开始：读者当前处于什么问题，读完文章后能获得什么具体变化。
+
 选题 · 写作 · 洗稿 · 审校 · 配图 · 排版 · 发布 · 越用越像你
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -50,6 +52,7 @@
 - ✅ **状态管理** - 支持断点续写，跨会话不丢失进度
 - ✅ **质量保证** - 三遍审校 + 编辑判断，AI味<30%
 - ✅ **真实可信** - 绝不编造数据，所有信息可溯源
+- ✅ **价值导向** - 通过读者价值定义与价值承诺指导正文取舍
 - ✅ **风格学习** - 个人素材库，越用越像你
 - ✅ **多平台** - 公众号/小红书/抖音/知乎，一稿多发
 - ✅ **CLI支持** - 独立工具，不依赖AI也能用
@@ -81,6 +84,8 @@
 | `writing-multiplatform` | 多平台改写 | wewrite |
 | `writing-learn` | 学习修改+范文库 | wewrite |
 | `writing-stats` | 数据复盘+效果分析 | wewrite |
+
+> 当前素材、排版与发布能力使用独立安装的 Baoyu Skills：`baoyu-article-illustrator`、`baoyu-cover-image`、`baoyu-infographic`、`baoyu-markdown-to-html`、`baoyu-post-to-wechat` 和 `baoyu-post-to-x`。普通写作任务不会自动触发这些能力。
 
 ---
 
@@ -627,4 +632,3 @@ Made with ❤️ by AI Writing Master Team
 [快速开始](#快速开始) · [查看文档](docs/) · [提交反馈](https://github.com/YOUR_USERNAME/ai-writing-master/issues)
 
 </div>
-

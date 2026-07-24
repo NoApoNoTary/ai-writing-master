@@ -113,7 +113,9 @@ allowed-tools:
 
 **操作**：
 1. 与用户确认写作需求（如信息不完整）
-2. 创建 `brief.md` 保存到任务目录
+2. 读取 `{skill_dir}/references/reader-value.md`
+3. 完成“读者价值定义”和“价值承诺”
+4. 创建 `brief.md` 保存到任务目录
 
 **Brief 模板**：
 ```markdown
@@ -129,6 +131,14 @@ allowed-tools:
 - 文章目的：
 - 必须包含的内容：
 - 必须排除的内容：
+
+## 读者价值定义
+- 目标读者：
+- 当前问题：
+- 阅读后的具体变化：
+
+## 价值承诺
+读完这篇文章，[目标读者] 将能够 [具体变化]，从而 [进一步价值]。
 
 ## 特殊要求
 - 是否需要真实测试：
@@ -241,7 +251,8 @@ allowed-tools:
 1. 快速草稿（5-10分钟）→ 不加批判地写
 2. 识别"废水" → 标记套话、陈词滥调
 3. 挖掘"清水" → 寻找独特角度
-4. 进入正式写作
+4. 对照 `brief.md` 中的价值承诺，优先保留能帮助读者获得承诺变化的内容
+5. 进入正式写作
 
 **完成后**：
 保存创意排水过程和"清水"创意到 `{home}/runs/{task_id}/drainage.md`，更新 `status.json` 中 drainage 步骤状态为 "completed"
@@ -256,6 +267,7 @@ allowed-tools:
 - ✅ 保持风格一致
 - ✅ 加入真实案例
 - ✅ 自然融入个人经验
+- ✅ 持续服务于 `brief.md` 中的价值承诺
 
 **保存**：`draft-v1.md`
 
@@ -275,6 +287,7 @@ allowed-tools:
 - 逻辑清晰度
 - 结构合理性
 - 段落迷你论点检查
+- 读者是否获得了价值承诺中的具体变化
 
 **第二遍：风格审校（降AI味）** → `draft-v3.md`
 - 删除套话
@@ -317,10 +330,10 @@ allowed-tools:
 ## 🎨 可选后续动作
 
 ### A. 配图
-转到 `writing-visual` skill 或提示用户手动配图
+读取 `{skill_dir}/references/baoyu-integration.md`，在用户明确要求配图时路由到 `baoyu-article-illustrator`；封面路由到 `baoyu-cover-image`；信息图路由到 `baoyu-infographic`。
 
 ### B. 排版与发布
-转到 `writing-publish` skill 或提示用户手动排版发布
+读取 `{skill_dir}/references/baoyu-integration.md`。公众号 HTML 路由到 `baoyu-markdown-to-html`，公众号发布路由到 `baoyu-post-to-wechat`，X 发布路由到 `baoyu-post-to-x`。
 
 ---
 
@@ -333,7 +346,11 @@ allowed-tools:
 | 只要选题 | `writing-topic` |
 | 洗稿/改写 | `writing-rewrite` |
 | 只审校 | `writing-review` |
-| 只配图 | `writing-visual` |
+| 只配图 | `baoyu-article-illustrator` |
+| 只生成封面 | `baoyu-cover-image` |
+| 只生成信息图 | `baoyu-infographic` |
+| 发布公众号 | `baoyu-post-to-wechat` |
+| 发布 X | `baoyu-post-to-x` |
 | 学习修改 | `writing-learn` |
 | 数据复盘 | `writing-stats` |
 
@@ -366,6 +383,8 @@ allowed-tools:
 - `workflow.md` - 完整流程说明
 - `creative-drainage.md` - 创意排水详解
 - `three-pass-review.md` - 三遍审校详解
+- `reader-value.md` - 读者价值定义与价值承诺
+- `baoyu-integration.md` - 可选素材、排版与发布路由
 - `title-guide.md` - 标题拟定指南
 - `principles.md` - 核心原则
 - `checkpoint.md` - 状态管理
