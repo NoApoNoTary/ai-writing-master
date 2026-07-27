@@ -10,7 +10,7 @@ from . import __version__
 
 # 子命令映射：命令名 → (模块路径, 描述)
 _COMMANDS = {
-    "quality": ("writing_master.commands.quality", "写作质量评分（5维度检测）"),
+    "quality": ("writing_master.commands.quality", "机械文本检查（5维度预警）"),
     "similarity": ("writing_master.commands.similarity", "文本相似度检测（防洗稿）"),
     "home": (None, "输出状态目录路径"),
 }

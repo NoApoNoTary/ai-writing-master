@@ -1,399 +1,264 @@
-# AI Writing Master
+# AI Writing Master 快速开始
 
-## 快速开始指南
+## 1. 安装
 
-### 安装完成后的第一步
+要求：
 
-恭喜！你已经成功安装了 AI Writing Master。让我们开始第一篇文章的创作。
-
----
-
-## 🎯 场景1: 完整创作一篇公众号文章
-
-### Step 1: 启动创作
-
-打开 Claude Code 或 Cursor，输入：
-
-```
-写一篇关于 Claude Opus 4.8 使用技巧的公众号文章
-```
-
-### Step 2: AI 自动执行流程
-
-AI 会自动执行以下步骤（带 Think Aloud）：
-
-```
-【Think Aloud】
-任务类型: A. 新写作任务（有主题）
-平台: 微信公众号
-模式: 完整10步流程
-预计耗时: 2-3小时
-
-开始执行...
-
-✅ Step 0: 初始化任务
-   → 创建任务目录: ~/.writing-master/runs/20260724-001/
-   → 状态文件已创建
-
-✅ Step 1: 理解需求 & 保存 Brief
-   - 教程、科普、分析、评测等实用型内容：定义读者价值并写出价值承诺
-   - 故事、随笔、情绪、娱乐等内容：跳过，不强行套用
-   → 已创建 brief.md
-
-✅ Step 2: 搜索调研
-   → 搜索 Claude Opus 4.8 相关信息
-   → 保存到 knowledge.md
-
-✅ Step 3: 选题讨论 ⭐⭐⭐
-```
-
-### Step 3: 选题讨论（你需要参与）
-
-AI 会提供 3-4 个选题方案：
-
-```
-【选题方案】
-
-选题1: 《Claude Opus 4.8 让我效率翻倍的5个技巧》
-  核心角度: 实用技巧分享
-  工作量评估: ⭐⭐⭐ (中等)
-  优势: 实用性强，读者能立即行动
-  劣势: 需要真实使用案例
-  大纲预览:
-    1. 引言：个人使用体验 (300字)
-    2. 技巧1：长上下文利用 (500字)
-    3. 技巧2：多文件编辑 (500字)
-    ...
-
-选题2: 《从 GPT-4 到 Opus 4.8：我的迁移实战》
-  核心角度: 迁移经验分享
-  工作量评估: ⭐⭐⭐⭐ (较高)
-  优势: 对比明确，有说服力
-  劣势: 需要两个工具的深度使用经验
-  大纲预览: ...
-
-选题3: 《Opus 4.8 深度测评：优势与坑》
-  核心角度: 客观测评
-  工作量评估: ⭐⭐⭐⭐⭐ (高)
-  优势: 全面、专业
-  劣势: 需要大量测试数据
-  大纲预览: ...
-
-你选择哪个？（输入数字 1/2/3）
-```
-
-**你的选择**：
-```
-选1
-```
-
-### Step 4: 后续自动执行
-
-```
-✅ Step 4: 风格学习 & 个人素材库
-   → 搜索个人素材库
-   → 找到 3 篇相关历史文章
-   → 提取风格特征
-
-✅ Step 5: 创意排水
-   → 快速草稿（5分钟）
-   → 识别"废水"：15 处
-   → 挖掘"清水"：6 处
-
-✅ Step 6: 创作初稿
-   → 保存为 draft-v1.md
-   → 字数: 3200字
-
-✅ Step 7: 第一遍审校（内容）
-   → 修正事实: 2 处
-   → 优化逻辑: 3 处
-   → 保存为 draft-v2.md
-
-✅ Step 8: 第二遍审校（风格，降AI味）
-   → 删除套话: 13 处
-   → 拆解AI句式: 8 处
-   → 加入真实细节: 6 处
-   → AI味: 60% → 25%
-   → 保存为 draft-v3.md
-
-✅ Step 9: 第三遍审校（细节）
-   → 句子节奏调整: 10 处
-   → 段落长度优化: 6 处
-   → 保存为 final.md
-
-✅ Step 10: 标题拟定
-```
-
-### Step 5: 标题选择（你需要参与）
-
-```
-【标题方案】
-
-1. 《Claude Opus 4.8 让我效率翻倍的5个技巧》（自然版）
-   
-2. 《1周节省20小时！我用 Opus 4.8 发现的5个神技巧》（爆款版）
-   包含要素: 数字(2个) + 异常(节省20小时) + 捷径(神技巧)
-   
-3. 《Opus 4.8：这5个功能，GPT-4用户都羡慕哭了》（对比版）
-   包含要素: 对比 + 情绪 + 具体数字
-
-你选择哪个？
-```
-
-**你的选择**：
-```
-选2
-```
-
-### Step 6: 完成
-
-```
-✅ 创作完成！
-
-📄 文章信息
-  标题: 1周节省20小时！我用 Opus 4.8 发现的5个神技巧
-  字数: 3200字
-  AI味: 25%（目标<30% ✅）
-  质量评分: 85/100
-
-📁 文件位置
-  Brief: ~/.writing-master/runs/20260724-001/brief.md
-  知识库: ~/.writing-master/runs/20260724-001/knowledge.md
-  初稿: ~/.writing-master/runs/20260724-001/draft-v1.md
-  第一遍: ~/.writing-master/runs/20260724-001/draft-v2.md
-  第二遍: ~/.writing-master/runs/20260724-001/draft-v3.md
-  最终稿: ~/.writing-master/runs/20260724-001/final.md
-  来源: ~/.writing-master/runs/20260724-001/sources.yaml
-
-📊 版本对比
-  v1 → v2: 内容修正 5 处
-  v2 → v3: 降AI味，删除套话 13 处
-  v3 → final: 细节打磨 16 处
-
-⏱️ 耗时: 约 90 分钟
-
-下一步:
-  • 配图: "给这篇文章配图"（调用 baoyu-article-illustrator）
-  • 封面: "给这篇文章生成封面"（调用 baoyu-cover-image）
-  • 信息图: "把核心内容做成信息图"（调用 baoyu-infographic）
-  • 排版: "排版预览"
-  • 发布: "推到公众号草稿箱" 或 "发布到 X"
-```
-
----
-
-## 🎨 场景2: 洗稿/改写
-
-### 你有一篇公众号文章，想改写成小红书版本
-
-```
-你: 把这篇文章改写成小红书版本
-
-[粘贴3000字公众号文章]
-```
-
-### AI 执行
-
-```
-【Think Aloud】
-任务类型: C. 洗稿/改写任务
-源文章: 3000字公众号文章
-目标平台: 小红书
-模式: 内容级真改写
-
-✅ Step 1: 分析源文章
-   字数: 3000字
-   核心观点: 3个
-   关键数据: 5个
-   情绪基调: 客观中立
-
-✅ Step 2: 小红书改写
-   开头重构: 个人故事钩子
-   信息密度: 3000字 → 1200字
-   注入元素: emoji、标签、互动
-   
-✅ Step 3: 质量检测
-   质量评分: 72/100 ✅
-   相似度: 0.42 ✅（≤0.6通过）
-
-✅ 改写完成！
-
-📄 小红书版本
-  字数: 1200字
-  标签: #AI工具 #效率提升 #程序员必备
-  Emoji密度: 适中
-  配图建议: 6张（复用源文章2张，需补4张）
-  
-  保存位置: ~/.writing-master/runs/20260724-001/xiaohongshu.md
-
-对比:
-  开头对比:
-    公众号: "随着AI技术的发展..."
-    小红书: "姐妹们！我发现了一个神器！🔥"
-    
-  句式对比:
-    公众号: "该工具不仅提高效率，而且降低成本"
-    小红书: "这工具太绝了！省时间还省钱！💰"
-```
-
----
-
-## 🛠️ 场景3: 只要某个功能
-
-### 只要选题
-
-```
-你: 给我10个公众号选题
-
-AI: 
-✅ 已生成10个选题（已评分排序）
-
-1. 《Opus 4.8 vs GPT-4：实测对比》⭐⭐⭐⭐⭐
-   热度: 89/100
-   SEO: 92/100
-   竞争度: 中
-
-2. 《AI编程工具选购指南2026》⭐⭐⭐⭐
-   ...
-```
-
-### 只审校
-
-```
-你: 帮我审校这篇文章
-
-[粘贴文章]
-
-AI:
-✅ 启动三遍审校流程
-   第一遍: 内容审校...
-   第二遍: 降AI味...
-   第三遍: 细节打磨...
-   
-✅ 审校完成
-   AI味: 55% → 22%
-   质量提升: 良好 → 优秀
-```
-
----
-
-## 🔄 场景4: 断点续写
-
-### 上午开始创作，下午继续
-
-**上午**：
-```
-你: 写一篇关于XX的文章
-
-AI: [执行到 Step 5: 创意排水]
-
-你: 先暂停，我下午再继续
-```
-
-**下午**：
-```
-你: 继续上次的文章
-
-AI:
-【恢复任务】
-任务ID: 20260724-001
-当前步骤: drainage (已完成)
-下一步: draft (创作初稿)
-
-继续执行...
-✅ Step 6: 创作初稿
-...
-```
-
----
-
-## ⚙️ 配置说明
-
-### 修改风格设置
+- Python 3.11 或更高版本；
+- 本机至少存在一个受支持 Agent 的配置目录：Claude Code、Cursor、OpenClaw 或 Codex。
 
 ```bash
-vim ~/.writing-master/style.yaml
+git clone https://github.com/NoApoNoTary/ai-writing-master.git ~/ai-writing-master
+cd ~/ai-writing-master
+bash install.sh
 ```
 
-```yaml
-writing_persona: "midnight-friend"  # 写作人格
-target_platform: "wechat"           # 目标平台
-word_count_target: 3000             # 目标字数
-```
+安装脚本会链接 `writing-master` 和 `writing-rewrite`，并创建默认数据目录 `~/.writing-master/`。如果本机存在 `uv` 或 `pipx`，脚本还会从仓库根目录安装 CLI。
 
-### 添加个人素材
+验证仓库内 CLI：
 
 ```bash
-# 将你的历史文章放入个人素材库
-cp my-article.md ~/.writing-master/personal_materials/articles/
-
-# AI 会自动学习你的风格
+cd ~/ai-writing-master
+./bin/writing-master --version
+./bin/writing-master --help
 ```
 
----
+如果已由 `uv` 或 `pipx` 安装，也可以直接运行：
 
-## 🚨 常见问题
-
-### Q1: AI 跳过了某个步骤怎么办？
-
-**回答**：明确告知 AI
-
-```
-你: 你跳过了选题讨论步骤，请重新执行 Step 3
+```bash
+writing-master --version
 ```
 
-### Q2: 不满意生成的内容？
+## 2. 第一次新建文章
 
-**回答**：指出具体问题
+向 Agent 输入：
 
-```
-你: 第二段太空洞了，请加入具体的使用数据
-```
-
-### Q3: 想要更简化的流程？
-
-**回答**：可以跳过某些步骤
-
-```
-你: 写一篇文章，跳过创意排水环节，直接写初稿
+```text
+写一篇关于本地 AI Agent 工作流的公众号文章。
 ```
 
----
+如果请求中没有模式，`writing-master` 会先停在模式选择闸门：
 
-## 📖 进阶技巧
+固定问题和选项见 [`mode-selection.md`](../skills/writing-master/references/mode-selection.md)。
 
-### 技巧1: 组合使用
+直接回复 `1`、`2` 或 `3`。模式确定之前不会创建任务目录、开始调研或执行 Baoyu。
 
-```
-你: 写一篇文章，完成后自动改写成小红书版本
+### 快速草稿
 
-AI: 
-✅ 完成公众号文章（3200字）
-✅ 自动改写小红书版本（1200字）
+```text
+用快速草稿模式写一篇 1200 字文章，主题是本地模型的实际使用成本。
 ```
 
-### 技巧2: 批量创作
+特点：
 
+- 当前 Agent 单独执行；
+- 只核验正文会使用的关键事实；
+- 形成简版大纲和完整草稿；
+- 做一次合并审校。
+
+### 标准写作
+
+```text
+用标准写作模式，写一篇面向独立开发者的公众号文章：如何选择本地 Agent 工具。
 ```
-你: 给我10个选题，我选3个，然后分别写成文章
 
-AI:
-✅ 生成10个选题
-[你选择: 1, 3, 5]
-✅ 创作文章1...
-✅ 创作文章2...
-✅ 创作文章3...
+特点：
+
+- 当前 Agent 单独执行；
+- 完成事实与素材双轨调研；
+- 先确认角度，再写作；
+- 依次完成证据层、编辑层和声音层审校；
+- 输出标题和验收报告。
+
+### 深度写作
+
+```text
+用深度写作模式，基于我提供的资料写一篇重要长文。研究、策划、写作和审计要隔离上下文。
 ```
 
----
+特点：
 
-## 🎯 下一步
+- Lead 维护状态和用户确认；
+- Researcher 负责来源、主张与素材；
+- Editorial Strategist 负责角度和结构；
+- Writer 只读取已接受的内容包；
+- Auditor 独立审查后，由 Writer 统一修订。
 
-- 📖 阅读[完整流程说明](workflow-guide.md)
-- 🎨 了解[洗稿使用手册](rewrite-guide.md)
-- ⚙️ 查看[配置说明](configuration.md)
-- ❓ 查看[常见问题](faq.md)
+新建文章时只有深度模式使用多 Agent。快速和标准模式不会隐式创建子代理。
 
----
+## 3. 把素材带入写作
 
-**开始你的第一篇文章吧！**
+可以在首个请求中同时提供：
+
+- 网页或 X 帖子 URL；
+- YouTube 链接；
+- 本地 Markdown、PDF、图片、GIF、视频或图表路径；
+- 历史文章和个人经历记录。
+
+示例：
+
+```text
+用标准写作模式写一篇公众号文章。
+参考资料：
+- https://example.com/article
+- https://youtube.com/watch?v=VIDEO_ID
+- ./materials/test-result.md
+- ./materials/screenshot-01.png
+先整理事实和素材清单，再给我选题方向。
+```
+
+模式选择后，工作流会进行能力与素材预检：
+
+1. 发现当前运行时已经安装的 Baoyu Skills；
+2. 用 `baoyu-url-to-markdown` 或 `baoyu-youtube-transcript` 提取可读材料；
+3. 把本地视觉素材登记到 `asset-manifest.yaml`；
+4. 将准备进入正文的陈述写入 `claims.yaml` 并关联 `sources.yaml`；
+5. 在结构确定后生成 `storyboard.md`。
+
+此时还不会生成图片。正文结构稳定、storyboard 明确且本次任务需要视觉交付后，才调用配图、封面、信息图或 HTML Skill。
+
+公开发布需要单独、清晰的发布指令；“继续”“下一步”或“看起来可以”只推进到下一份可审阅产物。
+
+## 4. 改写已有文章
+
+```text
+把 ./article.md 改写成小红书版本。
+保留原文事实和立场，但重构信息顺序、开头和表达方式。
+```
+
+此请求由 `writing-rewrite` 处理，不询问三种新写作模式。若未指定目标平台，Agent 会先让你选择平台。
+
+当前仓库内置的小红书和抖音平台合同分别位于 `platforms/xiaohongshu.yaml` 与 `platforms/douyin.yaml`。其他平台需要先提供对应输出合同。
+
+改写默认由当前 Agent 完成。只有在请求中明确提出“深度改写”或“多 Agent 改写”时，才为不同目标平台创建隔离代理。
+
+相似度命令可以提供表面重合预警：
+
+```bash
+writing-master similarity article.md xiaohongshu.md --json
+```
+
+它不替代人工的原创性、版权和事实审查。
+
+## 5. 只做一个模块
+
+以下请求不启动完整写作链：
+
+```text
+只给我三个选题方向，不写正文。
+```
+
+```text
+只审校这篇文章，分别列出证据问题、结构问题和声音偏差。
+```
+
+```text
+只根据 final.md 和 storyboard.md 生成公众号配图。
+```
+
+选题、审校和标题属于 `writing-master` 内部模块；配图、封面、排版和发布路由到当前环境里实际存在的 Baoyu Skill。
+
+## 6. 继续上次任务
+
+```text
+继续上次的文章。
+```
+
+工作流会从 `${WRITING_MASTER_HOME:-~/.writing-master}/runs/` 中读取最近的未完成任务，并从 `status.json` 恢复模式和当前阶段。
+
+如果有多个未完成任务，最好直接提供任务目录或 `task_id`，避免恢复错误对象。
+
+## 7. CLI 辅助检查
+
+### 机械文本检查
+
+```bash
+writing-master quality final.md --verbose
+```
+
+它检查五项可由代码重复计算的文本特征：
+
+- 套话命中；
+- 句长变化；
+- 段落长度变化；
+- 常见副词密度；
+- 字符 bigram 多样性。
+
+机械得分只表示这些预警的多少。事实、证据、论证和声音仍由审校流程处理。
+
+### 表面相似度
+
+```bash
+writing-master similarity source.md rewritten.md
+```
+
+默认使用字符 3-gram Jaccard，相似度阈值为 `0.6`。这个阈值是工作流信号，不是原创性结论。
+
+更多参数见 [CLI 工具指南](cli-guide.md)。
+
+## 8. 数据目录
+
+```bash
+writing-master home
+```
+
+默认输出：
+
+```text
+~/.writing-master
+```
+
+可通过环境变量修改：
+
+```bash
+export WRITING_MASTER_HOME="$HOME/content-system"
+writing-master home
+```
+
+安装脚本创建：
+
+```text
+runs/
+personal_materials/articles/
+personal_materials/experiences/
+personal_materials/topics/
+exemplars/
+themes/
+output/
+```
+
+## 9. 常见问题
+
+### 没有出现模式选择
+
+- 洗稿、只审校、只做标题等单模块请求本来就不触发；
+- 当前请求已经明确写了模式时不会重复询问；
+- 新建完整文章且未指定模式时，应先出现固定的三选一问题。
+
+### Baoyu 没有被调用
+
+先检查对应 Skill 是否已经安装到当前 Agent 的可发现目录。预检只记录能力和素材入口；生图与排版要等证据、结构和 storyboard 稳定后执行。
+
+### `writing-master` 命令不存在
+
+直接使用仓库启动脚本：
+
+```bash
+cd ~/ai-writing-master
+./bin/writing-master --help
+```
+
+或把 `~/ai-writing-master/bin` 加入 PATH。
+
+### 机械得分高，但文章仍然不好
+
+这是预期情况。机械检查不理解事实、论证、读者价值或个人风格，最终判断应以研究和独立审校为准。
+
+## 相关文档
+
+- [项目 README](../README.md)
+- [CLI 工具指南](cli-guide.md)
+- [模式选择规则](../skills/writing-master/references/mode-selection.md)
+- [深度写作多 Agent 协议](../skills/writing-master/references/agent-orchestration.md)
+- [证据与素材契约](../skills/writing-master/references/evidence-and-assets.md)
+- [Baoyu 分阶段路由](../skills/writing-master/references/baoyu-integration.md)

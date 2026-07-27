@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""写作质量评分工具 - 基于统计特征和模式检测的质量评估。
+"""机械文本检查工具 - 基于统计特征和模式检测提供可复现预警。
 
 改编自 wewrite.commands.humanness_score，简化为 AI Writing Master 核心需求。
+
+这个命令只检查可由代码稳定观察的文本特征。事实准确性、原创判断、
+论证质量和作者风格由独立编辑审查负责，不在这里伪造为数值评分。
 
 用法：
     writing-master quality article.md                 # 输出分数
@@ -37,6 +40,10 @@ COMMON_ADVERBS = [
     "非常", "十分", "极其", "特别", "相当", "尤其", "格外",
     "更加", "越来越", "逐渐", "不断", "始终", "一直",
 ]
+
+MIN_CHAR_COUNT = 100
+MIN_SENTENCE_COUNT = 5
+MIN_PARAGRAPH_COUNT = 3
 
 
 # ============================================================
@@ -149,21 +156,37 @@ def check_vocabulary_diversity(text: str) -> dict:
 # ============================================================
 
 def score_article(text: str) -> dict:
-    """对文章进行综合评分。
+    """对文章进行机械文本检查。
 
     Returns:
         dict: {
-            "quality_score": 0-100分（越高越好）,
+            "mechanical_score": 0-100分（越高表示机械预警越少）,
+            "quality_score": mechanical_score 的兼容字段,
             "dimensions": {...各维度详情},
             "char_count": 字符数
         }
     """
     # 去除标题
     clean = re.sub(r'^#+\s+.*$', '', text, flags=re.MULTILINE).strip()
+    sentences = _split_sentences(clean)
+    paragraphs = _split_paragraphs(clean)
+    cjk_char_count = len(re.findall(r'[一-鿿]', clean))
+    input_stats = {
+        "char_count": len(clean),
+        "sentence_count": len(sentences),
+        "paragraph_count": len(paragraphs),
+        "cjk_char_count": cjk_char_count,
+    }
+    insufficient_reasons = []
+    if len(clean) < MIN_CHAR_COUNT:
+        insufficient_reasons.append(f"char_count_below_{MIN_CHAR_COUNT}")
+    if len(sentences) < MIN_SENTENCE_COUNT:
+        insufficient_reasons.append(f"sentence_count_below_{MIN_SENTENCE_COUNT}")
+    if len(paragraphs) < MIN_PARAGRAPH_COUNT:
+        insufficient_reasons.append(f"paragraph_count_below_{MIN_PARAGRAPH_COUNT}")
 
-    # 五个维度检查
+    # 只保留代码能够实际计算的维度。
     checks = {
-        "accuracy": {"score": 0.9, "detail": "需人工核对事实"},  # 默认给90分，提醒人工核对
         "banned_words": check_banned_words(clean),
         "sentence_variance": check_sentence_variance(clean),
         "paragraph_rhythm": check_paragraph_rhythm(clean),
@@ -171,35 +194,51 @@ def score_article(text: str) -> dict:
         "vocabulary_diversity": check_vocabulary_diversity(clean),
     }
 
-    # 计算加权平均分
-    # accuracy(准确性): 25%, banned_words(观点性): 20%,
-    # sentence_variance(可读性): 15%, paragraph_rhythm(可读性): 10%,
-    # adverb_density(实用性): 15%, vocabulary_diversity(实用性): 15%
+    # 计算机械特征加权平均分。权重不代表编辑价值或内容质量。
     weights = {
-        "accuracy": 0.25,
-        "banned_words": 0.20,
-        "sentence_variance": 0.15,
-        "paragraph_rhythm": 0.10,
+        "banned_words": 0.30,
+        "sentence_variance": 0.20,
+        "paragraph_rhythm": 0.20,
         "adverb_density": 0.15,
         "vocabulary_diversity": 0.15,
     }
 
     total_score = sum(checks[k]["score"] * weights[k] for k in weights.keys())
-    quality_score = round(total_score * 100, 2)
+    mechanical_score = (
+        round(total_score * 100, 2)
+        if not insufficient_reasons
+        else None
+    )
 
     return {
-        "quality_score": quality_score,
+        "score_type": "mechanical_style",
+        "status": "scored" if mechanical_score is not None else "insufficient_data",
+        "sufficient_data": mechanical_score is not None,
+        "mechanical_score": mechanical_score,
+        # 兼容 writing-rewrite 和现有调用方；新代码应读取 mechanical_score。
+        "quality_score": mechanical_score,
         "dimensions": checks,
         "weights": weights,
         "char_count": len(clean),
+        "input_stats": input_stats,
+        "insufficient_reasons": insufficient_reasons,
+        "manual_review_required": [
+            "factual_accuracy",
+            "claim_support",
+            "editorial_judgment",
+            "voice_fidelity",
+        ],
     }
 
 
 def print_verbose(result: dict):
     """打印详细报告。"""
-    score = result["quality_score"]
+    score = result["mechanical_score"]
     print(f"\n{'=' * 60}")
-    print(f"写作质量评分: {score:.1f}/100")
+    if score is None:
+        print("机械文本检查: 样本不足")
+    else:
+        print(f"机械文本检查: {score:.1f}/100")
     print(f"{'=' * 60}\n")
 
     dims = result["dimensions"]
@@ -216,17 +255,24 @@ def print_verbose(result: dict):
             print(f"         示例: {', '.join(data['found'])}")
 
     print(f"\n字符数: {result['char_count']}")
-    print(f"综合得分: {score:.1f}/100")
-
-    if score >= 60:
-        print("✅ 通过质量门槛（≥60分）")
+    if score is None:
+        print("当前输入不足以形成完整文章的机械基线")
+        print("原因: " + ", ".join(result["insufficient_reasons"]))
     else:
-        print("❌ 未达到质量门槛（需≥60分）")
+        print(f"机械检查得分: {score:.1f}/100")
+    print("编辑审查仍需覆盖: 事实、证据、论证、原创判断与作者风格")
+
+    if score is None:
+        print("⚠️ 请提供更完整的正文后再比较机械检查结果")
+    elif score >= 60:
+        print("✅ 通过机械检查门槛（≥60分）")
+    else:
+        print("❌ 机械检查发现较多预警（门槛: 60分）")
 
 
 def main(argv=None) -> int:
     """主函数入口。"""
-    parser = argparse.ArgumentParser(description="写作质量评分工具")
+    parser = argparse.ArgumentParser(description="机械文本检查工具")
     parser.add_argument("input", help="Markdown 文章文件")
     parser.add_argument("--verbose", "-v", action="store_true", help="显示详细报告")
     parser.add_argument("--json", action="store_true", help="JSON 格式输出")
@@ -240,9 +286,13 @@ def main(argv=None) -> int:
     elif args.verbose:
         print_verbose(result)
     else:
-        score = result["quality_score"]
-        print(f"{score:.1f}")
-        print(f"{'✅ 通过' if score >= 60 else '❌ 不通过'} (阈值: 60)")
+        score = result["mechanical_score"]
+        if score is None:
+            print("N/A")
+            print("⚠️ 样本不足，暂时没有机械检查基线")
+        else:
+            print(f"{score:.1f}")
+            print(f"{'✅ 通过机械检查' if score >= 60 else '❌ 机械预警较多'} (阈值: 60)")
 
     return 0
 

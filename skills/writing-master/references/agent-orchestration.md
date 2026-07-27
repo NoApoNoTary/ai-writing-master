@@ -1,0 +1,122 @@
+# 深度写作的多 Agent 协议
+
+本文件只在 `mode=deep` 时读取。quick 和 standard 均由当前 Agent 完成。
+
+## 拆分原则
+
+按长期稳定的编辑责任拆分角色，不采用“一步一个 Agent”。默认使用四类专项角色：
+
+1. **Researcher**：事实、来源和素材证据。
+2. **Editorial Strategist**：角度、读者决策、结构和 storyboard。
+3. **Writer**：初稿与基于问题清单的修订。
+4. **Auditor**：独立检查证据、编辑质量和声音偏差。
+
+Lead Agent 负责模式、Brief、文件状态、用户确认、问题合并、Baoyu 闸门和最终验收。Lead 不与专项代理竞争同一份正文。
+
+任务较短时可由一个 Auditor 完成三层审计；只有文章重要且并行收益明确时，再拆成 Evidence Auditor 与 Editorial/Voice Auditor。Agent 数量服务于上下文隔离，不追求数量。
+
+## 执行图
+
+```text
+Lead：模式 + 内容契约 + Baoyu preflight
+  ↓
+Researcher：claims + sources + asset manifest
+  ↓
+Editorial Strategist：角度 + reader decision + outline + storyboard
+  ↓ 用户确认方向
+Writer：draft-v1 + claim usage
+  ↓
+Auditor：结构化审计报告
+  ↓ Lead 合并 accepted issues
+Writer：draft-v2/final + revision report
+  ↓
+Lead：标题、视觉闸门、Baoyu production、验收与发布确认
+```
+
+## Context Packet
+
+代理之间只通过文件和紧凑任务包通信：
+
+```yaml
+task_id:
+role:
+objective:
+decision_to_inform:
+allowed_inputs:
+write_scope:
+forbidden_inputs:
+done_criteria:
+expected_outputs:
+input_hashes:
+```
+
+通用规则：
+
+- `allowed_inputs` 使用明确文件路径，不传整个运行目录。
+- Reviewer 首轮不读取作者解释、未采用的讨论、历史表现数据和其他 Reviewer 结论。
+- Writer 只读取接受后的 Brief、claims、style、editorial brief、outline 和素材选择。
+- 代理只写自己的产物文件；Lead 维护 `status.json`。
+- 输入变化后更新 hash；只重跑受影响节点。
+- 子代理输出事实、判断和待确认项，不输出隐藏推理过程。
+
+## 角色卡
+
+创建代理前读取对应文件：
+
+- `../agents/researcher.md`
+- `../agents/editorial-strategist.md`
+- `../agents/writer.md`
+- `../agents/auditor.md`
+
+## 并行边界
+
+适合并行：
+
+- Researcher 内部的事实检索与素材检索；
+- 证据审计与声音审计（需要拆分 Auditor 时）；
+- 已确定 canonical final 后的多个平台适配。
+
+保持串行：
+
+- 证据 → 角度；
+- 角度确认 → 写作；
+- 初稿 → 独立审计；
+- 审计问题合并 → 统一修订；
+- 结构稳定 → Baoyu production。
+
+## 审计问题格式
+
+```yaml
+- issue_id: EVID-001
+  severity: blocking | major | minor
+  layer: evidence | editorial | voice
+  location: "section/paragraph/claim_id"
+  problem: "可观察的问题"
+  evidence: "来源、原句或对照规则"
+  required_change: "修订边界"
+```
+
+Lead 负责去重和处理冲突，形成 `accepted-issues.yaml`。Writer 根据该文件统一修订，避免多个 Reviewer 分别重写全文。
+
+## Baoyu 边界
+
+- Lead 在开题阶段执行 capability/material preflight。
+- Researcher 负责把已有真实素材登记到 `asset-manifest.yaml`。
+- Editorial Strategist 决定视觉位的编辑职责。
+- Writer 引用素材身份，不发起图像生成。
+- Auditor 检查来源、身份和重复使用。
+- Lead 在视觉闸门通过后调用 Baoyu Skills。
+
+## Host adapter
+
+角色卡保持平台中立。只有 Lead 的 host adapter 负责把角色卡转换成当前 Agent 宿主的子代理调用：
+
+```text
+role card + context packet + input hashes
+        ↓
+host adapter（Task / 原生协作接口）
+        ↓
+结构化 role result
+```
+
+角色卡不直接调用另一个角色，也不读取宿主的全局对话。宿主没有可用的子代理接口时，深度模式在 capability preflight 阶段报告缺少能力，保留当前产物，不把单 Agent 结果伪装成深度模式结果。

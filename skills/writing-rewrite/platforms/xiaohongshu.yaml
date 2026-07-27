@@ -1,0 +1,16 @@
+id: xiaohongshu
+label: 小红书
+output_kind: graphic_text
+output_filename: xiaohongshu.md
+min_chars: 600
+max_chars: 1200
+needs_images: true
+tag_count: [3, 6]
+rewrite_brief: |
+  小红书分享体，目标是自然、具体、可快速浏览。
+  - 第一人称只使用源稿或用户提供的真实经历。
+  - 开头三行前置痛点、反差或核心判断，不做背景铺垫。
+  - 短段落为主，每段一到三句；使用小标题或少量 emoji 提供扫描锚点。
+  - 保留可核实的事实与必要限定，删除不适合该平台的旁支信息。
+  - 结尾生成三到六个与正文一致的话题标签。
+  - 按平台节奏重组结构和表达，不逐句替换源稿词语。

@@ -1,0 +1,16 @@
+id: douyin
+label: 抖音
+output_kind: oral_script
+output_filename: douyin.md
+min_chars: 300
+max_chars: 800
+needs_images: false
+tag_count: [0, 3]
+rewrite_brief: |
+  抖音口播稿，目标是可以直接念、前三秒给出清晰张力。
+  - 结构采用钩子、问题、核心判断、证据或案例、行动收束。
+  - 每句只承载一个主要信息点，避免公众号式长句。
+  - 需要画面时使用「【画面：…】」，需要语气时使用少量节奏标记。
+  - 每五到十秒安排一个信息推进、反差或具体细节。
+  - 第一人称体验必须来自源稿或用户确认的真实素材。
+  - CTA 服务于内容目的，避免与正文无关的固定口号。

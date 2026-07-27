@@ -1,9 +1,7 @@
 ---
 name: writing-master
 description: |
-  AI Writing Master 主入口：完整的内容创作流程，支持从零创作和洗稿改写两种模式。
-  融合深度流程（10步完整创作）与模块化设计（可独立调用）。
-  触发关键词：写文章、写公众号、完整创作、从零开始。
+  AI Writing Master 的端到端内容创作入口。新建完整文章时先让用户明确选择快速草稿、标准写作或深度写作；快速与标准模式由当前 Agent 单独完成，只有深度模式启用多 Agent。流程覆盖内容契约、事实与素材双轨调研、选题与 storyboard、写作、审校、Baoyu 视觉/排版路由和发布验收。适用于“写文章、写公众号、从零创作、深度写稿”等请求；洗稿改写转 writing-rewrite。
 allowed-tools:
   - Bash
   - Read
@@ -13,386 +11,228 @@ allowed-tools:
   - Grep
   - WebSearch
   - WebFetch
+  - Task
 ---
 
-# Writing Master — 智能写作大师主入口
+# Writing Master
 
-## 🎯 核心理念
+## 目标
 
-**流程是指南，不是教条；核心原则不可妥协。**
+把完整写作变成一条可审阅、可恢复的编辑流程，而不是一次性生成正文。
 
-### 可灵活调整
-- ✅ 用户明确要求跳过某步骤 → 可以（但提醒风险）
-- ✅ 任务特别简单/紧急 → 可简化流程
-- ✅ 上下文已包含信息 → 不重复操作
+核心约束：
 
-### 核心原则（不可妥协）
-- ❌ **绝不编造数据**
-- ❌ **绝不使用过时信息**
-- ❌ **绝不省略Think Aloud**
-- ❌ **绝不跳过用户确认（重要决策）**
+- 新建完整文章必须先完成模式选择，Agent 不根据题目难度自行决定模式。
+- 快速草稿和标准写作始终使用当前 Agent；深度写作才创建子代理。
+- 事实、引用、个人经历和测试结果都要可追溯；未知项保留为待确认项。
+- Baoyu 在开题阶段进入能力与素材预检，视觉生产放在证据、角度和文章结构明确之后。
+- 重要方向由用户确认；公开发布只响应清晰的发布指令。
+- 对用户展示结论、选项和产物，不输出隐藏推理过程。
 
----
+## 入口路由
 
-## 🔄 运行约定
+先识别请求属于哪一类：
 
-- **{home}** = `$WRITING_MASTER_HOME` 或 `~/.writing-master`
-- **{skill_dir}** = 本 skill 目录
-- **读取: <路径>** = 真实读取该文件，不是注释
-- **状态管理**: 由 AI 直接创建和维护目录结构与状态文件，无需外部工具
+| 请求 | 行为 |
+|---|---|
+| 新建完整文章 | 执行“模式选择闸门” |
+| 用户已在当前请求中明确说快速、标准或深度 | 直接采用该模式，不重复提问 |
+| 继续上次任务 | 从最近未完成任务读取已保存模式 |
+| 洗稿、改写、平台重写 | 转 `writing-rewrite` |
+| 只做选题、审校、标题或素材规划 | 在当前 Skill 内执行对应模块，不虚构独立 Skill |
+| 只做配图、封面、信息图、HTML 或发布 | 读取 `references/baoyu-integration.md` 后路由到实际存在的 Baoyu Skill |
 
----
+### 模式选择闸门
 
-## 📋 任务类型判断
+新建完整文章且用户尚未选择模式时，只询问下面这一题，然后等待回复：
 
-收到任务后，先判断类型并 **Think Aloud**：
+读取 `references/mode-selection.md` 中的 Canonical prompt，原样展示后等待用户回复。
+在用户回复前，不创建运行目录、不开始调研，也不执行 Baoyu。
 
-### A. 新写作任务（有完整需求）
-→ 完整10步流程
+## 运行约定
 
-### B. 新写作任务（无需求只有主题）
-→ 先创建 brief，再走完整流程
+- `{home}` = `$WRITING_MASTER_HOME`，未设置时使用 `~/.writing-master`
+- `{skill_dir}` = 当前 `writing-master` Skill 目录
+- 运行目录 = `{home}/runs/{task_id}/`
+- 所有跨阶段信息写入运行目录；不要依赖对话记忆作为唯一状态
 
-### C. 洗稿/改写任务
-→ 转 `writing-rewrite` skill
-
-### D. 修改已有文章
-→ 读取原文 → 理解需求 → 修改 → 审校
-
-### E. 文章审校/降AI味
-→ 直接进入三遍审校流程
-
-### F. 单一模块需求（只要选题/只要配图等）
-→ 路由到对应 skill
-
----
-
-## 🚀 完整创作流程（10步）
-
-```
-读取: {skill_dir}/references/workflow.md
-```
-
-执行完整10步流程时，每步开始前 **Think Aloud** 说明：
-- 当前步骤
-- 为什么执行这一步
-- 预期产出
-
-### Step 0: 初始化任务
-
-1. 检查环境（确认 {home} 目录存在，不存在则创建）
-2. 创建任务目录：`{home}/runs/YYYYMMDD-XXX/`
-3. 初始化状态文件：`status.json`
+初始化 `status.json`：
 
 ```json
 {
-  "task_id": "20260724-001",
-  "created_at": "2026-07-24T10:00:00Z",
-  "mode": "complete",
-  "platform": "wechat",
+  "task_id": "YYYYMMDD-001",
+  "mode": "quick | standard | deep",
+  "execution": "single_agent | multi_agent",
+  "platform": "wechat | x | other",
   "status": "in_progress",
-  "current_step": "brief",
-  "steps": {
-    "brief": "pending",
+  "current_phase": "contract",
+  "phases": {
+    "contract": "pending",
     "research": "pending",
-    "topic": "pending",
-    "style": "pending",
-    "drainage": "pending",
+    "strategy": "pending",
     "draft": "pending",
-    "review1": "pending",
-    "review2": "pending",
-    "review3": "pending",
-    "title": "pending",
+    "review": "pending",
+    "packaging": "pending",
     "visual": "pending",
-    "publish": "pending"
+    "acceptance": "pending"
   }
 }
 ```
 
-### Step 1: 理解需求 & 保存 Brief
+快速、标准模式设置 `execution=single_agent`；深度模式设置 `execution=multi_agent`，并读取 `references/agent-orchestration.md`。
 
-**操作**：
-1. 与用户确认写作需求（如信息不完整）
-2. 读取 `{skill_dir}/references/reader-value.md`
-3. 判断文章是否以解释、判断、解决问题或指导行动为主要目的
-4. 适用时完成“读者价值定义”和“价值承诺”；故事、表达、情绪、娱乐等内容跳过
-5. 创建 `brief.md` 保存到任务目录
+## 核心工作流
 
-**Brief 模板**：
-```markdown
-# 写作 Brief
+### Phase 0：内容契约与能力预检
 
-## 基本信息
-- 主题：
-- 目标读者：
-- 预计字数：
-- 截止时间：
+1. 收集主题、目标读者、平台、时效、字数、文章目的、已有素材、是否需要视觉/排版/发布。
+2. 读取 `references/reader-value.md`；仅对解释、判断、解决问题和行动指导类内容定义读者价值。
+3. 读取 `references/baoyu-integration.md`，按 Skill 名称检查本次任务需要的能力。
+4. 对用户已经给出的网页、YouTube、文件、图片或历史文章建立素材入口；需要提取时立即路由到对应读取能力。
+5. 只完成 capability/material preflight，不生成图片、不排版、不发布。
 
-## 核心需求
-- 文章目的：
-- 必须包含的内容：
-- 必须排除的内容：
+产物：
 
-## 读者价值定义（适用时填写）
-- 目标读者：
-- 当前问题：
-- 阅读后的具体变化：
+- `brief.md`
+- `channel-contract.yaml`
+- `capability-preflight.md`
+- `status.json`
 
-## 价值承诺（适用时填写）
-读完这篇文章，[目标读者] 将能够 [具体变化]，从而 [进一步价值]。
+`channel-contract.yaml` 至少记录：
 
-## 跳过说明（不适用时填写）
-- 内容主要目的：故事 / 表达 / 情绪 / 娱乐 / 其他
-
-## 特殊要求
-- 是否需要真实测试：
-- 是否需要配图：
-- 其他要求：
+```yaml
+content_type: release | analysis | review | opinion | tutorial | story
+platform: wechat | x | other
+evidence_level: light | standard | strict
+source_display: inline | footnote | endnotes | none
+asset_policy: source_first | mixed | text_only
+ai_editorial_visuals: allowed | ask | excluded
+publish_intent: draft_only | prepare | publish_after_confirmation
 ```
 
-**完成后**：
-保存 brief 到 `{home}/runs/{task_id}/brief.md`，更新 `status.json` 中 brief 步骤状态为 "completed"
+### Phase 1：事实与素材双轨调研
 
----
+读取 `references/evidence-and-assets.md`。
 
-### Step 2: 搜索调研 & 知识库
+**事实轨**：为正文中的关键主张记录来源、日期、证据等级和表述边界。
 
-**触发条件**：
-- ✅ 涉及新概念/新方法
-- ✅ 涉及2025-2026年的新技术、新工具
-- ✅ 需要业界最佳实践
+**素材轨**：同步寻找官方 GIF、视频、截图、图表、论文插图和用户素材；先登记真实素材，再判断是否需要编辑解释图。
 
-**操作**：
-1. 使用 WebSearch 多渠道搜索
-2. 保存到 `knowledge.md`
+产物：
 
-**知识库格式**：
-```markdown
-# 主题调研
+- `sources.yaml`
+- `claims.yaml`
+- `asset-manifest.yaml`
+- `research-summary.md`
 
-## 元信息
-- 收集时间：2026-07-24
-- 下次更新：2026-08-24
-- 信息来源：[列出所有链接]
+快速模式只维护实际会进入正文的关键主张；标准和深度模式维护完整证据链。涉及近期变化、产品能力、数据、政策或版本时，执行实时检索。
 
-## 核心内容
-[整理的信息]
+### Phase 2：角度、读者决策与 Storyboard
 
-## 关键要点
-- 要点1
-- 要点2
-```
+1. 按 `references/mode-selection.md` 中当前模式的用户确认规则，给出一个建议角度或多个候选角度及其取舍。
+2. 明确一句“读者看完后应形成的判断或行动”。
+3. 需要时读取 `references/creative-drainage.md`，排除可替换主题名仍成立的套话角度。
+4. 形成文章结构，并为每个视觉位定义职责：Cover、Hero（可省略）、Evidence、Explanation 或 Decorative。
+5. 需要确认时等待用户确认核心方向；用户已经明确角度，或 quick 模式没有明显分叉时，只做简短复述并继续。
 
-**完成后**：
-保存 knowledge.md 到 `{home}/runs/{task_id}/knowledge.md`，更新 `status.json` 中 research 步骤状态为 "completed"
+产物：
 
----
+- `editorial-brief.md`
+- `outline.md`
+- `storyboard.md`
 
-### Step 3: 选题讨论 ⭐⭐⭐ 必做
+### Phase 3：初稿
 
-**重要性**：避免方向错误的关键步骤！
+正文只使用已经接受的 Brief、主张、来源、素材、风格档案和大纲。
 
-**绝不要直接写文章！必须先讨论选题！**
+写作要求：
 
-**操作**：
-1. **Think Aloud**：说明思考过程
-2. 提供 **3-4个选题方向**
-3. **等待用户选择**
+- 每一部分服务于核心编辑判断。
+- 官方表述、独立证据、编辑推断和个人经验身份分明。
+- 个人经历仅来自用户提供的记录。
+- 具体数据关联 `claim_id`；边界条件进入正文，而不是藏在研究笔记里。
+- 风格匹配依赖历史文本的可观察特征，不靠随机添加情绪词或口语套句。
 
-**每个选题包含**：
-```markdown
-### 选题X：[标题]
+产物：`draft-v1.md` 和 `claim-usage.yaml`。
 
-**核心角度**：
-[从什么角度切入]
+### Phase 4：三层审校与修订
 
-**工作量评估**：⭐⭐⭐（1-5星）
+读取 `references/three-pass-review.md` 时只采用其中事实、结构、模板句和节奏检查项；本文件中的“展示产物而非隐藏推理”和“以证据报告代替主观百分比”规则优先。
 
-**优势**：
-- 优势1
-- 优势2
+三层职责：
 
-**劣势**：
-- 劣势1
+1. **证据层**：事实、日期、版本、因果、引用身份和主张边界。
+2. **编辑层**：观点、结构、段落作用、反例、读者决策和冗余。
+3. **声音层**：用户风格偏差、模板句、虚假口语、节奏和平台适配。
 
-**大纲预览**：
-1. 部分1（预计500字）
-2. 部分2（预计800字）
-```
+快速模式合并为一次审校；标准模式由当前 Agent 依次完成三层；深度模式由 fresh-context 审计代理执行，再由 Writer 根据结构化问题清单修订。
 
-**完成后**：
-保存选题讨论和用户选择到 `{home}/runs/{task_id}/topic.md`，更新 `status.json` 中 topic 步骤状态为 "completed"
+产物：`review-report.yaml`、`draft-v2.md`、`final.md`。
 
----
+### Phase 5：标题、视觉与排版
 
-### Step 4: 风格学习 & 个人素材库 ⭐⭐⭐
+先完成标题与摘要，再执行视觉生产。
 
-**目标**：确保文章风格像用户本人
+标题至少提供自然版、判断版和传播版；每个标题都要与正文证据强度一致。用户选择后写入 `final.md`。
 
-**操作**：
-1. 读取 `{home}/personal_materials/` 中的历史文章
-2. 使用 Grep 搜索相关素材
-3. **Think Aloud**：提取到的风格特征
+视觉闸门同时满足以下条件后，才执行 Baoyu production：
 
-**提取内容**：
-- ✅ 开头方式
-- ✅ 结构偏好
-- ✅ 语言特征（句式、节奏、常用词汇）
-- ✅ 真实案例和个人经历
+- `claims.yaml` 已明确关键主张；
+- `asset-manifest.yaml` 已区分原始素材与编辑生成素材；
+- `storyboard.md` 已定义每张图的职责；
+- 正文结构已稳定；
+- 用户本次请求包含视觉生产，或用户在方案阶段确认执行。
 
-**完成后**：
-保存风格学习结果到 `{home}/runs/{task_id}/style.md`，更新 `status.json` 中 style 步骤状态为 "completed"
+然后按 `references/baoyu-integration.md` 路由配图、封面、信息图、Markdown 格式化或公众号 HTML。
 
----
+### Phase 6：验收与发布
 
-### Step 5: 创意排水 ⭐（推荐）
+检查：
 
-```
-读取: {skill_dir}/references/creative-drainage.md
-```
+- 标题与正文结论一致；
+- 关键主张均有来源或明确标为观点；
+- 图片来源、身份、路径、重复使用和 GIF 状态正确；
+- 平台外链、摘要、封面和首屏符合 `channel-contract.yaml`；
+- 移动端预览可读。
 
-**操作流程**：
-1. 快速草稿（5-10分钟）→ 不加批判地写
-2. 识别"废水" → 标记套话、陈词滥调
-3. 挖掘"清水" → 寻找独特角度
-4. 如果 `brief.md` 中存在价值承诺，对照它优先保留能帮助读者获得承诺变化的内容；不存在时不强行套用
-5. 进入正式写作
+先保存草稿和验收报告。只有用户明确发出发布指令时，才路由 `baoyu-post-to-wechat` 或 `baoyu-post-to-x`。
 
-**完成后**：
-保存创意排水过程和"清水"创意到 `{home}/runs/{task_id}/drainage.md`，更新 `status.json` 中 drainage 步骤状态为 "completed"
+产物：`acceptance-report.md`、平台草稿或发布记录。
 
----
+## 模式差异
 
-### Step 6: 创作初稿
+| 能力 | 快速草稿 | 标准写作 | 深度写作 |
+|---|---|---|---|
+| 执行主体 | 当前 Agent | 当前 Agent | Lead + 专项子代理 |
+| 调研 | 关键事实 | 完整双轨 | 独立研究与资产核验 |
+| 方向 | 1 个建议方向 | 2–3 个候选 | 独立策划后给出候选 |
+| 审校 | 合并一次 | 当前 Agent 三层审校 | 独立 Auditor + Writer 修订 |
+| Baoyu | 同一套早预检、晚生产规则 | 同左 | 同左，由 Lead 控制闸门 |
 
-**写作原则**：
-- ✅ 基于真实数据写作
-- ✅ 基于"清水"创意
-- ✅ 保持风格一致
-- ✅ 加入真实案例
-- ✅ 自然融入个人经验
-- ✅ 如果 `brief.md` 中存在价值承诺，正文持续服务于它；不存在时按文章自身目的自然展开
+详细差异见 `references/mode-selection.md`。深度模式的角色、上下文包和执行图见 `references/agent-orchestration.md`。
 
-**保存**：`draft-v1.md`
+## 恢复与失败记录
 
-**完成后**：
-保存初稿到 `{home}/runs/{task_id}/draft-v1.md`，更新 `status.json` 中 draft 步骤状态为 "completed"
+用户说“继续上次”时：
 
----
+1. 读取 `{home}/runs/` 最近的未完成任务；
+2. 从 `status.json` 恢复已选模式和当前阶段；
+3. 校验输入产物存在后继续；
+4. 阶段失败时记录 `failed`、原因和可重试入口，保留已完成产物。
 
-### Step 7-9: 三遍审校 ⭐⭐⭐
+## 可用参考文件
 
-```
-读取: {skill_dir}/references/three-pass-review.md
-```
+- `references/mode-selection.md`：入口问法与三种模式边界
+- `references/agent-orchestration.md`：仅供深度模式使用的多 Agent 协议
+- `references/evidence-and-assets.md`：来源、主张、素材与 storyboard 契约
+- `references/baoyu-integration.md`：Baoyu 预检、规划、生产和发布路由
+- `references/reader-value.md`：读者价值定义
+- `references/creative-drainage.md`：创意排水方法
+- `references/three-pass-review.md`：三层审校检查项来源
 
-**第一遍：内容审校** → `draft-v2.md`
-- 事实准确性
-- 逻辑清晰度
-- 结构合理性
-- 段落迷你论点检查
-- 如果存在价值承诺，检查读者是否获得了承诺中的具体变化
+深度模式角色卡：
 
-**第二遍：风格审校（降AI味）** → `draft-v3.md`
-- 删除套话
-- 拆解AI句式
-- 替换书面词汇
-- 加入真实细节
-
-**第三遍：细节打磨** → `final.md`
-- 句子长度与节奏
-- 段落长度
-- 标点、排版
-
-**完成后**：
-保存三遍审校结果：
-- `{home}/runs/{task_id}/draft-v2.md`（第一遍：内容审校）
-- `{home}/runs/{task_id}/draft-v3.md`（第二遍：风格审校）
-- `{home}/runs/{task_id}/final.md`（第三遍：细节打磨）
-更新 `status.json` 中 review1、review2、review3 步骤状态为 "completed"
-
----
-
-### Step 10: 标题拟定 ⭐⭐⭐
-
-```
-读取: {skill_dir}/references/title-guide.md
-```
-
-**提供3-5个方案**：
-1. 自然版（符合作者风格）
-2. 爆款版（注入吸引要素）
-3. 组合版（平衡吸引力与质感）
-
-**等待用户选择**
-
-**完成后**：
-保存标题方案和用户选择到 `{home}/runs/{task_id}/title.md`，将最终标题添加到 `final.md` 顶部，更新 `status.json` 中 title 步骤状态为 "completed"，整体状态更新为 "completed"
-
----
-
-## 🎨 可选后续动作
-
-### A. 配图
-读取 `{skill_dir}/references/baoyu-integration.md`，在用户明确要求配图时路由到 `baoyu-article-illustrator`；封面路由到 `baoyu-cover-image`；信息图路由到 `baoyu-infographic`。
-
-### B. 排版与发布
-读取 `{skill_dir}/references/baoyu-integration.md`。公众号 HTML 路由到 `baoyu-markdown-to-html`，公众号发布路由到 `baoyu-post-to-wechat`，X 发布路由到 `baoyu-post-to-x`。
-
----
-
-## 🔧 模块路由
-
-当用户只要某个功能时，路由到对应 skill：
-
-| 用户需求 | 路由到 |
-|---------|--------|
-| 只要选题 | `writing-topic` |
-| 洗稿/改写 | `writing-rewrite` |
-| 只审校 | `writing-review` |
-| 只配图 | `baoyu-article-illustrator` |
-| 只生成封面 | `baoyu-cover-image` |
-| 只生成信息图 | `baoyu-infographic` |
-| 发布公众号 | `baoyu-post-to-wechat` |
-| 发布 X | `baoyu-post-to-x` |
-| 学习修改 | `writing-learn` |
-| 数据复盘 | `writing-stats` |
-
----
-
-## 💾 状态管理
-
-每步完成后更新 `status.json`，支持断点续写。
-
-用户说"继续上次"时：
-1. 读取 `{home}/runs/` 下最近的未完成任务
-2. 查看 `status.json` 确定当前步骤
-3. 从该步骤继续执行
-
----
-
-## 🚨 错误处理
-
-步骤失败时：
-1. 在 `status.json` 中标记该步骤状态为 "failed"
-2. 记录错误原因
-3. 保留当前任务，下次恢复后重做失败步骤
-
----
-
-## 📖 参考文档
-
-本 skill 自带详细参考文档：
-
-- `workflow.md` - 完整流程说明
-- `creative-drainage.md` - 创意排水详解
-- `three-pass-review.md` - 三遍审校详解
-- `reader-value.md` - 读者价值定义与价值承诺
-- `baoyu-integration.md` - 可选素材、排版与发布路由
-- `title-guide.md` - 标题拟定指南
-- `principles.md` - 核心原则
-- `checkpoint.md` - 状态管理
-
----
-
-**开始创作前，记得 Think Aloud！**
+- `agents/researcher.md`
+- `agents/editorial-strategist.md`
+- `agents/writer.md`
+- `agents/auditor.md`
