@@ -31,7 +31,7 @@ allowed-tools:
 - `{home}` = `$WRITING_MASTER_HOME`，未设置时使用 `~/.writing-master`
 - `{skill_dir}` = 当前 `writing-rewrite` Skill 目录
 - 源稿分类只能是 `accepted_writing_master_final` 或 `standalone_user_input`，整个任务内保持只读
-- 默认使用当前 Agent；用户明确要求深度改写或多 Agent 时，才按目标平台创建 fresh-context 代理
+- P0 默认并始终使用当前 Agent；深度或多 Agent 改写尚未定义真实平台角色与 Handoff 合同，收到该请求时说明受影响能力并等待用户确认标准改写或取消。
 - 多个平台版本彼此隔离，每个版本都从 canonical source 开始
 
 ## Phase 0：输入与任务目录
@@ -100,16 +100,7 @@ optional_details:
 6. 按 YAML 生成正文、标签、画面提示或补图需求；
 7. 保存为 YAML 中的 `output_filename`。
 
-用户明确要求多 Agent 时，每个平台代理的输入只包含：
-
-```text
-source.md
-source-analysis.md
-platforms/<platform>.yaml
-references/multiplatform-rewrite.md
-```
-
-平台代理不读取其他平台版本。
+多个目标平台仍彼此隔离：当前 Agent 对每个平台都只读取 `source.md`、`source-analysis.md`、对应 YAML 和改写合同，不把一个平台版本作为另一个平台的输入。
 
 ## Phase 4：编辑审查
 

@@ -91,9 +91,7 @@ missing_routes: []
 - `editorial` 视觉明确标识为编辑解释，不使用官方素材口吻。
 - 此阶段只锁定视觉任务和路由，保持零生成成本。
 
-### Level 3：Production（正文结构稳定后）
-
-满足 Writing Master 的视觉闸门后按需执行：
+### Level 3：Production（canonical final 验收后）
 
 从 Writing Master 任务进入本层时，来源分类必须是 `accepted_writing_master_final`：同一任务中的 `final.md` 存在，且 `acceptance-report.md` 内容明确验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或未通过验收的 `final.md` 都不得作为视觉、格式或发布来源。
 
@@ -106,7 +104,7 @@ missing_routes: []
 | 只整理 Markdown 层级与排版 | `baoyu-format-markdown` | `final.md`（只读） | `formatted.md` |
 | 转换公众号兼容 HTML | `baoyu-markdown-to-html` | 已验收 Markdown（只读）、主题、外链策略 | `wechat.html` |
 
-Production 约束：
+图像类视觉生产约束：
 
 - 只生产 storyboard 中已批准且仍缺素材的视觉位。
 - 数据图和信息图只使用 `claims.yaml` 中已核验的数据。
@@ -114,6 +112,8 @@ Production 约束：
 - 生成结果回写 `asset-manifest.yaml`，记录 `asset_id`、生成方式、身份和最终用途。
 - 视觉结果变化不反向改写文章事实；出现冲突时回到证据层处理。
 - 视觉、格式和发布都把 canonical `final.md` 当作不可变输入；写入派生产物、资产清单或发布记录，绝不覆盖或修改它。
+
+Markdown 格式化和 HTML 转换不属于图像类视觉生产：它们在 canonical final 通过内容验收后，读取 `channel-contract.yaml` 的主题和外链策略即可执行；不要求 storyboard、`asset-manifest.yaml` 或图像生成意图。
 
 ### Level 4：Publish（验收之后）
 
@@ -140,7 +140,9 @@ Production 约束：
   → 调研：事实轨 + 素材轨
   → 策划：asset manifest + storyboard
   → 写作与审校
-  → 闸门通过：Baoyu 视觉/排版 production
+  → 内容验收：canonical final
+  → 图像类视觉闸门通过：Baoyu 视觉 production
+  → canonical final + channel contract：Baoyu 排版 / HTML
   → 验收通过 + 明确发布指令：Baoyu publish
 ```
 

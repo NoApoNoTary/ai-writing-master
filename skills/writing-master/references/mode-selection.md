@@ -22,7 +22,7 @@
 
 - 不根据题目、字数、平台、时限或用户身份代选。
 - 用户已说“快速写”“标准模式”“深度写稿”“多 Agent 写”等明确表述时，视为已选择。
-- “继续上次”读取 `status.json.mode`，不重复询问。
+- “继续上次”时要求用户指定 `task_id` 或运行目录；只有运行时已验证恢复能力后才读取 `status.json.mode`，否则展示所需输入与 Product–Technical Gap。
 - 单一模块请求和 `writing-rewrite` 路由按用户当前指令执行；升级为端到端新文章时再触发模式选择。
 - 用户只回复序号时：`1=quick`、`2=standard`、`3=deep`。
 
@@ -47,10 +47,10 @@ handoff_runtime: available | unavailable
 
 - 执行：当前 Agent。
 - 目标：尽快形成有依据、可讨论的完整版本。
-- 产物：简版 Brief、关键来源/主张、简版大纲、`draft-v1.md`、一次合并审校、`final.md`。
+- 产物：与标准模式相同的核心文件：简版 `brief.md`、关键 `sources.yaml`/`claims.yaml`、`asset-manifest.yaml`、简版大纲、`draft-v1.md`、一次合并 `review-report.yaml`、`revision-report.yaml`、`final.md` 和 `acceptance-report.md`。
 - 调研：仅覆盖正文实际使用的关键事实；近期或易变化信息仍实时核验。
-- 用户确认：主题存在明显分叉时确认角度；其余环节连续推进。
-- Baoyu：照常做早期 capability/material preflight；只有明确需要且视觉闸门通过后才生产。
+- 用户确认：内容契约；主题存在明显分叉时确认角度；其余环节连续推进。
+- Baoyu：照常做早期 capability/material preflight；内容验收通过后，只有明确需要且图像类视觉闸门通过才生产视觉资产。
 
 ### 2. 标准写作（standard）
 
@@ -58,8 +58,8 @@ handoff_runtime: available | unavailable
 - 目标：完成可发布的常规文章。
 - 产物：完整 Brief、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、选题、大纲、storyboard、初稿、三层审校、标题、验收报告。
 - 调研：事实与素材双轨进行。
-- 用户确认：核心角度、最终标题、发布动作。
-- Baoyu：早期预检和素材摄入；文章结构稳定后按需生产。
+- 用户确认：内容契约、核心角度、发布动作。标题随最终稿交付，除非用户主动要求选择或修改。
+- Baoyu：早期预检和素材摄入；内容验收通过后按需生产。图像类视觉另需结构稳定和 storyboard。
 
 ### 3. 深度写作（deep）
 

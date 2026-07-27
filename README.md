@@ -30,7 +30,7 @@
 
 **多 Agent 不是默认入口。** 对新建完整文章，只有用户选择深度写作时才进入角色协议；实际创建子代理还取决于宿主能力。用户已经在当前请求中说出“快速”“标准”“深度”或“多 Agent 写作”等明确模式时，直接采用，不重复询问，也不根据题目难度隐式代选。
 
-洗稿、平台改写和只做标题、审校、选题等单一模块请求不触发这道完整文章模式闸门。`writing-rewrite` 默认也是单 Agent；只有用户明确要求深度改写或多 Agent 时才进入按平台隔离的角色协议，实际交接取决于宿主能力。
+洗稿、平台改写和只做标题、审校、选题等单一模块请求不触发这道完整文章模式闸门。`writing-rewrite` 在 P0 始终由当前 Agent 单独执行；每个平台从同一个只读源稿独立生成。深度或多 Agent 改写不属于当前 P0。
 
 ## 工作流
 
@@ -43,8 +43,9 @@
   → 角度、读者决策、大纲和 storyboard
   → 初稿
   → 证据层、编辑层、声音层审校
-  → 标题、视觉和排版
-  → 验收
+  → 标题与内容验收（形成 canonical final）
+  → 按需视觉、HTML 或平台草稿
+  → 交付包验收
   → 明确发布指令后发布
 ```
 
@@ -60,7 +61,7 @@
 
 ## P0：任务摘要、确认与交付
 
-标准写作的用户主链是：**任务状态 → 素材接收 → 内容契约确认 → 调研、写作与审校 → 交付包**。每个等待用户决定的节点，Agent 应展示用户可读摘要，而不是内部 schema：
+标准写作的用户主链是：**任务状态 → 素材接收 → 内容契约确认 → 调研、写作与审校 → 内容验收 → 按需视觉/HTML/平台草稿 → 交付包验收**。每个等待用户决定的节点，Agent 应展示用户可读摘要，而不是内部 schema：
 
 ```text
 任务：TASK_ID（已建立任务目录时显示）
@@ -74,7 +75,7 @@
 
 内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、平台、目的、篇幅、时效、证据等级及视觉、排版和发布意图。用户可以确认、指出修改字段或取消；未请求发布时只准备可审阅产物。
 
-标准写作的交付摘要列出文件位置和缺失项。最小交付包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，以及本次明确要求的视觉资产、HTML 或平台草稿。
+先完成内容验收，使 `final.md` 成为 canonical final；仅在其后生成本次要求的视觉资产、HTML 或平台草稿。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加本次明确要求的派生产物。
 
 任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查和目录定位；确定性的跨会话续跑及真实深度模式 Handoff 仍以技术运行时和真实宿主验收为准。
 
@@ -97,7 +98,7 @@ Baoyu Skills 是独立安装的能力，本仓库不复制它们的实现。`wri
 
 ### 晚生成、后发布
 
-事实、角度和正文结构稳定后，才按 `storyboard.md` 路由：
+内容验收完成并形成 canonical final 后，图像类视觉才按 `storyboard.md` 路由：
 
 - `baoyu-article-illustrator`：正文配图；
 - `baoyu-cover-image`：封面；
@@ -106,6 +107,8 @@ Baoyu Skills 是独立安装的能力，本仓库不复制它们的实现。`wri
 - `baoyu-format-markdown`：Markdown 整理；
 - `baoyu-markdown-to-html`：公众号 HTML；
 - `baoyu-post-to-wechat` / `baoyu-post-to-x`：用户明确要求发布后执行。
+
+`baoyu-format-markdown` 和 `baoyu-markdown-to-html` 只读取已验收正文与 `channel-contract.yaml`；它们不依赖图像类 storyboard。
 
 详细规则见 [`baoyu-integration.md`](skills/writing-master/references/baoyu-integration.md)。
 

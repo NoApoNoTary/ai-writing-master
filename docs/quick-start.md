@@ -141,7 +141,7 @@ writing-master --version
 
 素材被接收或提取不表示其中的事实已经接受。进入正文的陈述仍需关联 `claim_id` 和来源；真实素材与编辑生成素材也会在清单中分开记录。
 
-此时还不会生成图片。正文结构稳定、storyboard 明确且本次任务需要视觉交付后，才调用配图、封面、信息图或 HTML Skill。
+此时还不会生成图片。标题与正文完成内容验收、形成 canonical final 后，图像类视觉才按 storyboard 调用配图、封面或信息图；Markdown 格式化和 HTML 则读取已验收正文与 `channel-contract.yaml`，不依赖 storyboard。
 
 公开发布需要单独、清晰的发布指令；“继续”“下一步”或“看起来可以”只推进到下一份可审阅产物。
 
@@ -156,7 +156,7 @@ writing-master --version
 
 当前仓库内置的小红书和抖音平台合同分别位于 `platforms/xiaohongshu.yaml` 与 `platforms/douyin.yaml`。其他平台需要先提供对应输出合同。
 
-改写默认由当前 Agent 完成。只有在请求中明确提出“深度改写”或“多 Agent 改写”时，才进入隔离代理的协议流程；实际角色交接仍取决于当前宿主能力。
+改写在 P0 始终由当前 Agent 完成；每个目标平台都从同一个只读源稿独立生成。深度或多 Agent 改写不属于当前 P0。来自 Writing Master 的输入必须是同一任务中内容验收通过的 `final.md`；用户直接提供的完整正文则作为独立的 `standalone_user_input`，不被描述为已验收的 Writing Master final。
 
 相似度命令可以提供表面重合预警：
 
@@ -196,7 +196,7 @@ writing-master similarity article.md xiaohongshu.md --json
 
 ## 7. 交付包
 
-标准写作完成时，交付摘要应列出本次文件位置和仍缺的请求项。最小交付包为：
+标准写作先完成标题与正文的内容验收，使 `final.md` 成为 canonical final；只有随后按需生成视觉资产、HTML 或平台草稿。最后的交付包验收列出本次文件位置和仍缺的请求项：
 
 - `final.md`；
 - `sources.yaml`、`claims.yaml` 与 `asset-manifest.yaml`；
@@ -204,7 +204,7 @@ writing-master similarity article.md xiaohongshu.md --json
 - `acceptance-report.md`；
 - 用户明确要求的视觉资产、HTML 或平台草稿。
 
-未请求发布时，任务停在验收或平台草稿，不产生公开发布动作。
+未请求发布时，任务停在交付包验收或平台草稿，不产生公开发布动作。
 
 ## 8. CLI 辅助检查
 
@@ -275,7 +275,7 @@ output/
 
 ### Baoyu 没有被调用
 
-先检查对应 Skill 是否已经安装到当前 Agent 的可发现目录。预检只记录能力和素材入口；生图与排版要等证据、结构和 storyboard 稳定后执行。
+先检查对应 Skill 是否已经安装到当前 Agent 的可发现目录。预检只记录能力和素材入口；标题与正文完成内容验收、形成 canonical final 后，图像类视觉按 storyboard 执行，Markdown/HTML 按渠道合同执行。
 
 ### `writing-master` 命令不存在
 

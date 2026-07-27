@@ -118,17 +118,18 @@ allowed-tools:
 
 ## 用户等待与继续方式
 
-只在模式、内容契约、重大方向、标题、阻断问题和发布需要用户决定时中断。每个等待点都给出明确问题和继续方式：
+只在模式、内容契约、重大方向、阻断问题和发布需要用户决定时中断。每个等待点都给出明确问题和继续方式：
 
 | 等待点 | 必须展示的问题 | 继续方式 |
 |---|---|---|
 | 内容契约 | `请确认内容契约：{摘要}` | 回复“确认”，或用“修改：字段=值”更新，或回复“取消” |
 | 方向 | `请选择方向：1/2/3，或说明你要修改的取舍。` | 选择、修改或取消 |
-| 标题 | `请选择标题：自然版 / 判断版 / 传播版，或给出你的修改。` | 选择、修改或继续使用用户已给标题 |
 | 审校问题 | `审校发现 {blocking} 个阻断、{major} 个主要问题。需要你决定：{方向性问题}` | 接受建议、忽略非阻断项、修改原始要求、补充证据，或要求重写受影响部分 |
 | 发布 | `最终产物已验收。是否发布到 {平台}？` | 只有“发布到 {平台}”这类明确指令才产生外部副作用 |
 
 “继续”“下一步”只推进到下一份可审阅产物，不等同于发布指令。阻断问题不得通过“忽略”进入已完成或发布状态。
+
+用户修改内容契约时，任务摘要必须列出受影响阶段（调研、方向、草稿、审校或打包）和下一步。运行时具备输入 hash 与依赖关系时，只重跑这些阶段；缺少该能力时，说明局部重跑仍属 Product–Technical Gap，不把它描述为已执行。
 
 ## 核心工作流
 
@@ -228,7 +229,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 先完成标题与摘要，再确认 canonical final。
 
-标题至少提供自然版、判断版和传播版；每个标题都要与正文证据强度一致。用户选择后写入 `final.md`。
+标题至少提供自然版、判断版和传播版；每个标题都要与正文证据强度一致。默认采用与正文最一致的推荐标题写入 `final.md`，同时在交付摘要保留其他候选；用户主动要求选择或修改时再等待该决定。
 
 在视觉、排版、Rewrite 或发布前，先在 `acceptance-report.md` 中完成内容验收：
 
@@ -241,7 +242,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 6：交付包、视觉、排版与发布
 
-任务只在核心交付包有效时标记完成。标准交付包至少包含：
+任务只在核心交付包有效时标记完成。所有模式的核心交付包至少包含：
 
 - `final.md`
 - `sources.yaml`
@@ -253,7 +254,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 `acceptance-report.md` 必须列出交付包清单、缺失项、canonical final 的内容验收结果、可选视觉/HTML/平台草稿的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
 
-视觉闸门同时满足以下条件后，才执行 Baoyu production：
+图像类视觉闸门同时满足以下条件后，才执行 Baoyu production：
 
 - `final.md` 已是已验收的 canonical final；
 - `claims.yaml` 已明确关键主张；
@@ -261,7 +262,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `storyboard.md` 已定义每张图的职责；
 - 用户本次请求包含视觉生产，或用户在方案阶段确认执行。
 
-然后按 `references/baoyu-integration.md` 路由配图、封面、信息图、Markdown 格式化或公众号 HTML。未请求视觉、HTML 或平台草稿时，它们不构成交付包缺失项。
+闸门通过后，按 `references/baoyu-integration.md` 路由配图、封面、信息图或单图生成。Markdown 格式化和公众号 HTML 只要求已验收的 canonical final 与适用的 `channel-contract.yaml`，不要求 storyboard、`asset-manifest.yaml` 或图像类视觉意图。未请求视觉、HTML 或平台草稿时，它们不构成交付包缺失项。
 
 准备发布和实际发布是两个状态。先保存草稿和最终验收报告；只有用户明确发出发布指令时，才路由 `baoyu-post-to-wechat` 或 `baoyu-post-to-x`。平台失败只记录在对应平台产物中，不修改 canonical final 或其他平台版本。
 
