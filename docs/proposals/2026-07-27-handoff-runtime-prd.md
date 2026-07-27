@@ -1,6 +1,6 @@
 # Handoff Runtime MVP PRD
 
-- 状态：P0–P2 implemented and accepted
+- 状态：P0–P2 implemented；运行时完整性与恢复验收中
 - 日期：2026-07-27
 - 目标版本：MVP-1
 - 范围：深度写作模式中的角色交接、失败恢复与跨会话续跑
@@ -79,6 +79,13 @@
 - fake host 和真实宿主验收通过；
 - quick/standard 行为不变；
 - 没有新增运行时第三方依赖。
+
+### Implementation / Verification Record（2026-07-27）
+
+- `show`/恢复扫描会复核每个最新 completed attempt：Manifest 指定的 canonical Result 必须存在并通过 schema 校验、Result `agent_ref` 必须匹配 state、暂存输出必须与 Result 的路径和 hash 完全一致、已提升输出必须是实际文件且 hash 一致。
+- 完整性损坏不重写历史 `completed` state；Runtime 返回 `effective_status: stale` 和阻断原因。后续 `prepare` 只允许重试最早受影响阶段。
+- Host 恢复保持单一内部 hook：先按精确 `agent_ref` 查询宿主 liveness，确认丢失后调用 `recover_lost_running(run_dir, agent_ref)`。该 hook 记录旧 running attempt 为 `failed` / `host_failure`，并用既有 `prepare()` 从同一 Manifest 合同创建新 attempt；不新增 CLI 或 adapter 抽象。
+- 验证覆盖：新进程中的 completed Result 缺失与 promoted output 损坏、prepared 跨进程恢复、丢失 running host 的失败历史与同阶段新 attempt、以及损坏 completed 上游阻断下游并只允许同阶段重试。
 
 ### Technical Codex Final Return
 

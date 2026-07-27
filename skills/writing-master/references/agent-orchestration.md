@@ -38,16 +38,27 @@ Lead：标题、视觉闸门、Baoyu production、验收与发布确认
 代理之间只通过运行时生成的 `manifest.json` 通信。角色卡说明职责；Manifest 才是某一次执行实际允许读取和写入的唯一合同：
 
 ```yaml
+schema_version: 1
+handoff_id:
 task_id:
-role:
+attempt:
+from_role: lead
+to_role: researcher
+phase:
 objective:
 decision_to_inform:
 allowed_inputs:
-write_scope:
-forbidden_inputs:
-done_criteria:
-expected_outputs:
-input_hashes:
+  - path: brief.md
+    sha256: "..."
+    required: true
+forbidden_inputs: []
+write_scope: []
+expected_outputs: []
+done_criteria: []
+status: prepared
+role_card: skills/writing-master/agents/researcher.md
+output_root: handoffs/research-researcher/attempt-01/outputs
+result_path: handoffs/research-researcher/attempt-01/result.json
 ```
 
 Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交给专项 Agent，不传整个运行目录、父对话或额外上下文。专项 Agent：
@@ -56,7 +67,8 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 - 只写入 Manifest `output_root` 内、属于 `write_scope` 的文件；把 Result 写入 Manifest `result_path`。
 - 不修改 `status.json`、`state.json`、Manifest 或其他 attempt。Result 不包含隐藏推理过程。
 - Lead 在宿主创建专项 Agent 后调用运行时内部 `mark_running(run_dir, agent_ref)`，并把这个精确 `agent_ref` 交给专项 Agent 写入 Result；专项 Agent 返回后由 Lead 调用 `handoff complete` 校验 Result、提升输出并更新状态。
-- Manifest 创建后不可修改；输入 hash 变化使 prepared/running attempt 过期，重试创建新 attempt。
+- 会话恢复时，Host 先按精确 `agent_ref` 查询宿主 liveness：仍存在则继续等待；已丢失则调用内部 `recover_lost_running(run_dir, agent_ref)`。该 hook 只接受当前 `running` 的同一 `agent_ref`，把旧 attempt 记录为 `failed` / `host_failure`，再用同一 Manifest 合同创建下一 attempt；没有对应 CLI 操作。
+- Manifest 创建后不可修改；输入 hash 变化使 prepared/running attempt 过期，重试创建新 attempt。每次 `show` 也会复核 completed attempt 的 canonical Result、暂存输出和已提升输出；历史状态保留 `completed`，但损坏会显示为 `effective_status: stale` 并阻断下游，直到最早受影响阶段重试。
 
 `Result` 是 JSON，必须包含 `schema_version: 1`、Manifest 的 `handoff_id` 和 `attempt`、`agent_ref`、`status`、`outputs`、`blocking_issues`、`summary`、`completed_at`。完成时每项 output 使用 `{"logical_name":"final.md","path":"outputs/final.md","sha256":"..."}`（也可使用完整的 Manifest `output_root/final.md`）；失败时额外使用 `failure_type: input_error | host_failure | role_failure | output_validation | cancelled`。
 

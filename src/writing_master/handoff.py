@@ -442,10 +442,11 @@ def _latest_completed_stale(run_dir: Path) -> list[dict]:
             continue
         attempt_dir, manifest, state = completed
         fresh, reasons = _input_fresh(manifest, run_dir)
-        if not fresh:
+        intact, integrity_reasons = _completed_integrity(manifest, state, run_dir)
+        if not fresh or not intact:
             stale.append({
                 "handoff": _reference(manifest, state, attempt_dir, run_dir),
-                "blocking_reasons": reasons,
+                "blocking_reasons": reasons + integrity_reasons,
                 "created_at": state["created_at"],
             })
     return sorted(stale, key=lambda item: item["created_at"])
@@ -467,6 +468,37 @@ def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
         status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
         _write_status(run_dir, status)
     return state
+
+
+def recover_lost_running(run_dir: Path | str, agent_ref: str) -> dict:
+    """Internal host hook for replacing one lost running agent attempt."""
+    if not isinstance(agent_ref, str) or not agent_ref:
+        raise HandoffError("agent_ref is required")
+    run_dir = Path(run_dir).resolve()
+    with _lock(run_dir):
+        attempt_dir, manifest, state = _current_attempt(run_dir)
+        if state["status"] != "running":
+            raise HandoffError("only a running handoff can be recovered")
+        if state.get("agent_ref") != agent_ref:
+            raise HandoffError("agent_ref does not match running handoff")
+        failed = _set_state(attempt_dir, state, "failed", reason="host_failure")
+        status = _status(run_dir)
+        status["current_handoff"] = _reference(manifest, failed, attempt_dir, run_dir)
+        _write_status(run_dir, status)
+    prepared = prepare(
+        run_dir,
+        to_role=manifest["to_role"],
+        phase=manifest["phase"],
+        objective=manifest["objective"],
+        decision_to_inform=manifest["decision_to_inform"],
+        inputs=[item["path"] for item in manifest["allowed_inputs"]],
+        write_scope=manifest["write_scope"],
+        done_criteria=manifest["done_criteria"],
+        from_role=manifest["from_role"],
+        forbidden_inputs=manifest["forbidden_inputs"],
+        expected_outputs=manifest["expected_outputs"],
+    )
+    return {"failed": failed, "prepared": prepared}
 
 
 def _atomic_copy(source: Path, destination: Path) -> None:
@@ -502,6 +534,48 @@ def _staged_output_paths(output_root: Path) -> set[str]:
     return paths
 
 
+def _validated_staged_outputs(result: dict, manifest: dict, run_dir: Path) -> list[dict]:
+    output_root = safe_path(run_dir, manifest["output_root"], must_exist=True)
+    outputs = _result_outputs(result, manifest)
+    if _staged_output_paths(output_root) != {output["path"] for output in outputs}:
+        raise HandoffError("staged outputs do not exactly match Result")
+    for output in outputs:
+        logical = output["path"]
+        if not _within_scope(logical, manifest["write_scope"]):
+            raise HandoffError(f"output outside write_scope: {logical}")
+        source = safe_path(output_root, logical, must_exist=True)
+        if not source.is_file() or source.is_symlink() or sha256_file(source) != output["sha256"]:
+            raise HandoffError(f"invalid staged output: {logical}")
+    return outputs
+
+
+def _completed_integrity(manifest: dict, state: dict, run_dir: Path) -> tuple[bool, list[str]]:
+    """Validate a historical completion without changing its recorded state."""
+    try:
+        try:
+            result_file = safe_path(run_dir, manifest["result_path"], must_exist=True)
+        except HandoffError as error:
+            raise HandoffError(f"missing Result: {manifest['result_path']}") from error
+        if result_file.is_symlink() or not result_file.is_file():
+            raise HandoffError(f"missing Result: {manifest['result_path']}")
+        result = _read_json(result_file)
+        validate_result(result, manifest)
+        if result["status"] != "completed":
+            raise HandoffError("completed handoff requires a completed Result")
+        if result["agent_ref"] != state.get("agent_ref"):
+            raise HandoffError("Result agent_ref does not match completed handoff")
+        outputs = _validated_staged_outputs(result, manifest, run_dir)
+        for output in outputs:
+            promoted = safe_path(run_dir, output["path"], must_exist=True)
+            if not promoted.is_file() or promoted.is_symlink():
+                raise HandoffError(f"missing promoted output: {output['path']}")
+            if sha256_file(promoted) != output["sha256"]:
+                raise HandoffError(f"promoted output hash mismatch: {output['path']}")
+    except HandoffError as error:
+        return False, [str(error)]
+    return True, []
+
+
 def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict:
     run_dir = Path(run_dir).resolve()
     with _lock(run_dir):
@@ -526,17 +600,8 @@ def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict
             if result["agent_ref"] != state.get("agent_ref"):
                 raise HandoffError("result agent_ref does not match running handoff")
             if result["status"] == "completed":
+                outputs = _validated_staged_outputs(result, manifest, run_dir)
                 output_root = safe_path(run_dir, manifest["output_root"], must_exist=True)
-                outputs = _result_outputs(result, manifest)
-                if _staged_output_paths(output_root) != {output["path"] for output in outputs}:
-                    raise HandoffError("staged outputs do not exactly match Result")
-                for output in outputs:
-                    logical = output["path"]
-                    if not _within_scope(logical, manifest["write_scope"]):
-                        raise HandoffError(f"output outside write_scope: {logical}")
-                    source = safe_path(output_root, logical, must_exist=True)
-                    if not source.is_file() or sha256_file(source) != output["sha256"]:
-                        raise HandoffError(f"invalid output: {logical}")
                 for output in outputs:
                     _atomic_copy(safe_path(output_root, output["path"], must_exist=True), safe_path(run_dir, output["path"]))
                 state = _set_state(attempt_dir, state, "completed")

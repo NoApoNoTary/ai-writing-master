@@ -246,6 +246,79 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(shown["agent_ref"], "host-agent")
         self.assertIn("agent_ref", shown["blocking_reasons"][0])
 
+    def show_in_new_process(self):
+        code = "from writing_master.handoff import show; import json,sys; print(json.dumps(show(sys.argv[1])))"
+        result = subprocess.run(
+            [os.sys.executable, "-c", code, str(self.run)],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        return json.loads(result.stdout)
+
+    def test_completed_result_loss_is_stale_across_new_process(self):
+        prepared = self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
+        (self.run / prepared["manifest"]["result_path"]).unlink()
+
+        shown = self.show_in_new_process()
+        self.assertEqual(shown["handoff"]["status"], "completed")
+        self.assertEqual(shown["effective_status"], "stale")
+        self.assertTrue(any("missing Result" in reason for reason in shown["blocking_reasons"]))
+        self.assertEqual(
+            self.prepare("researcher", "research", ["brief.md"], ["claims.yaml"])["manifest"]["attempt"],
+            2,
+        )
+
+    def test_promoted_output_corruption_is_stale_across_new_process(self):
+        prepared = self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
+        (self.run / "claims.yaml").write_text("corrupted", encoding="utf-8")
+
+        shown = self.show_in_new_process()
+        self.assertEqual(shown["handoff"]["status"], "completed")
+        self.assertEqual(shown["effective_status"], "stale")
+        self.assertTrue(any("promoted output hash mismatch" in reason for reason in shown["blocking_reasons"]))
+        self.assertTrue((self.run / prepared["manifest"]["result_path"]).is_file())
+
+    def test_prepared_attempt_resumes_across_new_process(self):
+        prepared = self.prepare()
+        shown = self.show_in_new_process()
+        self.assertEqual(shown["handoff"]["handoff_id"], prepared["manifest"]["handoff_id"])
+        self.assertEqual(shown["handoff"]["status"], "prepared")
+        self.assertEqual(shown["effective_status"], "prepared")
+
+    def test_recover_lost_running_attempt_creates_same_stage_retry(self):
+        first = self.prepare()
+        handoff.mark_running(self.run, "lost-agent")
+        recovered = handoff.recover_lost_running(self.run, "lost-agent")
+
+        self.assertEqual(recovered["failed"]["status"], "failed")
+        self.assertEqual(recovered["failed"]["reason"], "host_failure")
+        self.assertEqual(recovered["prepared"]["manifest"]["attempt"], 2)
+        first_state = json.loads((first["attempt_dir"] / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(first_state["status"], "failed")
+        self.assertEqual(handoff.show(self.run)["handoff"]["status"], "prepared")
+
+        with self.assertRaises(handoff.HandoffError):
+            handoff.recover_lost_running(self.run, "lost-agent")
+
+        handoff.mark_running(self.run, "replacement-agent")
+        with self.assertRaises(handoff.HandoffError):
+            handoff.recover_lost_running(self.run, "other-agent")
+        second = handoff.recover_lost_running(self.run, "replacement-agent")
+        self.assertEqual(second["prepared"]["manifest"]["attempt"], 3)
+
+    def test_damaged_completed_stage_blocks_downstream_and_allows_same_stage_retry(self):
+        research = self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
+        self.complete_stage("editorial_strategist", "strategy", ["claims.yaml"], ["outline.md"])
+        (self.run / research["manifest"]["output_root"] / "claims.yaml").unlink()
+
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["effective_status"], "stale")
+        with self.assertRaises(handoff.HandoffError):
+            self.prepare("writer", "draft", ["outline.md"], ["draft-v1.md"])
+        retry = self.prepare("researcher", "research", ["brief.md"], ["claims.yaml"])
+        self.assertEqual(retry["manifest"]["attempt"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
