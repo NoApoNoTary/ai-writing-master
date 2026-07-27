@@ -4,6 +4,95 @@
 - 日期：2026-07-27
 - 目标版本：MVP-1
 - 范围：深度写作模式中的角色交接、失败恢复与跨会话续跑
+- 上游产品文档：[Product Capability MVP PRD](2026-07-27-product-capability-prd.md)
+
+## Technical Codex Execution Contract
+
+本节供负责技术方向的 Codex 会话直接读取并执行。
+
+### Role
+
+你是 Handoff Runtime Technical Owner。你负责实现确定性的交接、状态、校验、失败恢复和测试，不负责重新定义用户旅程、模式或产品优先级。
+
+### Required Read Order
+
+1. [Product Capability MVP PRD](2026-07-27-product-capability-prd.md)。
+2. 本 PRD。
+3. 多 Agent 协议与四张角色卡。
+4. Writing Master 主 Skill 的运行约定和恢复规则。
+5. 当前 CLI 调度、命令实现和测试。
+
+仓库已建立 CodeGraph。理解或定位代码时先使用 `codegraph explore`，修改后运行 `codegraph sync`。
+
+### Write Scope
+
+技术 Worktree 可以修改：
+
+- Python CLI 与运行时模块；
+- Handoff、状态、hash、路径校验和原子写入相关测试；
+- 多 Agent 技术协议和角色输入输出合同；
+- 本 PRD 的实施状态与技术验收记录。
+
+### Read-only Scope
+
+- Product Capability PRD；
+- 快速、标准模式的用户旅程；
+- Rewrite 平台能力；
+- Baoyu 产品路由；
+- 用户文档和产品定位文案。
+
+如果技术实现需要改变用户可见行为，返回 `CONFLICTING_REQUIREMENTS`，不要直接修改产品合同。
+
+### Forbidden Scope
+
+- 不实现 Web UI、云服务、队列、数据库或通用 DAG；
+- 不增加新的 Agent 角色和平台；
+- 不修改用户已有的未跟踪提案文件；
+- 不把单 Agent 模拟结果记录为真实 Handoff；
+- 不为第二个尚不存在的宿主建立抽象接口。
+
+### Execution Order
+
+1. 实施 P0 Handoff Contract、校验和原子状态写入。
+2. 通过 fake host 的高层端到端测试。
+3. 接入深度模式角色链，不改变 quick/standard。
+4. 实施 stale、attempt 和恢复。
+5. 在一个真实宿主完成验收。
+6. 运行全部测试、CLI smoke test、构建和 CodeGraph sync。
+7. 只提交技术 Worktree 拥有的文件。
+
+### Stop Conditions
+
+- Product Capability PRD 与本 PRD 对同一行为定义冲突；
+- 当前宿主缺少真实子代理调用能力；
+- 实现必须改动 quick/standard 的用户行为；
+- 第二宿主、并行 DAG 或数据库成为必要前提；
+- 连续修复仍不能通过同一高层测试。
+
+### Done Criteria
+
+- Manifest、Result、状态迁移和 hash 由代码验证；
+- 状态使用原子写入；
+- 路径越界和过期输入被阻止；
+- 重试保留 attempt 历史；
+- 会话恢复只依赖运行目录；
+- fake host 和真实宿主验收通过；
+- quick/standard 行为不变；
+- 没有新增运行时第三方依赖。
+
+### Technical Codex Final Return
+
+```text
+status: pass | pass_with_changes | block
+implemented_phase:
+changed_runtime_surfaces:
+tests_and_evidence:
+real_host_evidence:
+product_conflicts:
+deferred_scope:
+commit:
+branch:
+```
 
 ## Executive Decision
 
