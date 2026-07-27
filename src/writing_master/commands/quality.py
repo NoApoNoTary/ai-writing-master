@@ -17,7 +17,9 @@ import argparse
 import json
 import re
 import sys
+from itertools import pairwise
 from pathlib import Path
+from statistics import pstdev
 
 
 # ============================================================
@@ -84,10 +86,7 @@ def check_sentence_variance(text: str) -> dict:
     if len(sentences) < 5:
         return {"score": 0.5, "detail": "句子数量太少"}
 
-    lengths = [len(s) for s in sentences]
-    mean = sum(lengths) / len(lengths)
-    variance = sum((l - mean) ** 2 for l in lengths) / len(lengths)
-    stddev = variance ** 0.5
+    stddev = pstdev(map(len, sentences))
 
     # 标准差越大越好（说明句子长度有变化）
     score = min(1.0, stddev / 20.0)
@@ -104,10 +103,10 @@ def check_paragraph_rhythm(text: str) -> dict:
         return {"score": 0.5, "detail": "段落数量太少"}
 
     # 检查连续段落长度是否过于相似
-    similar_count = 0
-    for i in range(len(paragraphs) - 1):
-        if abs(len(paragraphs[i]) - len(paragraphs[i + 1])) <= 30:
-            similar_count += 1
+    similar_count = sum(
+        abs(len(current) - len(next_paragraph)) <= 30
+        for current, next_paragraph in pairwise(paragraphs)
+    )
 
     ratio = similar_count / (len(paragraphs) - 1)
     score = 1.0 - ratio

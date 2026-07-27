@@ -45,46 +45,40 @@ def _usage() -> str:
     return "\n".join(lines)
 
 
-def main() -> None:
+def main(argv=None) -> int:
     """CLI 主入口。"""
-    argv = sys.argv[1:]
+    argv = sys.argv[1:] if argv is None else list(argv)
 
     # 处理全局选项
     if not argv or argv[0] in {"-h", "--help"}:
         print(_usage())
-        return
+        return 0
     if argv[0] in {"-V", "--version"}:
         print(__version__)
-        return
+        return 0
 
     cmd, rest = argv[0], argv[1:]
 
     # 内置命令: home
     if cmd == "home":
         print(_get_home())
-        return
+        return 0
 
     # 动态加载子命令
-    if cmd in _COMMANDS:
-        module_name, _ = _COMMANDS[cmd]
-        if module_name is None:
-            print(f"命令 '{cmd}' 未实现。", file=sys.stderr)
-            sys.exit(1)
-
+    module_name = _COMMANDS.get(cmd, (None, ""))[0]
+    if module_name:
         try:
             module = importlib.import_module(module_name)
-            sys.argv = [f"writing-master {cmd}", *rest]
-            module.main()
         except ImportError as e:
             print(f"无法加载命令模块: {e}", file=sys.stderr)
-            sys.exit(1)
-        return
+            return 1
+        return module.main(rest)
 
     # 未知命令
     print(f"未知命令: {cmd}\n", file=sys.stderr)
     print(_usage(), file=sys.stderr)
-    sys.exit(2)
+    return 2
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import sys
+from itertools import combinations
 from pathlib import Path
 
 _NORM = re.compile(r"[^\w一-鿿]+")
@@ -43,11 +44,10 @@ def similarity(a: str, b: str, n: int = 3) -> float:
 
 def max_pairwise(texts: list[str], n: int = 3) -> float:
     """计算所有文本两两之间的最大相似度。"""
-    m = 0.0
-    for i in range(len(texts)):
-        for j in range(i + 1, len(texts)):
-            m = max(m, similarity(texts[i], texts[j], n))
-    return m
+    return max(
+        (similarity(a, b, n) for a, b in combinations(texts, 2)),
+        default=0.0,
+    )
 
 
 def main(argv=None) -> int:
@@ -57,9 +57,13 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true", help="JSON 格式输出（供 agent 解析）")
     ap.add_argument("-n", type=int, default=3, help="n-gram 长度（默认 3）")
     args = ap.parse_args(argv)
+    if len(args.files) < 2:
+        ap.error("至少需要两个文件")
+    if args.n < 1:
+        ap.error("n-gram 长度必须是正整数")
 
     texts = [Path(f).read_text(encoding="utf-8") for f in args.files]
-    m = max_pairwise(texts, args.n) if len(texts) >= 2 else 0.0
+    m = max_pairwise(texts, args.n)
 
     if args.json:
         print(json.dumps({
