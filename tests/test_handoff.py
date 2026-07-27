@@ -279,6 +279,26 @@ class HandoffTests(unittest.TestCase):
         self.assertTrue(any("promoted output hash mismatch" in reason for reason in shown["blocking_reasons"]))
         self.assertTrue((self.run / prepared["manifest"]["result_path"]).is_file())
 
+    def test_missing_promoted_output_is_stale_across_new_process(self):
+        self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
+        (self.run / "claims.yaml").unlink()
+
+        shown = self.show_in_new_process()
+        self.assertEqual(shown["effective_status"], "stale")
+        self.assertTrue(any("missing promoted output" in reason for reason in shown["blocking_reasons"]))
+
+    def test_alternate_result_is_preserved_at_canonical_path(self):
+        prepared = self.prepare()
+        handoff.mark_running(self.run, "agent")
+        self.finish(prepared)
+        canonical = self.run / prepared["manifest"]["result_path"]
+        alternate = self.run / "alternate-result.json"
+        canonical.rename(alternate)
+
+        self.assertEqual(handoff.complete(self.run, "alternate-result.json")["state"]["status"], "completed")
+        self.assertTrue(canonical.is_file())
+        self.assertEqual(handoff.show(self.run)["effective_status"], "completed")
+
     def test_prepared_attempt_resumes_across_new_process(self):
         prepared = self.prepare()
         shown = self.show_in_new_process()

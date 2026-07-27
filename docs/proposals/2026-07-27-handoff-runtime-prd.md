@@ -1,6 +1,6 @@
 # Handoff Runtime MVP PRD
 
-- 状态：P0–P2 implemented；运行时完整性与恢复验收中
+- 状态：P0–P2 implemented and accepted
 - 日期：2026-07-27
 - 目标版本：MVP-1
 - 范围：深度写作模式中的角色交接、失败恢复与跨会话续跑
@@ -428,7 +428,7 @@ Handoff Runtime 是当前项目从“可安装的流程说明”升级为“可�
 
 ### Verification
 
-- `python -m unittest discover -s tests -v` passes with 44 tests, including the fake-host five-role chain, malformed Result handling, staged-output boundaries, stale propagation, failed-stage retry enforcement, and interrupted-prepare recovery.
+- `python -m unittest discover -s tests -v` passes with 51 tests, including the fake-host five-role chain, malformed Result handling, completed Result/staged/promoted-output recovery validation, lost-host retry, stale propagation, failed-stage retry enforcement, and interrupted-prepare recovery.
 - CLI smoke: `handoff prepare` followed by `handoff show --json` creates and inspects an attempt from a deep/multi-agent `status.json`.
 - `uv build`, `compileall`, `git diff --check`, and `codegraph sync` pass.
 
@@ -441,3 +441,4 @@ Run directory: `$WRITING_MASTER_HOME/runs/handoff-runtime-acceptance-20260727-fi
 - The Auditor returned `revise`; Lead accepted two evidence issues, and the revision report closes both before producing `final.md`.
 - `real-host-acceptance.json` records each Manifest, Result, state transition, host thread/reference, output hash, and the final hash. `acceptance-report.md` provides the readable summary.
 - Final `effective_status` is `completed`, with zero stale handoffs. `final.md` SHA-256 is `9f4f8a63e3cb12448639ec6fa7ae7b2f23f478530998470348e63ca76c7447a2`.
+- The current runtime revalidated every canonical Result, staged output, promoted output, and recorded SHA-256 in this run with zero blocking reasons.

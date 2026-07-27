@@ -39,22 +39,25 @@ Lead：标题、视觉闸门、Baoyu production、验收与发布确认
 
 ```yaml
 schema_version: 1
-handoff_id:
-task_id:
-attempt:
+handoff_id: TASK-001-research-researcher-01
+task_id: TASK-001
+attempt: 1
 from_role: lead
 to_role: researcher
-phase:
-objective:
-decision_to_inform:
+phase: research
+objective: 建立事实与素材证据包
+decision_to_inform: 后续角度与结构选择
 allowed_inputs:
   - path: brief.md
     sha256: "..."
     required: true
 forbidden_inputs: []
-write_scope: []
-expected_outputs: []
-done_criteria: []
+write_scope:
+  - claims.yaml
+expected_outputs:
+  - claims.yaml
+done_criteria:
+  - 关键主张具有来源和表述边界
 status: prepared
 role_card: skills/writing-master/agents/researcher.md
 output_root: handoffs/research-researcher/attempt-01/outputs

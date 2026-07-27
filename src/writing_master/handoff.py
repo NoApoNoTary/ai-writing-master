@@ -566,7 +566,10 @@ def _completed_integrity(manifest: dict, state: dict, run_dir: Path) -> tuple[bo
             raise HandoffError("Result agent_ref does not match completed handoff")
         outputs = _validated_staged_outputs(result, manifest, run_dir)
         for output in outputs:
-            promoted = safe_path(run_dir, output["path"], must_exist=True)
+            try:
+                promoted = safe_path(run_dir, output["path"], must_exist=True)
+            except HandoffError as error:
+                raise HandoffError(f"missing promoted output: {output['path']}") from error
             if not promoted.is_file() or promoted.is_symlink():
                 raise HandoffError(f"missing promoted output: {output['path']}")
             if sha256_file(promoted) != output["sha256"]:
@@ -591,6 +594,7 @@ def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict
             raise HandoffError("input changed; handoff is stale")
         result = None
         try:
+            canonical_result = safe_path(run_dir, manifest["result_path"])
             if result_path is None:
                 result_file = safe_path(run_dir, manifest["result_path"], must_exist=True)
             else:
@@ -599,6 +603,8 @@ def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict
             validate_result(result, manifest)
             if result["agent_ref"] != state.get("agent_ref"):
                 raise HandoffError("result agent_ref does not match running handoff")
+            if result_file != canonical_result:
+                _atomic_copy(result_file, canonical_result)
             if result["status"] == "completed":
                 outputs = _validated_staged_outputs(result, manifest, run_dir)
                 output_root = safe_path(run_dir, manifest["output_root"], must_exist=True)
