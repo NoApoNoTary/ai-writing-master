@@ -209,6 +209,29 @@ class HandoffTests(unittest.TestCase):
                 handoff.atomic_write_json(target, {"new": True})
         self.assertEqual(json.loads(target.read_text(encoding="utf-8")), {"old": True})
 
+    def test_interrupted_prepare_does_not_block_retry(self):
+        with patch("writing_master.handoff._write_state", side_effect=OSError("interrupted")):
+            with self.assertRaises(OSError):
+                self.prepare()
+        retry = self.prepare()
+        self.assertEqual(retry["manifest"]["attempt"], 2)
+
+    def test_upstream_stale_reason_is_kept_when_current_handoff_failed(self):
+        self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
+        self.complete_stage("editorial_strategist", "strategy", ["claims.yaml"], ["outline.md"])
+        failed = self.prepare("writer", "draft", ["outline.md"], ["draft-v1.md"])
+        handoff.mark_running(self.run, "writer")
+        self.finish(failed, bad_hash=True)
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        (self.run / "brief.md").write_text("changed", encoding="utf-8")
+        shown = handoff.show(self.run)
+        self.assertTrue(any("output_validation" in reason for reason in shown["blocking_reasons"]))
+        self.assertTrue(any("stale research/researcher" in reason for reason in shown["blocking_reasons"]))
+        with self.assertRaises(handoff.HandoffError):
+            self.prepare("writer", "draft", ["outline.md"], ["draft-v1.md"])
+        self.assertEqual(self.prepare("researcher", "research", ["brief.md"], ["claims.yaml"])["manifest"]["attempt"], 2)
+
     def test_result_agent_ref_must_match_running_state_and_show_explains_failure(self):
         prepared = self.prepare()
         handoff.mark_running(self.run, "host-agent")

@@ -1,6 +1,6 @@
 # Handoff Runtime MVP PRD
 
-- 状态：P0–P1 implemented; P2 real-host acceptance pending rerun
+- 状态：P0–P2 implemented and accepted
 - 日期：2026-07-27
 - 目标版本：MVP-1
 - 范围：深度写作模式中的角色交接、失败恢复与跨会话续跑
@@ -421,15 +421,16 @@ Handoff Runtime 是当前项目从“可安装的流程说明”升级为“可�
 
 ### Verification
 
-- `python -m unittest discover -s tests -v` passes with the runtime tests enabled.
+- `python -m unittest discover -s tests -v` passes with 44 tests, including the fake-host five-role chain, malformed Result handling, staged-output boundaries, stale propagation, failed-stage retry enforcement, and interrupted-prepare recovery.
 - CLI smoke: `handoff prepare` followed by `handoff show --json` creates and inspects an attempt from a deep/multi-agent `status.json`.
+- `uv build`, `compileall`, `git diff --check`, and `codegraph sync` pass.
 
 ### Real-host acceptance status
 
-Run directory: `$WRITING_MASTER_HOME/runs/handoff-runtime-acceptance-20260727-01/`.
+Run directory: `$WRITING_MASTER_HOME/runs/handoff-runtime-acceptance-20260727-final-v3/`.
 
-- A fresh-context Researcher completed and was accepted at `handoffs/research-researcher/attempt-07/`; its Manifest, host `agent_ref`, Result, state transition, and promoted research outputs remain in that directory.
-- A fresh-context Editorial Strategist completed at `handoffs/strategy-editorial_strategist/attempt-01/`. This record predates the final `agent_ref` equality check and is retained as audit evidence, not as proof of the final contract.
-- The full five-role acceptance chain must be rerun from a new run directory after the final `agent_ref` contract is in place. The Lead sequence is: `prepare` → spawn fresh-context role with the exact returned `agent_ref` → `mark_running` → role writes `output_root` and `result_path` → `complete`; repeat Researcher → Strategist → Writer → Auditor → Writer revision, then write `accepted-issues.yaml` and retain `final.md`.
-
-Do not claim that the full real-host P2 acceptance criterion is complete until that rerun is recorded.
+- Codex completed the full fresh-context chain: Researcher → Editorial Strategist → Writer → Auditor → Writer revision.
+- Every handoff retained its Manifest, exact host `agent_ref`, Result, completed state, staged outputs, promoted outputs, and SHA-256 records.
+- The Auditor returned `revise`; Lead accepted two evidence issues, and the revision report closes both before producing `final.md`.
+- `real-host-acceptance.json` records each Manifest, Result, state transition, host thread/reference, output hash, and the final hash. `acceptance-report.md` provides the readable summary.
+- Final `effective_status` is `completed`, with zero stale handoffs. `final.md` SHA-256 is `9f4f8a63e3cb12448639ec6fa7ae7b2f23f478530998470348e63ca76c7447a2`.

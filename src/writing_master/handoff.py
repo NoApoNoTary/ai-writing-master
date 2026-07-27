@@ -30,7 +30,7 @@ class HandoffError(ValueError):
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def sha256_file(path: Path) -> str:
@@ -430,10 +430,17 @@ def _latest_completed_stale(run_dir: Path) -> list[dict]:
                 attempts.append((int(suffix), attempt_dir))
         if not attempts:
             continue
-        _, attempt_dir = max(attempts)
-        manifest, state = _load_attempt(attempt_dir, run_dir)
-        if state["status"] != "completed":
+        completed = None
+        for _, attempt_dir in sorted(attempts, reverse=True):
+            if not (attempt_dir / "manifest.json").is_file() or not (attempt_dir / "state.json").is_file():
+                continue
+            manifest, state = _load_attempt(attempt_dir, run_dir)
+            if state["status"] == "completed":
+                completed = attempt_dir, manifest, state
+                break
+        if completed is None:
             continue
+        attempt_dir, manifest, state = completed
         fresh, reasons = _input_fresh(manifest, run_dir)
         if not fresh:
             stale.append({
@@ -566,12 +573,13 @@ def show(run_dir: Path | str) -> dict:
             for item in stale_stages for reason in item["blocking_reasons"]
         ]
         effective = "stale" if stale_stages or not fresh else state["status"]
+        current_reasons = errors + ([state["reason"]] if state.get("reason") else [])
         return {
             "handoff": _reference(manifest, state, attempt_dir, run_dir),
             "input_fresh": fresh,
             "effective_status": effective,
             "agent_ref": state.get("agent_ref"),
             "state_reason": state.get("reason"),
-            "blocking_reasons": errors or ([state["reason"]] if state.get("reason") else []) or historical_reasons,
+            "blocking_reasons": current_reasons + historical_reasons,
             "stale_handoffs": stale_stages,
         }
