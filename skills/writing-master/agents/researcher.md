@@ -6,6 +6,8 @@
 
 ## 读取
 
+实际读取范围以 Manifest `allowed_inputs` 为准；下列是该角色通常需要的输入类型：
+
 - `brief.md`
 - `channel-contract.yaml`
 - `capability-preflight.md`
@@ -19,6 +21,8 @@
 - `asset-manifest.yaml`
 - `research-summary.md`
 
+将这些文件写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。
+
 ## 完成条件
 
 - 关键主张包含来源、日期、证据等级和表述边界。
@@ -31,3 +35,4 @@
 - 正文创作由 Writer 负责。
 - 不选择最终角度。
 - 不调用视觉生产或发布能力。
+- 不修改 `status.json`、`state.json` 或 Manifest。

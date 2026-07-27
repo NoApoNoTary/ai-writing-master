@@ -1,6 +1,6 @@
 # Handoff Runtime MVP PRD
 
-- 状态：Draft
+- 状态：P0–P1 implemented; P2 real-host acceptance pending rerun
 - 日期：2026-07-27
 - 目标版本：MVP-1
 - 范围：深度写作模式中的角色交接、失败恢复与跨会话续跑
@@ -409,3 +409,27 @@ P3 不属于当前 MVP。
 Handoff Runtime 是当前项目从“可安装的流程说明”升级为“可重复执行的写作系统”的最短路径。完成 P0–P2 后，项目才适合把深度模式称为 MVP 能力；在此之前，深度模式应描述为实验性协议。
 
 该方向优先级高于增加更多平台合同、更多审校角色和可视化界面，因为它直接验证项目最核心的多 Agent 差异化是否真实成立。
+
+## Implementation Record — 2026-07-27
+
+### Completed
+
+- P0: `writing_master.handoff` implements schema v1 Manifest/Result validation, SHA-256, run-directory path and symlink boundaries, immutable Manifest hashes, `fcntl` locking, and fsync + replace JSON state writes.
+- P0: `writing-master handoff prepare|complete|show` is registered without changing quick/standard execution paths.
+- P1: the deep-mode protocol and all four role cards now require Manifest-only inputs, attempt `output_root` writes, Result output, and Lead-owned state transitions.
+- P2 runtime behavior: stale input detection, retained attempt history, failed-result categories, restart-from-run-directory inspection, and an automated fake-host Researcher → Strategist → Writer → Auditor → Writer revision chain are covered by `tests/test_handoff.py`.
+
+### Verification
+
+- `python -m unittest discover -s tests -v` passes with the runtime tests enabled.
+- CLI smoke: `handoff prepare` followed by `handoff show --json` creates and inspects an attempt from a deep/multi-agent `status.json`.
+
+### Real-host acceptance status
+
+Run directory: `$WRITING_MASTER_HOME/runs/handoff-runtime-acceptance-20260727-01/`.
+
+- A fresh-context Researcher completed and was accepted at `handoffs/research-researcher/attempt-07/`; its Manifest, host `agent_ref`, Result, state transition, and promoted research outputs remain in that directory.
+- A fresh-context Editorial Strategist completed at `handoffs/strategy-editorial_strategist/attempt-01/`. This record predates the final `agent_ref` equality check and is retained as audit evidence, not as proof of the final contract.
+- The full five-role acceptance chain must be rerun from a new run directory after the final `agent_ref` contract is in place. The Lead sequence is: `prepare` → spawn fresh-context role with the exact returned `agent_ref` → `mark_running` → role writes `output_root` and `result_path` → `complete`; repeat Researcher → Strategist → Writer → Auditor → Writer revision, then write `accepted-issues.yaml` and retain `final.md`.
+
+Do not claim that the full real-host P2 acceptance criterion is complete until that rerun is recorded.

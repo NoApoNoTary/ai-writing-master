@@ -33,9 +33,9 @@ Writer：draft-v2/final + revision report
 Lead：标题、视觉闸门、Baoyu production、验收与发布确认
 ```
 
-## Context Packet
+## Handoff Manifest（唯一实际输入合同）
 
-代理之间只通过文件和紧凑任务包通信：
+代理之间只通过运行时生成的 `manifest.json` 通信。角色卡说明职责；Manifest 才是某一次执行实际允许读取和写入的唯一合同：
 
 ```yaml
 task_id:
@@ -50,14 +50,23 @@ expected_outputs:
 input_hashes:
 ```
 
+Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交给专项 Agent，不传整个运行目录、父对话或额外上下文。专项 Agent：
+
+- 只读取 `allowed_inputs`；角色卡中的“读取”是该角色通常需要的文件类型，不是绕过 Manifest 的额外权限。
+- 只写入 Manifest `output_root` 内、属于 `write_scope` 的文件；把 Result 写入 Manifest `result_path`。
+- 不修改 `status.json`、`state.json`、Manifest 或其他 attempt。Result 不包含隐藏推理过程。
+- Lead 在宿主创建专项 Agent 后调用运行时内部 `mark_running(run_dir, agent_ref)`，并把这个精确 `agent_ref` 交给专项 Agent 写入 Result；专项 Agent 返回后由 Lead 调用 `handoff complete` 校验 Result、提升输出并更新状态。
+- Manifest 创建后不可修改；输入 hash 变化使 prepared/running attempt 过期，重试创建新 attempt。
+
+`Result` 是 JSON，必须包含 `schema_version: 1`、Manifest 的 `handoff_id` 和 `attempt`、`agent_ref`、`status`、`outputs`、`blocking_issues`、`summary`、`completed_at`。完成时每项 output 使用 `{"logical_name":"final.md","path":"outputs/final.md","sha256":"..."}`（也可使用完整的 Manifest `output_root/final.md`）；失败时额外使用 `failure_type: input_error | host_failure | role_failure | output_validation | cancelled`。
+
 通用规则：
 
 - `allowed_inputs` 使用明确文件路径，不传整个运行目录。
 - Reviewer 首轮不读取作者解释、未采用的讨论、历史表现数据和其他 Reviewer 结论。
 - Writer 只读取接受后的 Brief、claims、style、editorial brief、outline 和素材选择。
-- 代理只写自己的产物文件；Lead 维护 `status.json`。
-- 输入变化后更新 hash；只重跑受影响节点。
-- 子代理输出事实、判断和待确认项，不输出隐藏推理过程。
+- 代理只写自己的 attempt 产物；Lead/Runtime 维护 `status.json`。
+- 输入变化后由 Runtime 校验 hash；只重跑受影响节点。
 
 ## 角色卡
 
@@ -112,11 +121,11 @@ Lead 负责去重和处理冲突，形成 `accepted-issues.yaml`。Writer 根据
 角色卡保持平台中立。只有 Lead 的 host adapter 负责把角色卡转换成当前 Agent 宿主的子代理调用：
 
 ```text
-role card + context packet + input hashes
+role card + Manifest + allowed input files
         ↓
 host adapter（Task / 原生协作接口）
         ↓
-结构化 role result
+Result 写入 Manifest result_path
 ```
 
 角色卡不直接调用另一个角色，也不读取宿主的全局对话。宿主没有可用的子代理接口时，深度模式在 capability preflight 阶段报告缺少能力，保留当前产物，不把单 Agent 结果伪装成深度模式结果。

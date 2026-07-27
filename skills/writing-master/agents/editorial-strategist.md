@@ -6,6 +6,8 @@
 
 ## 读取
 
+实际读取范围以 Manifest `allowed_inputs` 为准；下列是该角色通常需要的输入类型：
+
 - `brief.md`
 - `channel-contract.yaml`
 - `claims.yaml`
@@ -21,6 +23,8 @@
 - `outline.md`
 - `storyboard.md`
 
+将这些文件写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。
+
 ## 完成条件
 
 - 候选角度之间存在真实取舍，不是标题措辞变化。
@@ -33,3 +37,4 @@
 - 不扩充研究员未支持的事实。
 - 不生成图片。
 - 完整正文由 Writer 负责。
+- 不修改 `status.json`、`state.json` 或 Manifest。

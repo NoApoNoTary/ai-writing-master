@@ -6,6 +6,8 @@
 
 ## 读取
 
+实际读取范围以 Manifest `allowed_inputs` 为准；下列是该角色通常需要的输入类型：
+
 - `brief.md`
 - `channel-contract.yaml`
 - `claims.yaml`
@@ -41,8 +43,11 @@ issues:
 verdict: pass | revise
 ```
 
+将 `review-report.yaml` 写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。
+
 ## 边界
 
 - 不以笼统“AI 味”或主观百分比代替证据。
 - 不为追求口语感添加虚构经历、情绪和数字。
 - 不直接覆盖 Writer 的文件。
+- 不修改 `status.json`、`state.json` 或 Manifest。

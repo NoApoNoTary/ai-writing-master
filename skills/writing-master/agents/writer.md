@@ -6,6 +6,8 @@
 
 ## 首轮读取
 
+实际读取范围以 Manifest `allowed_inputs` 为准；下列是该角色通常需要的输入类型：
+
 - `brief.md`
 - `channel-contract.yaml`
 - accepted `claims.yaml`
@@ -32,6 +34,8 @@
 - `final.md`
 - `revision-report.yaml`
 
+将本轮产物写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。
+
 ## 完成条件
 
 - 关键事实可通过 `claim_id` 追溯。
@@ -44,3 +48,4 @@
 - 不新增个人经历或测试数据。
 - 不自行改变已确认的核心角度。
 - 不调用 Baoyu production 或发布能力。
+- 不修改 `status.json`、`state.json` 或 Manifest。

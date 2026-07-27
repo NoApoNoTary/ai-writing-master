@@ -12,6 +12,7 @@ from . import __version__
 _COMMANDS = {
     "quality": ("writing_master.commands.quality", "机械文本检查（5维度预警）"),
     "similarity": ("writing_master.commands.similarity", "文本相似度检测（防洗稿）"),
+    "handoff": ("writing_master.commands.handoff", "深度模式角色交接"),
     "home": (None, "输出状态目录路径"),
 }
 
