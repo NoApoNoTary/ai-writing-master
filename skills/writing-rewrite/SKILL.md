@@ -30,17 +30,18 @@ allowed-tools:
 
 - `{home}` = `$WRITING_MASTER_HOME`，未设置时使用 `~/.writing-master`
 - `{skill_dir}` = 当前 `writing-rewrite` Skill 目录
-- 源稿是 canonical source，整个任务内保持只读
+- 源稿分类只能是 `accepted_writing_master_final` 或 `standalone_user_input`，整个任务内保持只读
 - 默认使用当前 Agent；用户明确要求深度改写或多 Agent 时，才按目标平台创建 fresh-context 代理
 - 多个平台版本彼此隔离，每个版本都从 canonical source 开始
 
 ## Phase 0：输入与任务目录
 
-按优先级取得源稿：
+先确定来源分类，不根据“当前任务存在”自动挑选源稿：
 
-1. 用户指定的文件；
-2. 用户在当前对话粘贴的正文；
-3. Writing Master 当前任务的 `final.md`。
+1. `accepted_writing_master_final`：只能使用同一 Writing Master 任务中已验收的 `final.md`，并同时读取 `acceptance-report.md` 确认内容验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或 `final.md` 不得进入 Rewrite，也不得作为视觉、格式或发布来源。
+2. `standalone_user_input`：用户直接提供的文件或当前对话中的完整正文。它可作为本次 Rewrite 的独立 canonical source，不要求 Writing Master 的验收报告。
+
+将获准输入复制为本次 run 的 `source.md`，并记录来源分类和 hash；之后 `source.md` 只读。`standalone_user_input` 不应被描述成已验收的 Writing Master final。
 
 确认目标平台。支持的平台来自实际存在的 YAML：
 
@@ -54,7 +55,7 @@ source.md
 rewrite-status.json
 ```
 
-`rewrite-status.json` 至少记录源稿 hash、目标平台、各版本状态和重试次数。
+`rewrite-status.json` 至少记录 `source_class`、源稿 hash、目标平台、各版本状态和重试次数。
 
 ## Phase 1：加载合同
 
@@ -181,7 +182,7 @@ writing-master similarity source.md xiaohongshu.md douyin.md --json
 - 普通正文配图：路由 `baoyu-article-illustrator`；
 - 封面：路由 `baoyu-cover-image`。
 
-文字版本通过编辑审查后再执行视觉生产。视觉产物不覆盖平台正文源文件。
+文字版本通过编辑审查后再执行视觉生产。视觉、格式和发布只生成派生产物或外部记录，不覆盖平台正文、`source.md` 或来源任务的 canonical `final.md`。
 
 ## Phase 8：交付
 

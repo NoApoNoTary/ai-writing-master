@@ -84,7 +84,21 @@ writing-master --version
 - Writer 只读取已接受的内容包；
 - Auditor 独立审查后，由 Writer 统一修订。
 
-新建文章时只有深度模式使用多 Agent。快速和标准模式不会隐式创建子代理。
+这些是深度模式的角色协议。只有当前宿主提供真实子代理能力时，才执行实际角色交接；在此之前不把单 Agent 的角色模拟标为真实 Handoff。快速和标准模式不会隐式创建子代理。
+
+### P0 任务状态与内容契约
+
+模式确定后，Agent 先用用户可读的任务摘要说明当前位置：
+
+```text
+任务：TASK_ID（已建立任务目录时显示）
+模式：标准写作
+阶段：等待内容契约确认
+已完成：素材接收结果
+下一步：回复“确认”，或说明要修改的字段
+```
+
+内容契约会合并请求中已经明确的主题、读者、平台、目的、篇幅、时效、证据等级，以及视觉、排版和发布意图；只追问尚未确定的阻断字段。回复“确认”继续，直接指出字段即可修改，回复“取消”停止本次任务。未收到明确发布指令时，流程只形成可审阅产物。
 
 ## 3. 把素材带入写作
 
@@ -115,6 +129,18 @@ writing-master --version
 4. 将准备进入正文的陈述写入 `claims.yaml` 并关联 `sources.yaml`；
 5. 在结构确定后生成 `storyboard.md`。
 
+素材接收后先报告结果，而不是直接把内容写进正文：
+
+```text
+已接收：3 项
+已提取：2 项
+等待处理：1 项
+失败：0 项
+需要你确认：素材 A 是否允许作为公开引用
+```
+
+素材被接收或提取不表示其中的事实已经接受。进入正文的陈述仍需关联 `claim_id` 和来源；真实素材与编辑生成素材也会在清单中分开记录。
+
 此时还不会生成图片。正文结构稳定、storyboard 明确且本次任务需要视觉交付后，才调用配图、封面、信息图或 HTML Skill。
 
 公开发布需要单独、清晰的发布指令；“继续”“下一步”或“看起来可以”只推进到下一份可审阅产物。
@@ -130,7 +156,7 @@ writing-master --version
 
 当前仓库内置的小红书和抖音平台合同分别位于 `platforms/xiaohongshu.yaml` 与 `platforms/douyin.yaml`。其他平台需要先提供对应输出合同。
 
-改写默认由当前 Agent 完成。只有在请求中明确提出“深度改写”或“多 Agent 改写”时，才为不同目标平台创建隔离代理。
+改写默认由当前 Agent 完成。只有在请求中明确提出“深度改写”或“多 Agent 改写”时，才进入隔离代理的协议流程；实际角色交接仍取决于当前宿主能力。
 
 相似度命令可以提供表面重合预警：
 
@@ -158,17 +184,29 @@ writing-master similarity article.md xiaohongshu.md --json
 
 选题、审校和标题属于 `writing-master` 内部模块；配图、封面、排版和发布路由到当前环境里实际存在的 Baoyu Skill。
 
-## 6. 继续上次任务
+## 6. 查阅已有任务产物
 
 ```text
-继续上次的文章。
+请读取 TASK_ID（或任务目录）中的产物，告诉我当前阶段、已完成文件和下一步。
 ```
 
-工作流会从 `${WRITING_MASTER_HOME:-~/.writing-master}/runs/` 中读取最近的未完成任务，并从 `status.json` 恢复模式和当前阶段。
+如果已存在 `${WRITING_MASTER_HOME:-~/.writing-master}/runs/TASK_ID/`，可让 Agent 读取其中的 `status.json`、Brief、素材、草稿和审校产物，先给出当前状态摘要，再决定是否继续。
 
-如果有多个未完成任务，最好直接提供任务目录或 `task_id`，避免恢复错误对象。
+直接提供任务目录或 `task_id`，避免把“上次”解释为错误对象。当前 CLI 尚无可保证的跨会话续跑命令；确定性恢复和真实深度模式 Handoff 属于技术运行时的待验收能力。
 
-## 7. CLI 辅助检查
+## 7. 交付包
+
+标准写作完成时，交付摘要应列出本次文件位置和仍缺的请求项。最小交付包为：
+
+- `final.md`；
+- `sources.yaml`、`claims.yaml` 与 `asset-manifest.yaml`；
+- `review-report.yaml` 与 `revision-report.yaml`；
+- `acceptance-report.md`；
+- 用户明确要求的视觉资产、HTML 或平台草稿。
+
+未请求发布时，任务停在验收或平台草稿，不产生公开发布动作。
+
+## 8. CLI 辅助检查
 
 ### 机械文本检查
 
@@ -196,7 +234,7 @@ writing-master similarity source.md rewritten.md
 
 更多参数见 [CLI 工具指南](cli-guide.md)。
 
-## 8. 数据目录
+## 9. 数据目录
 
 ```bash
 writing-master home
@@ -227,7 +265,7 @@ themes/
 output/
 ```
 
-## 9. 常见问题
+## 10. 常见问题
 
 ### 没有出现模式选择
 
@@ -259,6 +297,6 @@ cd ~/ai-writing-master
 - [项目 README](../README.md)
 - [CLI 工具指南](cli-guide.md)
 - [模式选择规则](../skills/writing-master/references/mode-selection.md)
-- [深度写作多 Agent 协议](../skills/writing-master/references/agent-orchestration.md)
+- [深度写作多 Agent 协议（角色合同）](../skills/writing-master/references/agent-orchestration.md)
 - [证据与素材契约](../skills/writing-master/references/evidence-and-assets.md)
 - [Baoyu 分阶段路由](../skills/writing-master/references/baoyu-integration.md)

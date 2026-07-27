@@ -2,11 +2,57 @@
 
 事实调研和素材调研并行进行，最终通过稳定 ID 关联正文、来源和视觉资产。
 
+## 素材接收结果
+
+开题阶段把用户可见的“素材接收结果”写入 `capability-preflight.md`，不另建运行时状态。它只说明输入是否已经接收或提取，不把提取结果误写成已确认事实。
+
+```yaml
+material_receipt:
+  status: receiving | ready_to_continue | needs_confirmation | partial_failure
+  counts:
+    received: 3
+    extracted: 2
+    pending: 1
+    failed: 0
+    confirmation_required: 1
+  items:
+    - material_id: material-001
+      kind: url | youtube | markdown | image | gif | video | chart | document | historical_article
+      location: "URL 或本地路径"
+      status: received | extracting | extracted | pending | failed
+      extracted_to: "研究目录中的文件路径或 null"
+      failure:
+        reason: null
+        action: null
+        impact: null
+        retry: null
+      confirmation:
+        status: not_required | required | confirmed | excluded
+        question: null
+  next_action: "继续添加素材 | 结束摄入并继续 | 确认/排除指定素材 | 重试 material-001"
+```
+
+- `received` 是已登记输入总数；`extracted`、`pending`、`failed` 是该总数的当前处理结果，不要求相加等于总数。
+- 每个失败项都写明失败动作、对后续的影响、已保留产物和可执行的重试入口；失败项不阻塞无关素材。
+- 只在公开引用、来源身份或素材用途存在实际歧义时设置 `confirmation.status=required`。用户可确认、排除、重试，或结束素材摄入继续主流程。
+- 向用户展示时使用简洁计数，例如：
+
+```text
+已接收：3 项
+已提取：2 项
+等待处理：1 项
+失败：0 项
+需要你确认：素材 A 是否允许作为公开引用
+```
+
+`material_id` 仅标识这次输入；进入正文的事实仍要经过 `sources.yaml` 和 `claims.yaml` 的确认流程。
+
 ## `sources.yaml`
 
 ```yaml
 sources:
   - source_id: src-001
+    material_id: material-001
     title: "来源标题"
     url: "https://example.com/..."
     publisher: "发布者"
@@ -41,6 +87,7 @@ claims:
 ```yaml
 assets:
   - asset_id: asset-001
+    material_id: material-001
     kind: image | gif | video | chart | screenshot | document
     source_class: official | primary | third_party | editorial | decorative | user_provided
     source_id: src-001

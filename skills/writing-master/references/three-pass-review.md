@@ -24,6 +24,22 @@
 5. `writing-master quality` 只提供套话、句长、段落、副词和词汇等机械预警，不验证事实、论证、原创性或作者声音。
 6. 对用户报告结论、问题和已完成修改，不展示隐藏推理过程。
 
+## 用户动作与阻断问题
+
+审校完成后先展示可执行摘要，例如“审校发现 2 个阻断问题、3 个主要问题；等待你决定 1 个方向性问题”。只把确实需要用户判断的问题暂停给用户，其余已接受的修订由 Writer 集中完成。
+
+| 用户动作 | 适用问题 | 结果 |
+|---|---|---|
+| 接受建议 | 任意问题 | Writer 按 `required_change` 修订；问题要经复核才关闭。 |
+| 忽略非阻断项 | `major`、`minor` | 保留忽略原因和位置，不再要求该项修订。 |
+| 修改原始要求 | 任意问题 | 更新受影响的 Brief、主张或结构，并重审受影响部分。 |
+| 补充来源、降低表述或删除断言 | `blocking` 事实问题 | 作为关闭阻断问题的候选修订，再进行证据复核。 |
+| 要求重写受影响部分 / 查看前后差异 | 任意问题 | 只影响指定部分，不改写已确认的无关内容。 |
+
+`blocking` 的语义是交付闸门：它只能处于待修订、`needs_input` 或经复核关闭的状态，不能通过“忽略”关闭。存在未关闭的 `blocking` 时，任务停在“等待问题处理”或修订中；来自 Writing Master 的 `final.md` 不是“已验收 canonical final”，也不能作为 Rewrite、视觉、排版或发布来源。`needs_input` 表示等待用户，不表示问题已关闭或任务已完成。
+
+对需要用户决定的项，在 `revision-report.yaml` 中额外记录 `user_decision: accepted | ignored_non_blocking | modified_requirement | supplied_input`；`ignored_non_blocking` 只可用于 `major` 或 `minor`。
+
 ## 问题格式
 
 ```yaml
@@ -198,7 +214,7 @@ final_verdict: pass | needs_input
 
 ## 完成条件
 
-- 所有 blocking 问题已经关闭，或明确进入 `needs_input`。
+- 所有 blocking 问题已经经复核关闭；任何 `needs_input` 都保持任务等待，不进入完成状态。
 - major 问题均有处理记录。
 - 关键事实可追溯到 accepted claim 和来源。
 - 个人经历均来自用户素材，没有扩写式细节。

@@ -20,6 +20,7 @@ requested_capabilities:
   - article_illustration
   - cover
   - wechat_html
+handoff_runtime: available | unavailable
 available_skills:
   baoyu-url-to-markdown: true
   baoyu-article-illustrator: true
@@ -30,6 +31,8 @@ missing_routes: []
 ```
 
 预检只确认“这次可能用到什么、当前有哪些能力、需要哪些输入”，不触发图像生成、排版或发布。
+
+当用户选择深度模式时，`handoff_runtime` 只记录当前宿主对**真实 Handoff Runtime** 的实际预检结果。`unavailable` 时展示深度执行不可用，不模拟角色执行，也不把单 Agent 产物称为深度产物。
 
 ## 四级路由
 
@@ -42,6 +45,7 @@ missing_routes: []
 3. 对需要提取的素材立即选择读取路由；提取结果进入研究目录，而不是直接拼进正文。
 4. 对图片、GIF、视频和图表只登记来源、文件位置与用途候选。
 5. 记录后续 production 可能使用的 Skill，不提前执行。
+6. 按 `evidence-and-assets.md` 在 `capability-preflight.md` 中写入素材接收结果：状态、已接收/已提取/待处理/失败计数、失败重试入口和待确认事项。
 
 素材入口：
 
@@ -91,14 +95,16 @@ missing_routes: []
 
 满足 Writing Master 的视觉闸门后按需执行：
 
-| 任务 | Baoyu Skill | 主要输入 |
-|---|---|---|
-| 分析文章并生成正文配图 | `baoyu-article-illustrator` | `final.md`、`storyboard.md`、视觉约束 |
-| 生成文章封面 | `baoyu-cover-image` | 最终标题、摘要、平台比例、品牌约束 |
-| 生成高密度信息图 | `baoyu-infographic` | 已核验的数据、结构化内容、引用要求 |
-| 已有明确提示词的单图生成 | `baoyu-image-gen` | 保存后的 prompt、比例、参考图 |
-| 只整理 Markdown 层级与排版 | `baoyu-format-markdown` | `final.md` |
-| 转换公众号兼容 HTML | `baoyu-markdown-to-html` | 最终 Markdown、主题、外链策略 |
+从 Writing Master 任务进入本层时，来源分类必须是 `accepted_writing_master_final`：同一任务中的 `final.md` 存在，且 `acceptance-report.md` 内容明确验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或未通过验收的 `final.md` 都不得作为视觉、格式或发布来源。
+
+| 任务 | Baoyu Skill | 主要输入 | 输出 |
+|---|---|---|---|
+| 分析文章并生成正文配图 | `baoyu-article-illustrator` | `final.md`（只读）、`storyboard.md`、视觉约束 | 视觉资产与 manifest 记录 |
+| 生成文章封面 | `baoyu-cover-image` | 最终标题、摘要、平台比例、品牌约束 | 封面资产 |
+| 生成高密度信息图 | `baoyu-infographic` | 已核验的数据、结构化内容、引用要求 | 信息图资产 |
+| 已有明确提示词的单图生成 | `baoyu-image-gen` | 保存后的 prompt、比例、参考图 | 单图资产 |
+| 只整理 Markdown 层级与排版 | `baoyu-format-markdown` | `final.md`（只读） | `formatted.md` |
+| 转换公众号兼容 HTML | `baoyu-markdown-to-html` | 已验收 Markdown（只读）、主题、外链策略 | `wechat.html` |
 
 Production 约束：
 
@@ -107,6 +113,7 @@ Production 约束：
 - 保留 Baoyu 生成的 prompt 文件和输出路径，以便复现。
 - 生成结果回写 `asset-manifest.yaml`，记录 `asset_id`、生成方式、身份和最终用途。
 - 视觉结果变化不反向改写文章事实；出现冲突时回到证据层处理。
+- 视觉、格式和发布都把 canonical `final.md` 当作不可变输入；写入派生产物、资产清单或发布记录，绝不覆盖或修改它。
 
 ### Level 4：Publish（验收之后）
 
@@ -117,9 +124,9 @@ Production 约束：
 
 发布顺序：
 
-1. 完成 `final.md`、视觉资产和平台 HTML/Markdown；
+1. 确认来源为 `accepted_writing_master_final`，再完成视觉资产和平台 HTML/Markdown；
 2. 检查图片路径、GIF、外链、封面、摘要和移动端预览；
-3. 生成 `acceptance-report.md`；
+3. 在已有 `acceptance-report.md` 中追加视觉/排版验收结果，不重新打开内容验收或修改 canonical `final.md`；
 4. 用户发出清晰发布指令后调用对应 Skill；
 5. 回写 draft/post ID、时间和结果到运行目录，敏感凭据留在仓库外配置。
 
