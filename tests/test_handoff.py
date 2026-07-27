@@ -84,6 +84,39 @@ class HandoffTests(unittest.TestCase):
         self.assertFalse((self.run / "output.md").exists())
         self.assertEqual(handoff.show(self.run)["handoff"]["status"], "failed")
 
+    def test_missing_or_malformed_result_marks_running_attempt_failed(self):
+        prepared = self.prepare()
+        handoff.mark_running(self.run, "agent")
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["handoff"]["status"], "failed")
+        self.assertIn("output_validation", shown["state_reason"])
+
+        retry = self.prepare()
+        handoff.mark_running(self.run, "agent-2")
+        (self.run / retry["manifest"]["result_path"]).write_text("{", encoding="utf-8")
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        self.assertEqual(handoff.show(self.run)["handoff"]["status"], "failed")
+
+    def test_extra_or_symlinked_staged_outputs_are_rejected(self):
+        prepared = self.prepare()
+        handoff.mark_running(self.run, "agent")
+        self.finish(prepared)
+        output_root = self.run / prepared["manifest"]["output_root"]
+        (output_root / "extra.md").write_text("unexpected", encoding="utf-8")
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        self.assertEqual(handoff.show(self.run)["handoff"]["status"], "failed")
+
+        retry = self.prepare()
+        handoff.mark_running(self.run, "agent-2")
+        self.finish(retry)
+        (self.run / retry["manifest"]["output_root"] / "link.md").symlink_to(self.run / "brief.md")
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+
     def test_input_change_makes_completed_handoff_effectively_stale(self):
         prepared = self.prepare()
         handoff.mark_running(self.run, "agent")
@@ -95,6 +128,18 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(shown["effective_status"], "stale")
         self.assertFalse(shown["input_fresh"])
 
+    def test_show_reports_stale_upstream_and_blocks_downstream_prepare(self):
+        self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
+        self.complete_stage("editorial_strategist", "strategy", ["claims.yaml"], ["outline.md"])
+        (self.run / "brief.md").write_text("changed", encoding="utf-8")
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["effective_status"], "stale")
+        self.assertEqual(shown["stale_handoffs"][0]["handoff"]["phase"], "research")
+        with self.assertRaises(handoff.HandoffError):
+            self.prepare("writer", "draft", ["outline.md"], ["draft-v1.md"])
+        retry = self.prepare("researcher", "research", ["brief.md"], ["claims.yaml"])
+        self.assertEqual(retry["manifest"]["attempt"], 2)
+
     def test_failed_retry_keeps_attempt_history(self):
         first = self.prepare()
         handoff.mark_running(self.run, "agent-1")
@@ -104,6 +149,16 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(second["manifest"]["attempt"], 2)
         self.assertTrue((first["attempt_dir"] / "result.json").is_file())
         self.assertTrue((second["attempt_dir"] / "manifest.json").is_file())
+
+    def test_failed_handoff_cannot_be_bypassed_by_downstream_prepare(self):
+        first = self.prepare()
+        handoff.mark_running(self.run, "agent")
+        self.finish(first, bad_hash=True)
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        with self.assertRaises(handoff.HandoffError):
+            self.prepare("writer", "draft", ["brief.md"], ["draft-v1.md"])
+        self.assertEqual(self.prepare()["manifest"]["attempt"], 2)
 
     def test_current_running_handoff_and_unsafe_phase_are_rejected(self):
         self.prepare()
@@ -127,9 +182,11 @@ class HandoffTests(unittest.TestCase):
 
     def test_corrupt_json_and_manifest_hash_mismatch_are_rejected(self):
         prepared = self.prepare()
+        original_state = (prepared["attempt_dir"] / "state.json").read_text(encoding="utf-8")
         (prepared["attempt_dir"] / "state.json").write_text("{", encoding="utf-8")
         with self.assertRaises(handoff.HandoffError):
             handoff.show(self.run)
+        (prepared["attempt_dir"] / "state.json").write_text(original_state, encoding="utf-8")
         status = json.loads((self.run / "status.json").read_text(encoding="utf-8"))
         status.pop("current_handoff")
         handoff.atomic_write_json(self.run / "status.json", status)

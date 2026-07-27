@@ -112,7 +112,10 @@ def safe_path(root: Path, relative: str, *, must_exist: bool = False) -> Path:
     relative = _relative_path(relative)
     root = root.resolve()
     candidate = root / relative
-    resolved = candidate.resolve(strict=must_exist)
+    try:
+        resolved = candidate.resolve(strict=must_exist)
+    except OSError as error:
+        raise HandoffError(f"missing or invalid path: {relative}") from error
     try:
         resolved.relative_to(root)
     except ValueError as error:
@@ -261,10 +264,25 @@ def _load_attempt(attempt_dir: Path, run_dir: Path) -> tuple[dict, dict]:
     state_path = attempt_dir / "state.json"
     manifest, state = _read_json(manifest_path), _read_json(state_path)
     validate_manifest(manifest, run_dir)
+    required = {"schema_version", "handoff_id", "attempt", "status", "manifest_sha256", "created_at", "updated_at"}
+    missing = required - state.keys()
+    if missing or state.get("schema_version") != SCHEMA_VERSION:
+        raise HandoffError(f"invalid handoff state: missing={sorted(missing)}")
+    if state.get("handoff_id") != manifest["handoff_id"]:
+        raise HandoffError("state belongs to a different handoff")
     if state.get("manifest_sha256") != _json_hash(manifest):
         raise HandoffError("manifest hash mismatch")
     if state.get("status") not in TRANSITIONS or state.get("attempt") != manifest["attempt"]:
         raise HandoffError("invalid handoff state")
+    for key in ("created_at", "updated_at"):
+        if not isinstance(state[key], str):
+            raise HandoffError(f"invalid state timestamp: {key}")
+        try:
+            datetime.fromisoformat(state[key])
+        except ValueError as error:
+            raise HandoffError(f"invalid state timestamp: {key}") from error
+    if state["status"] in {"running", "completed", "failed"} and not isinstance(state.get("agent_ref"), str):
+        raise HandoffError("state agent_ref is required after start")
     return manifest, state
 
 
@@ -272,7 +290,9 @@ def _write_state(attempt_dir: Path, state: dict) -> None:
     atomic_write_json(attempt_dir / "state.json", state)
 
 
-def _set_state(attempt_dir: Path, state: dict, target: str, *, reason: str | None = None) -> dict:
+def _set_state(
+    attempt_dir: Path, state: dict, target: str, *, reason: str | None = None, agent_ref: str | None = None,
+) -> dict:
     if target not in TRANSITIONS.get(state["status"], set()):
         raise HandoffError(f"invalid transition {state['status']} -> {target}")
     state = dict(state)
@@ -280,6 +300,8 @@ def _set_state(attempt_dir: Path, state: dict, target: str, *, reason: str | Non
     state["updated_at"] = _now()
     if reason:
         state["reason"] = reason
+    if agent_ref is not None:
+        state["agent_ref"] = agent_ref
     _write_state(attempt_dir, state)
     return state
 
@@ -311,12 +333,22 @@ def prepare(
     input_records = []
     with _lock(run_dir):
         status = _status(run_dir)
+        current_manifest = current_state = None
         current = status.get("current_handoff")
         if isinstance(current, dict) and isinstance(current.get("path"), str):
             current_dir = safe_path(run_dir, current["path"], must_exist=True)
-            _, current_state = _load_attempt(current_dir, run_dir)
+            current_manifest, current_state = _load_attempt(current_dir, run_dir)
             if current_state["status"] in {"prepared", "running"}:
                 raise HandoffError("current handoff must finish or become stale before preparing another")
+        retry = (phase, to_role)
+        stale_stages = _latest_completed_stale(run_dir)
+        if stale_stages:
+            earliest = stale_stages[0]["handoff"]
+            if retry != (earliest["phase"], earliest["to_role"]):
+                raise HandoffError("retry the earliest stale handoff before downstream work")
+        elif current_state and current_state["status"] in {"failed", "stale"}:
+            if retry != (current_manifest["phase"], current_manifest["to_role"]):
+                raise HandoffError("retry the current failed or stale handoff before downstream work")
         for raw in inputs:
             relative = _relative_path(raw)
             path = safe_path(run_dir, relative, must_exist=True)
@@ -382,6 +414,36 @@ def _current_attempt(run_dir: Path) -> tuple[Path, dict, dict]:
     return attempt_dir, manifest, state
 
 
+def _latest_completed_stale(run_dir: Path) -> list[dict]:
+    """Find stale latest completed attempts without introducing workflow edges."""
+    stale = []
+    handoffs = run_dir / "handoffs"
+    if not handoffs.is_dir():
+        return stale
+    for stage_dir in handoffs.iterdir():
+        if not stage_dir.is_dir() or stage_dir.is_symlink():
+            continue
+        attempts = []
+        for attempt_dir in stage_dir.glob("attempt-*"):
+            suffix = attempt_dir.name.removeprefix("attempt-")
+            if attempt_dir.is_dir() and suffix.isdigit():
+                attempts.append((int(suffix), attempt_dir))
+        if not attempts:
+            continue
+        _, attempt_dir = max(attempts)
+        manifest, state = _load_attempt(attempt_dir, run_dir)
+        if state["status"] != "completed":
+            continue
+        fresh, reasons = _input_fresh(manifest, run_dir)
+        if not fresh:
+            stale.append({
+                "handoff": _reference(manifest, state, attempt_dir, run_dir),
+                "blocking_reasons": reasons,
+                "created_at": state["created_at"],
+            })
+    return sorted(stale, key=lambda item: item["created_at"])
+
+
 def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
     """Internal host hook; the CLI deliberately has no equivalent operation."""
     if not agent_ref:
@@ -393,9 +455,7 @@ def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
         if not fresh:
             state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
         else:
-            state = _set_state(attempt_dir, state, "running")
-            state["agent_ref"] = agent_ref
-            _write_state(attempt_dir, state)
+            state = _set_state(attempt_dir, state, "running", agent_ref=agent_ref)
         status = _status(run_dir)
         status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
         _write_status(run_dir, status)
@@ -420,6 +480,21 @@ def _atomic_copy(source: Path, destination: Path) -> None:
         raise
 
 
+def _staged_output_paths(output_root: Path) -> set[str]:
+    if output_root.is_symlink() or not output_root.is_dir():
+        raise HandoffError("output_root must be a real directory")
+    paths = set()
+    for path in output_root.rglob("*"):
+        relative = path.relative_to(output_root).as_posix()
+        if path.is_symlink():
+            raise HandoffError(f"staged output symlink: {relative}")
+        if path.is_file():
+            paths.add(relative)
+        elif not path.is_dir():
+            raise HandoffError(f"unsupported staged output: {relative}")
+    return paths
+
+
 def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict:
     run_dir = Path(run_dir).resolve()
     with _lock(run_dir):
@@ -433,25 +508,29 @@ def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict
             status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
             _write_status(run_dir, status)
             raise HandoffError("input changed; handoff is stale")
-        if result_path is None:
-            result_file = safe_path(run_dir, manifest["result_path"], must_exist=True)
-        else:
-            result_file = safe_path(run_dir, _relative_path(str(result_path)), must_exist=True)
-        result = _read_json(result_file)
+        result = None
         try:
+            if result_path is None:
+                result_file = safe_path(run_dir, manifest["result_path"], must_exist=True)
+            else:
+                result_file = safe_path(run_dir, _relative_path(str(result_path)), must_exist=True)
+            result = _read_json(result_file)
             validate_result(result, manifest)
             if result["agent_ref"] != state.get("agent_ref"):
                 raise HandoffError("result agent_ref does not match running handoff")
             if result["status"] == "completed":
                 output_root = safe_path(run_dir, manifest["output_root"], must_exist=True)
-                for output in _result_outputs(result, manifest):
+                outputs = _result_outputs(result, manifest)
+                if _staged_output_paths(output_root) != {output["path"] for output in outputs}:
+                    raise HandoffError("staged outputs do not exactly match Result")
+                for output in outputs:
                     logical = output["path"]
                     if not _within_scope(logical, manifest["write_scope"]):
                         raise HandoffError(f"output outside write_scope: {logical}")
                     source = safe_path(output_root, logical, must_exist=True)
                     if not source.is_file() or sha256_file(source) != output["sha256"]:
                         raise HandoffError(f"invalid output: {logical}")
-                for output in _result_outputs(result, manifest):
+                for output in outputs:
                     _atomic_copy(safe_path(output_root, output["path"], must_exist=True), safe_path(run_dir, output["path"]))
                 state = _set_state(attempt_dir, state, "completed")
             else:
@@ -481,12 +560,18 @@ def show(run_dir: Path | str) -> dict:
             status = _status(run_dir)
             status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
             _write_status(run_dir, status)
-        effective = state["status"] if fresh else "stale"
+        stale_stages = _latest_completed_stale(run_dir)
+        historical_reasons = [
+            f"stale {item['handoff']['phase']}/{item['handoff']['to_role']}: {reason}"
+            for item in stale_stages for reason in item["blocking_reasons"]
+        ]
+        effective = "stale" if stale_stages or not fresh else state["status"]
         return {
             "handoff": _reference(manifest, state, attempt_dir, run_dir),
             "input_fresh": fresh,
             "effective_status": effective,
             "agent_ref": state.get("agent_ref"),
             "state_reason": state.get("reason"),
-            "blocking_reasons": errors or ([state["reason"]] if state.get("reason") else []),
+            "blocking_reasons": errors or ([state["reason"]] if state.get("reason") else []) or historical_reasons,
+            "stale_handoffs": stale_stages,
         }
