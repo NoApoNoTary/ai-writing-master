@@ -36,6 +36,8 @@
 | `writing-master home` | 输出运行数据目录 |
 | `writing-master handoff` | 已建立 deep/multi-agent 运行目录的 `prepare`、`complete`、`show` 交接操作 |
 | `writing-master context` | 显式管理 Profile、五类素材、privacy approval、不可变 Snapshot 与 usage/run 验证 |
+| `writing-master learn` | 提交、接受或拒绝可追溯 Style Observation，并显示 accepted-only Style Profile |
+| `writing-master research` | 将 Agent 选题 draft 绑定到任务 Brief/Snapshot，并保存或验证 canonical Research Brief |
 
 机械检查不负责事实核验、证据强度、原创性、论证质量或作者声音判断。
 
@@ -85,9 +87,10 @@ Baoyu 不随本仓库分发。当前集成层负责：
 - Researcher、Editorial Strategist、Writer、Auditor 角色卡；
 - Baoyu 的 Preflight → Planning → Production → Publish 分阶段路由；
 - 机械脚本与独立编辑审查分离。
-- `personal_context` 深模块：revisioned Author Profile、五类来源身份明确的 Knowledge Item、visibility/approval、任务内 Snapshot、usage 和 hash 验证。
+- `personal_context` 深模块：revisioned Author Profile、五类 Knowledge Item、visibility/approval、任务内 Snapshot、usage、确认式 Style Observation 与 accepted-only Style Profile。
+- `research_brief` 深模块：3–10 个上下文感知候选、实时 Evidence、四维评分、任务输入绑定和 write-once 验证。
 
-Goal A 不包含确认式风格学习、`learn` CLI、Research Brief 或通用 quick/standard Task Runtime；这些能力仍未交付。
+Personal Context Foundation、确认式风格学习和 Context-aware Research Brief 已交付。`quick/standard` 的通用确定性跨会话 Task Runtime 仍未交付。
 
 ## 2026-07-27 仓库审计修正
 

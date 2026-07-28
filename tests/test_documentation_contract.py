@@ -63,7 +63,7 @@ class DocumentationContractTests(unittest.TestCase):
             r"(?s)从\s*`?\$\{WRITING_MASTER_HOME.*?/runs/.*?(?:读取|恢复).*?(?:最近|未完成)",
         )
 
-    def test_goal_a_docs_describe_context_cli_without_goal_b_or_c_claims(self):
+    def test_release_docs_publish_context_learning_and_research_without_overclaiming(self):
         readme = read("README.md")
         quick_start = read("docs/quick-start.md")
         cli_guide = read("docs/cli-guide.md")
@@ -73,9 +73,16 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertIn("writing-master context init", quick_start)
         self.assertIn("writing-master context verify-run RUN_DIR", cli_guide)
         self.assertIn("`writing-master context`", summary)
+        for command in ("writing-master learn", "writing-master research"):
+            self.assertIn(command, readme)
+            self.assertIn(command, quick_start)
+            self.assertIn(command, cli_guide)
+            self.assertIn(f"`{command}`", summary)
         for document in (readme, quick_start, cli_guide, summary):
-            self.assertNotIn("`learn` CLI 已实现", document)
-            self.assertNotIn("Research Brief 已实现", document)
+            self.assertNotIn("自动学习作者风格", document)
+            self.assertNotIn("Runtime 验证热点真实", document)
+        self.assertIn("缺少实时检索时不生成 Heat 或 Brief", readme)
+        self.assertIn("只影响之后创建的新 Snapshot", cli_guide)
 
     def test_p0_critical_scenarios_preserve_ordered_happy_and_failure_paths(self):
         prd = read("docs/proposals/2026-07-27-product-capability-prd.md")

@@ -14,6 +14,8 @@ _COMMANDS = {
     "similarity": ("writing_master.commands.similarity", "文本相似度检测（防洗稿）"),
     "handoff": ("writing_master.commands.handoff", "深度模式角色交接"),
     "context": ("writing_master.commands.context", "管理个人上下文"),
+    "learn": ("writing_master.commands.learn", "确认或拒绝风格学习候选"),
+    "research": ("writing_master.commands.research", "保存并校验选题 Research Brief"),
     "home": (None, "输出状态目录路径"),
 }
 

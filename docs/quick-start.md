@@ -81,9 +81,30 @@ writing-master context material add experience.md \
   --kind experiences --title '一次可追溯经历' \
   --source-kind user_provided --source-ref 'local://experience-001' \
   --visibility ask_before_use --tag example
+
+# 查看确认式风格学习状态
+writing-master learn show --json
 ```
 
-标准或深度任务在内容契约确认后才创建任务内 Snapshot。`ask_before_use` 素材需要 `context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote`；`private` 素材不会进入 Snapshot。可用 `context search`、`context snapshot` 和 `context verify-run` 查看或核验 Runtime 结果，完整参数见 [CLI 工具指南](cli-guide.md#context个人上下文)。
+标准或深度任务在内容契约确认后才创建任务内 Snapshot。`ask_before_use` 素材需要 `context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote`；`private` 素材不会进入 Snapshot。可用 `context search`、`context snapshot` 和 `context verify-run` 查看或核验 Runtime 结果。
+
+用户明确要求从一次编辑中学习时，先准备包含 baseline/edited hash、具体证据、规则与范围的 Candidate，再显式决定：
+
+```bash
+writing-master learn propose style-candidate.json --json
+writing-master learn decide OBSERVATION_ID --accept --json
+```
+
+只有 accepted observation 会进入后续任务的新 Snapshot，当前任务不会被反向改写。完整参数见 [CLI 工具指南](cli-guide.md#learn确认式风格学习)。
+
+宽主题、只做选题或近期热点请求可先形成 Research Brief。Agent 生成 3–10 个候选 draft 后，Runtime 负责绑定和校验：
+
+```bash
+writing-master research save RUN_DIR research-brief-draft.json --json
+writing-master research verify RUN_DIR --json
+```
+
+缺少实时检索能力时不生成 Heat 或 Brief。用户选择 candidate 后再进入文章事实研究；Research Brief Evidence 不自动成为正文 claim。详见 [CLI 工具指南](cli-guide.md#research上下文感知选题-brief)。
 
 ### 深度写作
 

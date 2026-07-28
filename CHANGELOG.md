@@ -11,6 +11,10 @@
 - 增加 `sources.yaml`、`claims.yaml`、`asset-manifest.yaml` 与 `storyboard.md` 的证据/素材契约。
 - 增加 Baoyu 的 capability/material preflight，以及 Planning、Production、Publish 分阶段路由。
 - 补齐 `writing-rewrite` 的小红书/抖音平台 YAML，以及多平台改写和质量门槛参考文件。
+- 增加 Personal Context Runtime：版本化 Profile、五类素材、隐私准入、不可变任务 Snapshot、usage 与 hash 验证。
+- 增加 `writing-master learn`：可追溯 Style Observation、显式接受/拒绝和 accepted-only Style Profile。
+- 增加 `writing-master research`：3–10 个上下文感知候选、实时 Evidence、四维评分及任务 Brief/Snapshot 绑定。
+- 增加最小 GitHub Actions，执行全量单元测试、compileall、CLI smoke、安装脚本语法检查和包构建。
 
 ### Changed
 
@@ -24,6 +28,7 @@
 - 重写 README、项目现状、快速开始和 CLI 指南，删除 Roadmap、固定模型推荐和未落地能力宣传。
 - Baoyu 调用原则调整为“早预检、早摄入、晚生成、明确指令后发布”。
 - 对齐运行时事实：深度模式 Handoff Runtime 已通过真实宿主验收；`quick/standard` 仍没有通用任务恢复，并在 CLI 指南列出 `handoff prepare|complete|show`。
+- 主写作流程按需在文章事实研究前执行 Topic Research，并只在用户明确决定后把 accepted 风格规则用于后续任务 Snapshot。
 
 ### Fixed
 

@@ -1,6 +1,6 @@
 # CLI 工具指南
 
-AI Writing Master 的 CLI 提供五项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接和个人上下文管理。它们不替代事实研究或编辑审查。
+AI Writing Master 的 CLI 提供七项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习和 Research Brief 校验。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
 
@@ -60,6 +60,11 @@ writing-master context import-legacy SOURCE_DIR [--kind KIND]
 writing-master context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote
 writing-master context snapshot RUN_DIR --material ITEM_ID:PURPOSE [--material ITEM_ID:PURPOSE ...]
 writing-master context verify-run RUN_DIR [--json]
+writing-master learn propose CANDIDATE.json [--json]
+writing-master learn decide OBSERVATION_ID (--accept | --reject) [--json]
+writing-master learn show [--json]
+writing-master research save RUN_DIR DRAFT.json [--json]
+writing-master research verify RUN_DIR [--json]
 ```
 
 ## `quality`：机械文本检查
@@ -189,7 +194,7 @@ writing-master home
 
 ## `context`：个人上下文
 
-`context` 管理版本化 Author Profile、五类 Knowledge Item、任务级 approval 与不可变任务 Snapshot。所有运行时 JSON 由 Python 标准库维护；初始化、导入、Snapshot、usage 和 verify 都是显式动作。它不扫描或自动导入旧 `personal_materials/`，也不包含 Goal B 的 `learn` 命令或 Goal C 的 Research Brief。
+`context` 管理版本化 Author Profile、五类 Knowledge Item、任务级 approval 与不可变任务 Snapshot。所有运行时 JSON 由 Python 标准库维护；初始化、导入、Snapshot、usage 和 verify 都是显式动作。它不扫描或自动导入旧 `personal_materials/`；风格决定与 Research Brief 分别由 `learn` 和 `research` 管理。
 
 ```bash
 # 初始化 Profile、Style 与 Knowledge Index 的 canonical 空状态
@@ -224,6 +229,51 @@ writing-master context verify-run RUN_DIR --json
 ```
 
 `publishable` 可直接进入新 Snapshot；`ask_before_use` 需要对应任务、item 和用途的 approval；`private` 永远不会进入写作 Snapshot。Snapshot 写入后保持不可变，任务只读取 Snapshot 和任务内 `context-materials/` 副本；`verify-run` 检查明确记录的 hash、approval、usage 及 final/acceptance 文件，不宣称对正文作语义性隐私审计。
+
+## `learn`：确认式风格学习
+
+`learn` 保存可追溯的 Style Observation Candidate，并要求用户显式接受或拒绝。Runtime 不从一次编辑自动修改 Style，也不对规则语义作判断。
+
+```bash
+writing-master learn propose style-candidate.json --json
+writing-master learn decide OBSERVATION_ID --accept --json
+writing-master learn decide OBSERVATION_ID --reject --json
+writing-master learn show --json
+```
+
+Candidate 记录：
+
+- 来源任务；
+- baseline/edited 文件路径与 SHA-256；
+- before/after 片段或 diff 引用；
+- `expression | sentence | structure | stance | platform` 规则维度；
+- global/platform/content type/topic 适用范围；
+- proposal model 与 prompt。
+
+`propose` 只创建 `proposed` observation。终态为 `accepted` 或 `rejected`；重复相同决定幂等，相反决定返回 revision conflict。Style Profile 只由 accepted observations 确定性重建，每条规则保留 observation ID/revision/hash 引用。全局 Style 更新只影响之后创建的新 Snapshot，既有任务不变化。
+
+完整 Candidate schema 见 [`Goal B Contract`](goals/2026-07-28-v0.2b-goal-contract.md)。
+
+## `research`：上下文感知选题 Brief
+
+`research` 不执行网络调研。Researcher 或当前 Agent 先基于实时来源生成 `research-brief-draft.json`，Runtime 再把它绑定到既有任务的 `brief.md` 与 `personal-context-snapshot.json`：
+
+```bash
+writing-master research save RUN_DIR research-brief-draft.json --json
+writing-master research verify RUN_DIR --json
+```
+
+有效 draft 包含 3–10 个候选，每个候选具备 Topic、Heat、Audience、Angle、Evidence、`heat/user_value/differentiation/author_fit` 四维评分及 Rationale。Runtime 校验：
+
+- 分数范围和 Heat 一致性；
+- 非未来 RFC3339 时间；
+- Evidence URL、内容 hash 和稳定 ID；
+- `author_fit` 只引用冻结 Snapshot 的 Profile revision/hash 或已选 Material ID；
+- canonical Brief 与原始 `brief.md`、Snapshot 的输入 hash。
+
+相同保存幂等；同一任务的不同第二次保存返回 duplicate。`verify` 会发现 Brief、Snapshot 或 canonical 文件变化。Research Brief Evidence 只支持候选排序，不自动成为文章 `claims.yaml` 中的 accepted claim。缺少实时检索能力时，Host 在生成 draft 前报告 `realtime_research_unavailable`。
+
+Draft schema 与 Agent 边界见 [`Research Brief reference`](../skills/writing-master/references/research-brief.md)。
 
 ## `handoff`：深度模式角色交接
 

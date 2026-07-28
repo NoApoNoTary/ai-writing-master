@@ -20,6 +20,8 @@ Lead Agent 负责模式、Brief、文件状态、用户确认、问题合并、B
 ```text
 Lead：模式 + 内容契约 + Baoyu preflight
   ↓
+可选 Researcher：topic research brief（宽主题/近期选题）
+  ↓ 用户确认候选方向
 Researcher：claims + sources + asset manifest
   ↓
 Editorial Strategist：角度 + reader decision + outline + storyboard
@@ -87,11 +89,21 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 - 代理只写自己的 attempt 产物；Lead/Runtime 维护 `status.json`。
 - 输入变化后由 Runtime 校验 hash；只重跑受影响节点。
 
-### Goal A personal context
+### Personal context
 
-内容契约确认后，Lead 创建或确认任务内 `personal-context-snapshot.json`。当 Deep 的 Writer 或 Auditor 需要个人上下文时，其 Manifest 必须逐项列出该 Snapshot 与所选 `context-materials/ITEM_ID.md` 副本；不得列出 `${WRITING_MASTER_HOME}/personal-context/`、其他全局个人目录或父对话全文。篡改 Snapshot 会使引用它的 handoff stale。
+内容契约确认后，Lead 创建或确认任务内 `personal-context-snapshot.json`。当 Deep 的 Researcher、Writer 或 Auditor 需要个人上下文时，其 Manifest 必须逐项列出该 Snapshot 与所选 `context-materials/ITEM_ID.md` 副本；不得列出 `${WRITING_MASTER_HOME}/personal-context/`、其他全局个人目录或父对话全文。篡改 Snapshot 会使引用它的 handoff stale。
 
 这是 Host 输入构造、Manifest/hash 和 stale 的可证明合同，不是 OS 级文件访问隔离声明。
+
+### Topic Research
+
+用户明确只要选题、内容契约仍是宽主题，或要求近期热点时，Host 先检查实时检索能力。能力可用后，Lead 才创建 `phase=topic_research`、`to_role=researcher` 的 Handoff：
+
+- `allowed_inputs` 只列出 `brief.md`、`personal-context-snapshot.json`、所选任务内材料副本和 `references/research-brief.md`。
+- 唯一 expected output 是 `research-brief-draft.json`；Researcher 提出 3–10 个候选但不选择最终方向。
+- Runtime 提升 draft 后，Lead 运行 `writing-master research save/verify`，再让用户选择 candidate。
+- 缺少实时检索时在 Handoff 创建前记录 capability response；不创建 Handoff、draft 或 canonical Brief。
+- 选定 candidate 后才创建普通 `phase=research` Handoff；Research Brief Evidence 不自动进入文章 claims。
 
 ## 角色卡
 

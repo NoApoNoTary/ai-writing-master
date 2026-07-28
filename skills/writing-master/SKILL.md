@@ -1,7 +1,7 @@
 ---
 name: writing-master
 description: |
-  AI Writing Master 的端到端内容创作入口。新建完整文章时先让用户明确选择快速草稿、标准写作或深度写作；快速与标准模式由当前 Agent 单独完成，只有具备真实 Handoff Runtime 的深度模式启用多 Agent。流程覆盖内容契约、素材接收回执、事实与素材双轨调研、选题与 storyboard、写作、审校、验收产物、Baoyu 视觉/排版路由和发布验收。适用于“写文章、写公众号、从零创作、深度写稿”等请求；洗稿改写转 writing-rewrite。
+  AI Writing Master 的端到端内容创作入口。新建完整文章时先让用户明确选择快速草稿、标准写作或深度写作；快速与标准模式由当前 Agent 单独完成，只有具备真实 Handoff Runtime 的深度模式启用多 Agent。流程覆盖内容契约、个人上下文、上下文感知选题、事实与素材双轨调研、写作、审校、确认式风格学习、Baoyu 视觉/排版路由和发布验收。适用于“写文章、写公众号、从零创作、深度写稿”等请求；洗稿改写转 writing-rewrite。
 allowed-tools:
   - Bash
   - Read
@@ -40,7 +40,8 @@ allowed-tools:
 | 用户已在当前请求中明确说快速、标准或深度 | 直接采用该模式，不重复提问 |
 | 继续指定任务 | 检查任务恢复能力；已验证可用时读取指定 `task_id`，否则展示 Product–Technical Gap 和已知产物 |
 | 洗稿、改写、平台重写 | 转 `writing-rewrite` |
-| 只做选题、审校、标题或素材规划 | 在当前 Skill 内执行对应模块，不虚构独立 Skill |
+| 只做选题 | 在当前 Skill 内按需执行 `references/research-brief.md`，不虚构独立 Skill |
+| 只做审校、标题或素材规划 | 在当前 Skill 内执行对应模块，不虚构独立 Skill |
 | 只做配图、封面、信息图、HTML 或发布 | 只读取已验收的 canonical final，读取 `references/baoyu-integration.md` 后路由到实际存在的 Baoyu Skill |
 
 ### 模式选择闸门
@@ -121,13 +122,14 @@ pending_approvals: {N}
 
 ## 用户等待与继续方式
 
-只在模式、内容契约、重大方向、阻断问题和发布需要用户决定时中断。每个等待点都给出明确问题和继续方式：
+只在模式、内容契约、重大方向、阻断问题、明确请求的风格候选决定和发布需要用户决定时中断。每个等待点都给出明确问题和继续方式：
 
 | 等待点 | 必须展示的问题 | 继续方式 |
 |---|---|---|
 | 内容契约 | `请确认内容契约：{摘要}` | 回复“确认”，或用“修改：字段=值”更新，或回复“取消” |
 | 方向 | `请选择方向：1/2/3，或说明你要修改的取舍。` | 选择、修改或取消 |
 | 审校问题 | `审校发现 {blocking} 个阻断、{major} 个主要问题。需要你决定：{方向性问题}` | 接受建议、忽略非阻断项、修改原始要求、补充证据，或要求重写受影响部分 |
+| 风格候选 | `是否接受这条可追溯风格规则：{规则、范围、证据摘要}？` | 接受、拒绝或暂不决定 |
 | 发布 | `最终产物已验收。是否发布到 {平台}？` | 只有“发布到 {平台}”这类明确指令才产生外部副作用 |
 
 “继续”“下一步”只推进到下一份可审阅产物，不等同于发布指令。阻断问题不得通过“忽略”进入已完成或发布状态。
@@ -172,6 +174,14 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 读取 `references/evidence-and-assets.md`。
 
+当用户明确只要选题、内容契约仍是宽主题，或要求近期热点/值得关注的话题时，先读取 `references/research-brief.md` 并执行 Topic Research：
+
+- Host 先检查实时检索能力；缺失时记录 `realtime_research_unavailable`，不生成 Heat、draft 或 canonical Brief。
+- quick/standard 由当前 Agent 基于任务 `brief.md`、Snapshot、任务内材料副本和实时来源生成 `research-brief-draft.json`。
+- deep 由 Lead 创建 `topic_research -> researcher` Handoff，只传 Manifest 明确列出的任务内输入；Handoff 完成后使用已提升的 draft。
+- 运行 `writing-master research save {run_dir} {draft}` 和 `writing-master research verify {run_dir}`，再向用户展示 3–10 个候选及取舍并等待方向选择。
+- 用户或 Lead 选定 candidate 后，才进入下面的 Article Research；Research Brief Evidence 不自动成为 `claims.yaml` 中的 accepted claim。
+
 **事实轨**：为正文中的关键主张记录来源、日期、证据等级和表述边界。
 
 **素材轨**：同步寻找官方 GIF、视频、截图、图表、论文插图和用户素材；先登记真实素材，再判断是否需要编辑解释图。
@@ -189,7 +199,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 2：角度、读者决策与 Storyboard
 
-1. 按 `references/mode-selection.md` 中当前模式的用户确认规则，给出一个建议角度或多个候选角度及其取舍。
+1. 若存在已验证的 `research-brief.json`，只从用户或 Lead 选定的 candidate 继续；否则按 `references/mode-selection.md` 中当前模式的用户确认规则，给出一个建议角度或多个候选角度及其取舍。
 2. 明确一句“读者看完后应形成的判断或行动”。
 3. 需要时读取 `references/creative-drainage.md`，排除可替换主题名仍成立的套话角度。
 4. 形成文章结构，并为每个视觉位定义职责：Cover、Hero（可省略）、Evidence、Explanation 或 Decorative。
@@ -278,6 +288,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 完成后，用户可以独立请求 Rewrite、视觉、排版、发布、保存为个人素材或以此任务创建新任务起点；这些动作都创建关联产物，不改变 canonical final。
 
+用户明确要求从本次编辑中学习时，读取 `references/personal-context.md`：只从具有 baseline/edited hash 和具体证据的修改生成 Style Observation candidate，运行 `writing-master learn propose`，展示规则、范围和证据后等待用户接受或拒绝。Runtime 不自动决定；只有 accepted observation 会进入后续任务的新 Snapshot，当前任务 Snapshot 与 canonical final 均保持不变。
+
 ## 模式差异
 
 | 能力 | 快速草稿 | 标准写作 | 深度写作 |
@@ -307,6 +319,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 - `references/mode-selection.md`：入口问法与三种模式边界
 - `references/agent-orchestration.md`：仅供深度模式使用的多 Agent 协议
+- `references/personal-context.md`：任务 Snapshot、素材准入、usage 与确认式风格学习
+- `references/research-brief.md`：上下文感知 Topic Research 的 draft、Evidence、评分与作者匹配合同
 - `references/evidence-and-assets.md`：来源、主张、素材与 storyboard 契约
 - `references/baoyu-integration.md`：Baoyu 预检、规划、生产和发布路由
 - `references/reader-value.md`：读者价值定义

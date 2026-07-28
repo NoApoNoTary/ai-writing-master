@@ -150,7 +150,10 @@ class WritingSkillContractTests(unittest.TestCase):
         )
 
         self.assertNotIn("| 标题 |", waiting)
-        self.assertIn("只在模式、内容契约、重大方向、阻断问题和发布", waiting)
+        self.assertIn(
+            "只在模式、内容契约、重大方向、阻断问题、明确请求的风格候选决定和发布",
+            waiting,
+        )
         self.assert_in_order(
             title,
             "标题至少提供自然版、判断版和传播版",
@@ -269,6 +272,42 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("pending_approvals: {N}", main)
         self.assertIn("不得扫描或直接读取 `${WRITING_MASTER_HOME}/personal-context/`", bridge)
         self.assertIn("不对正文作语义性“绝无私密泄露”声明", bridge)
+
+    def test_confirmed_style_learning_only_affects_future_snapshots(self):
+        main = read("skills/writing-master/SKILL.md")
+        bridge = read("skills/writing-master/references/personal-context.md")
+
+        for token in (
+            "writing-master learn propose",
+            "writing-master learn decide",
+            "Style Profile 只从 accepted observations",
+            "当前任务 Snapshot 写入后保持不变",
+        ):
+            self.assertIn(token, bridge)
+        self.assertIn("只有 accepted observation 会进入后续任务的新 Snapshot", main)
+        self.assertIn("Runtime 不自动决定", main)
+
+    def test_topic_research_precedes_article_research_and_uses_runtime_validation(self):
+        main = read("skills/writing-master/SKILL.md")
+        orchestration = read("skills/writing-master/references/agent-orchestration.md")
+        phase1 = section(main, "### Phase 1：事实与素材双轨调研")
+
+        self.assertIn("references/research-brief.md", main)
+        self.assert_in_order(
+            phase1,
+            "Topic Research",
+            "research-brief-draft.json",
+            "writing-master research save",
+            "Article Research",
+        )
+        for token in (
+            "phase=topic_research",
+            "to_role=researcher",
+            "research-brief-draft.json",
+            "writing-master research save/verify",
+            "Research Brief Evidence 不自动进入文章 claims",
+        ):
+            self.assertIn(token, orchestration)
 
     def test_rewrite_reads_real_platform_contracts(self):
         rewrite = read("skills/writing-rewrite/SKILL.md")

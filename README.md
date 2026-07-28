@@ -196,6 +196,12 @@ writing-master handoff show RUN_DIR --json
 writing-master context init
 writing-master context profile show --json
 writing-master context material list --json
+
+# 确认或拒绝可追溯的风格候选
+writing-master learn show --json
+
+# 保存并校验任务内选题 Research Brief
+writing-master research verify RUN_DIR --json
 ```
 
 `quality` 这个命令名为兼容现有调用保留。它只检查套话、句长变化、段落节奏、副词密度和字符 bigram 多样性，并输出机械预警分数。它不验证事实、证据、原创性、论证质量或作者风格，也不产生“AI 味百分比”。
@@ -206,7 +212,7 @@ writing-master context material list --json
 
 ## Personal Context：显式、可追溯的个人上下文
 
-Goal A 已提供版本化 Author Profile、五类 Knowledge Item、隐私准入、任务 Snapshot 与 usage 验证。它是本地文件 Runtime，不会从 `personal_materials/` 自动扫描或迁移，也不包含风格学习 `learn` 命令或 Research Brief。
+Personal Context Runtime 提供版本化 Author Profile、五类 Knowledge Item、隐私准入、任务 Snapshot、usage 验证和确认式 Style Observation。它不会从 `personal_materials/` 自动扫描或迁移，也不会根据一次编辑自动改变作者风格。
 
 ```bash
 # 只初始化 canonical Profile/Style/Knowledge 空状态
@@ -218,9 +224,24 @@ writing-master context material add experience.md \
   --kind experiences --title '一次可追溯经历' \
   --source-kind user_provided --source-ref 'local://experience-001' \
   --visibility ask_before_use --tag example
+
+# Candidate 只进入 proposed；接受或拒绝都需要显式决定
+writing-master learn propose style-candidate.json --json
+writing-master learn decide OBSERVATION_ID --accept --json
 ```
 
-`publishable` 素材可进入任务 Snapshot；`ask_before_use` 需要该任务的显式 approval；`private` 不进入写作 Snapshot。标准或深度写作在内容契约确认后只使用任务内 Snapshot 和被选素材副本；`context verify-run` 检查 usage、approval 与 final/acceptance hash。完整命令见 [CLI 工具指南](docs/cli-guide.md#context个人上下文)。
+`publishable` 素材可进入任务 Snapshot；`ask_before_use` 需要该任务的显式 approval；`private` 不进入写作 Snapshot。Style Profile 只聚合 accepted observations；proposed/rejected 不进入规则。标准或深度写作在内容契约确认后只使用任务内 Snapshot 和被选素材副本；全局更新只影响后续新任务。完整命令见 [CLI 工具指南](docs/cli-guide.md#context个人上下文)。
+
+## Context-aware Research Brief
+
+宽主题、只做选题或近期热点请求可先生成 3–10 个有实时 Evidence 的候选，并将 Agent draft 绑定到任务 `brief.md` 与冻结 Snapshot：
+
+```bash
+writing-master research save RUN_DIR research-brief-draft.json --json
+writing-master research verify RUN_DIR --json
+```
+
+Runtime 校验字段、时间、分数、Evidence hash 和 `author_fit` 引用，不替 Agent 判断热度是否真实。缺少实时检索时不生成 Heat 或 Brief；用户选择 candidate 后，文章事实研究仍需独立形成 `sources.yaml` 与 `claims.yaml`。
 
 ## 运行目录
 

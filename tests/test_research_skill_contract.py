@@ -50,8 +50,8 @@ class ResearchSkillContractTests(unittest.TestCase):
         self.assertIn("不选择最终方向", self.researcher)
         self.assertIn("不选择最终角度", self.reference)
 
-    def test_goal_c_does_not_register_the_integration_owned_top_level_route(self):
-        self.assertNotIn('"research":', self.cli)
+    def test_integration_registers_the_top_level_research_route(self):
+        self.assertIn('"research": ("writing_master.commands.research"', self.cli)
 
 
 if __name__ == "__main__":
