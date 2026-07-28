@@ -39,7 +39,6 @@ def _read_candidate(path: str) -> dict:
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else list(argv)
-    json_requested = "--json" in argv
     parser = _Parser(description="管理确认式 Style Observation 学习")
     commands = parser.add_subparsers(dest="operation", required=True)
 
@@ -59,6 +58,14 @@ def main(argv=None) -> int:
 
     try:
         args = parser.parse_args(argv)
+    except ContextError as error:
+        if "--json" in argv:
+            _print_json({"error": {"code": error.code, "message": str(error)}})
+        else:
+            print(f"learn: {error}", file=sys.stderr)
+        return 1
+
+    try:
         store = ContextStore()
         if args.operation == "propose":
             result = store.propose_style_observation(_read_candidate(args.candidate))
@@ -70,7 +77,7 @@ def main(argv=None) -> int:
                 "observations": store.list_style_observations(),
             }
     except ContextError as error:
-        if json_requested:
+        if args.json:
             _print_json({"error": {"code": error.code, "message": str(error)}})
         else:
             print(f"learn: {error}", file=sys.stderr)

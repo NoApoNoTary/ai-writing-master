@@ -138,6 +138,15 @@ class LearnCliTests(unittest.TestCase):
         self.assertEqual((code, output), (1, ""))
         self.assertTrue(error.startswith("learn: "))
 
+    def test_error_output_uses_parsed_json_option(self):
+        code, output, error = self.invoke(["show", "--j"])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "not_initialized")
+
+        code, output, error = self.invoke(["propose", "--", "--json"])
+        self.assertEqual((code, output), (1, ""))
+        self.assertTrue(error.startswith("learn: "))
+
     def test_direct_module_help(self):
         environment = {**os.environ, "PYTHONPATH": str(Path.cwd() / "src")}
         result = subprocess.run(
