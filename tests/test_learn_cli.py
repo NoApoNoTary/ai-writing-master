@@ -107,6 +107,12 @@ class LearnCliTests(unittest.TestCase):
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "invalid_json")
 
+        invalid_utf8 = self.home / "invalid-utf8.json"
+        invalid_utf8.write_bytes(b"\xff")
+        code, output, error = self.invoke(["propose", str(invalid_utf8), "--json"])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "invalid_json")
+
     def test_decision_flag_is_required_and_mutually_exclusive(self):
         code, output, error = self.invoke(["decide", "observation-deadbeefdeadbeef", "--json"])
         self.assertEqual((code, error), (1, ""))

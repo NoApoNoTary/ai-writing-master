@@ -738,8 +738,10 @@ def validate_style(document: dict) -> None:
         if (
             not isinstance(reference, dict)
             or set(reference) != {"observation_id", "revision", "observation_sha256"}
-            or not re.fullmatch(r"observation-[0-9a-f]{16}", reference.get("observation_id", ""))
-            or reference.get("revision") != 2
+            or not isinstance(reference.get("observation_id"), str)
+            or not re.fullmatch(r"observation-[0-9a-f]{16}", reference["observation_id"])
+            or type(reference.get("revision")) is not int
+            or reference["revision"] != 2
             or not _is_sha256(reference.get("observation_sha256"))
             or rule["rule_id"] != "style-rule-" + reference["observation_id"].removeprefix("observation-")
         ):
@@ -1356,7 +1358,7 @@ class ContextStore:
             return self._list_style_observations_at(root_fd, status=status)
 
     def decide_style_observation(self, observation_id: str, *, decision: str) -> dict:
-        if decision not in {"accepted", "rejected"}:
+        if not isinstance(decision, str) or decision not in {"accepted", "rejected"}:
             raise ContextError("invalid_input", "unsupported style observation decision")
         if not isinstance(observation_id, str) or not re.fullmatch(r"observation-[0-9a-f]{16}", observation_id):
             raise ContextError("unknown_id", "unknown style observation")

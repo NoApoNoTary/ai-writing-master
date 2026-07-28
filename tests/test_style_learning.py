@@ -17,6 +17,7 @@ from writing_master.personal_context import (
     canonical_sha256,
     empty_style,
     validate_snapshot,
+    validate_style,
 )
 
 
@@ -209,6 +210,10 @@ class StyleLearningTests(unittest.TestCase):
             "revision_conflict",
             lambda: self.store.decide_style_observation(proposed["observation_id"], decision="rejected"),
         )
+        self.assert_error(
+            "invalid_input",
+            lambda: self.store.decide_style_observation(proposed["observation_id"], decision=[]),
+        )
 
     def test_proposed_and_rejected_observations_do_not_change_style(self):
         proposed = self.store.propose_style_observation(candidate())
@@ -363,6 +368,15 @@ class StyleLearningTests(unittest.TestCase):
         malformed = deepcopy(snapshot)
         malformed["style"]["content"] = []
         self.assert_error("schema_unsupported", lambda: validate_snapshot(malformed))
+
+        for invalid_reference in (
+            {"observation_id": [], "revision": 2, "observation_sha256": "0" * 64},
+            {"observation_id": proposed["observation_id"], "revision": 2.0, "observation_sha256": "0" * 64},
+        ):
+            with self.subTest(invalid_reference=invalid_reference):
+                invalid_style = self.store.read_style()
+                invalid_style["rules"][0]["observation_refs"] = [invalid_reference]
+                self.assert_error("schema_unsupported", lambda invalid_style=invalid_style: validate_style(invalid_style))
 
     def test_concurrent_propose_and_opposite_decisions_are_serialized(self):
         context = multiprocessing.get_context("fork")
