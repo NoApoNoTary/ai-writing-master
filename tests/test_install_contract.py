@@ -29,6 +29,9 @@ class InstallContractTests(unittest.TestCase):
             existing.mkdir(parents=True)
             sentinel = existing / "KEEP.txt"
             sentinel.write_text("user-owned", encoding="utf-8")
+            legacy = home / ".writing-master/personal_materials/experiences/legacy.md"
+            legacy.parent.mkdir(parents=True)
+            legacy.write_text("legacy remains explicit", encoding="utf-8")
 
             env = os.environ.copy()
             env["HOME"] = str(home)
@@ -44,6 +47,11 @@ class InstallContractTests(unittest.TestCase):
 
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "user-owned")
             self.assertIn("保留现有文件", result.stdout)
+            personal_context = home / ".writing-master" / "personal-context"
+            self.assertTrue(personal_context.is_dir())
+            self.assertFalse((personal_context / "author-profile.json").exists())
+            self.assertFalse((personal_context / "knowledge-index.json").exists())
+            self.assertEqual(legacy.read_text(encoding="utf-8"), "legacy remains explicit")
 
 
 if __name__ == "__main__":

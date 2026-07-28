@@ -57,7 +57,7 @@
 - `Auditor`：独立检查证据、编辑质量和声音偏差；
 - `Lead`：维护状态、用户确认、问题合并、Baoyu 闸门和最终验收。
 
-代理之间通过运行目录中的文件产物通信，不把父对话全文复制给所有角色。角色协议不等于已完成的运行时能力：在技术运行时和真实宿主验收完成前，不把单 Agent 的角色模拟、跨会话续跑或文件存在本身描述为真实 Handoff。
+代理之间通过运行目录中的文件产物通信，不把父对话全文复制给所有角色。深度模式 Handoff Runtime 已通过运行时和真实宿主验收：它对已建立的 `mode=deep`、`execution=multi_agent` 运行目录校验 Manifest、Result、hash、stale 与 attempt 历史，并可从该目录复核当前 handoff。它不是通用任务管理器；`quick/standard` 仍没有通用的确定性跨会话任务恢复服务。
 
 ## P0：任务摘要、确认与交付
 
@@ -77,7 +77,7 @@
 
 先完成内容验收，使 `final.md` 成为 canonical final；仅在其后生成本次要求的视觉资产、HTML 或平台草稿。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加本次明确要求的派生产物。
 
-任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查和目录定位；确定性的跨会话续跑及真实深度模式 Handoff 仍以技术运行时和真实宿主验收为准。
+任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查、目录定位，以及已建立深度运行目录的确定性交接操作：`writing-master handoff prepare|complete|show`；这不扩大为 `quick/standard` 的通用续跑功能。
 
 ## 素材与 Baoyu 路由
 
@@ -126,7 +126,7 @@ bash install.sh
 
 1. 检测本机已有的 Claude Code、Cursor、OpenClaw 或 Codex 配置目录；
 2. 将仓库中的两个 Skill 链接到检测到的 Agent；
-3. 创建 `${WRITING_MASTER_HOME:-~/.writing-master}` 的运行与素材目录；
+3. 创建 `${WRITING_MASTER_HOME:-~/.writing-master}` 的运行、素材与 `personal-context/` 基础目录；不会初始化画像或扫描、导入旧素材；
 4. 在存在 `uv` 或 `pipx` 时，从仓库根目录安装 CLI。
 
 ### 直接使用 CLI
@@ -188,6 +188,14 @@ writing-master similarity source.md rewritten.md --json
 
 # 显示运行数据目录
 writing-master home
+
+# 检查已建立的深度模式 handoff
+writing-master handoff show RUN_DIR --json
+
+# 显式管理个人上下文
+writing-master context init
+writing-master context profile show --json
+writing-master context material list --json
 ```
 
 `quality` 这个命令名为兼容现有调用保留。它只检查套话、句长变化、段落节奏、副词密度和字符 bigram 多样性，并输出机械预警分数。它不验证事实、证据、原创性、论证质量或作者风格，也不产生“AI 味百分比”。
@@ -196,6 +204,24 @@ writing-master home
 
 完整说明见 [CLI 工具指南](docs/cli-guide.md)。
 
+## Personal Context：显式、可追溯的个人上下文
+
+Goal A 已提供版本化 Author Profile、五类 Knowledge Item、隐私准入、任务 Snapshot 与 usage 验证。它是本地文件 Runtime，不会从 `personal_materials/` 自动扫描或迁移，也不包含风格学习 `learn` 命令或 Research Brief。
+
+```bash
+# 只初始化 canonical Profile/Style/Knowledge 空状态
+writing-master context init
+
+# Profile 更新使用乐观 revision；素材按来源身份和 visibility 受管导入
+writing-master context profile set profile.json --expected-revision 0
+writing-master context material add experience.md \
+  --kind experiences --title '一次可追溯经历' \
+  --source-kind user_provided --source-ref 'local://experience-001' \
+  --visibility ask_before_use --tag example
+```
+
+`publishable` 素材可进入任务 Snapshot；`ask_before_use` 需要该任务的显式 approval；`private` 不进入写作 Snapshot。标准或深度写作在内容契约确认后只使用任务内 Snapshot 和被选素材副本；`context verify-run` 检查 usage、approval 与 final/acceptance hash。完整命令见 [CLI 工具指南](docs/cli-guide.md#context个人上下文)。
+
 ## 运行目录
 
 默认用户数据目录为 `~/.writing-master/`，也可通过 `WRITING_MASTER_HOME` 修改。安装脚本只创建真实存在的基础目录：
@@ -203,6 +229,7 @@ writing-master home
 ```text
 ~/.writing-master/
 ├── runs/
+├── personal-context/              # installer 只创建根；context init 写入 canonical 空状态
 ├── personal_materials/
 │   ├── articles/
 │   ├── experiences/
@@ -212,7 +239,7 @@ writing-master home
 └── output/
 ```
 
-写作任务的文件化合同使用 `runs/{task_id}/` 保存 `status.json`、Brief、来源、主张、素材清单、草稿和审校报告。具体文件随所选模式和任务需求变化；当前 CLI 不把这套文件合同承诺为确定性的跨会话续跑服务。
+写作任务的文件化合同使用 `runs/{task_id}/` 保存 `status.json`、Brief、来源、主张、素材清单、草稿和审校报告。对已有 deep/multi-agent 运行目录，Handoff Runtime 可复核和恢复交接状态；它不会发现“最近任务”，也不把这套文件合同扩展成 `quick/standard` 的通用跨会话续跑服务。
 
 ## 仓库结构
 
@@ -238,12 +265,12 @@ ai-writing-master/
 
 ## 当前能力边界
 
-- 已交付：两个 Skill、三种新写作模式、深度模式角色协议、证据/素材契约、Baoyu 分阶段路由、小红书/抖音改写合同、机械文本检查和相似度命令。
+- 已交付：两个 Skill、三种新写作模式、深度模式角色协议、证据/素材契约、Baoyu 分阶段路由、小红书/抖音改写合同、机械文本检查和相似度命令，以及显式的个人上下文 Profile/Knowledge/Snapshot Runtime。
 - Baoyu Skills 需要独立安装；仓库只负责能力发现和路由。
 - 仓库当前没有 Web UI、数据面板、内置发布实现、十个独立写作模块、示例工程或模板目录。
 - `writing-rewrite` 当前内置的平台合同只有小红书和抖音；其他平台需要先补对应合同再宣称支持。
 - CLI 是确定性辅助工具；文章事实和编辑质量仍由研究与审校流程处理。
-- 深度模式已有角色协议；真实子代理 Handoff 和跨会话续跑仍取决于技术运行时及真实宿主验收。
+- 深度模式 Handoff Runtime 已验收，覆盖已建立 deep/multi-agent 运行目录的交接、hash、stale、attempt 与真实宿主链路；`quick/standard` 的通用任务恢复仍未实现。
 
 项目现状和迁移核对见 [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)。
 

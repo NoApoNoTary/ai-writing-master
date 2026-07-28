@@ -1,6 +1,6 @@
 # Product Capability MVP PRD
 
-- 状态：P0 产品合同已完成；运行时依赖待技术验收
+- 状态：P0 产品合同已完成；深度模式 Handoff Runtime 已验收；quick/standard 通用 Task Runtime 待独立里程碑
 - 日期：2026-07-27
 - 负责方向：用户可见的产品能力与写作工作流体验
 - 配套技术文档：[Handoff Runtime MVP PRD](2026-07-27-handoff-runtime-prd.md)
@@ -20,10 +20,10 @@ AI Writing Master 当前已经有较完整的写作方法、模式、角色和�
 | 内容契约与审校处理 | 通过 | 主 Skill 与三层审校合同定义确认、修改、取消、受影响阶段、忽略非阻断项和阻断问题闸门。 |
 | 标准写作交付包 | 通过 | 合同定义 `final.md`、证据/素材、审校/修订、内容验收、按需派生产物和交付包验收顺序。 |
 | Canonical Rewrite / 视觉 / 发布边界 | 通过 | 合同区分已验收 Writing Master final 与独立用户输入；canonical final 先于可选视觉/HTML，派生产物不改写它。 |
-| 确定性跨会话续跑 | 待技术验收 | 产品合同不把运行目录或 `status.json` 描述为可保证的恢复命令。 |
-| 真实深度模式 Handoff | 待技术验收 | 产品合同将角色协议和真实宿主交接明确区分。 |
+| 确定性跨会话续跑 | 部分通过 | 已建立 deep/multi-agent 运行目录的 Handoff 可从文件状态复核；quick/standard 没有通用任务恢复。 |
+| 真实深度模式 Handoff | 通过 | Runtime P0–P2、fake-host 高层链路与一次真实宿主完整链路均有验收记录。 |
 
-本次记录完成 P0 的用户可见合同、文档和合同测试；运行时实现、真实宿主验收和跨会话状态保证仍由技术 Worktree 承接。
+本次记录完成 P0 的用户可见合同、文档和合同测试。随后深度模式 Handoff Runtime 已完成运行时与真实宿主验收；剩余缺口是 quick/standard 的通用任务恢复、发现与版本回退，不把 deep handoff 范围夸大为全模式恢复。
 
 ## Product Codex Execution Contract
 
@@ -150,7 +150,7 @@ AI Writing Master 当前已经有较完整的写作方法、模式、角色和�
 | 草稿版本 | P0 产品合同定义初稿、修订稿和 canonical final | 确定性版本回退仍待不可变历史 |
 | 三层审校 | P0 产品合同定义用户动作与阻断闸门 | 审校执行状态仍待技术承接 |
 | 任务进度 | P0 产品合同已定义 | 尚未成为稳定的运行时能力 |
-| 中断恢复 | 文档中存在 | 依赖技术状态能力，当前属于 Product–Technical Gap |
+| 中断恢复 | 深度模式 Handoff Runtime 已验收 | 已建立 deep/multi-agent run 可从目录复核；quick/standard 的通用任务恢复仍是 Product–Technical Gap |
 | 交付包 | P0 产品合同定义最小包与验收顺序 | 运行时缺失项校验仍待技术承接 |
 | Rewrite | P0 单 Agent 合同定义两类准入 | 不和主写作混在一起；深度或多 Agent 改写不属于 P0 |
 | 视觉与发布 | P0 产品合同定义 canonical final 与明确发布边界 | 内容验收后才生成派生产物，保持明确确认，不默认自动发布 |
@@ -422,9 +422,9 @@ Rewrite 输入只分两类：`accepted_writing_master_final` 是同一 Writing M
 4. 用户确认是否排除失败素材。
 5. 最终交付包含来源与素材身份。
 
-### Scenario C：中断恢复（技术待验收）
+### Scenario C：中断恢复（深度模式 Handoff Runtime 已验收）
 
-本场景不计入本次 P0 产品合同完成项；只有 Handoff Runtime 与真实宿主验收通过后，才可作为已交付能力宣称。
+本场景只证明已建立 deep/multi-agent 任务的 handoff 可从运行目录恢复和复核；Handoff Runtime 与真实宿主验收已通过。它不表示 quick/standard 已拥有“继续最近任务”、通用发现或确定性版本回退。
 
 1. 任务在等待方向确认时中断。
 2. 用户指定 task_id 继续。
@@ -455,9 +455,9 @@ Rewrite 输入只分两类：`accepted_writing_master_final` 是同一 Writing M
 
 ## Product–Technical Gap
 
-2026-07-27 P0 产品合同更新后，以下缺口仍保持开放：运行目录和 `status.json` 是文件化工作流合同，不构成确定性跨会话续跑保证；深度模式角色协议也不构成真实宿主 Handoff 证明。
+截至 2026-07-28，深度模式 Handoff Runtime 已通过 Runtime、fake-host 和真实宿主验收；它只覆盖已建立 deep/multi-agent 运行目录。以下缺口仍保持开放：quick/standard 的通用任务恢复、任务发现和确定性版本回退；运行目录与 `status.json` 不自动构成这些通用能力。
 
-视觉顺序存在一项 Product–Technical Gap：`skills/writing-master/references/agent-orchestration.md` 的执行图把“视觉闸门、Baoyu production”置于“验收与发布确认”之前；P0 产品合同要求先完成内容验收形成 canonical final，再按需生成视觉/HTML，最后进行交付包验收。该多 Agent 技术协议由技术 Worktree 对齐，本产品 Worktree 只登记该差异。
+深度协议已与 P0 视觉顺序对齐：先完成内容验收形成 canonical final，再按需生成视觉/HTML/平台草稿，最后进行交付包验收；发布仍需要明确用户指令。
 
 以下产品能力需要技术 Worktree 承接：
 

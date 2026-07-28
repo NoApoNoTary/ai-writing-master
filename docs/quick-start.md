@@ -13,7 +13,7 @@ cd ~/ai-writing-master
 bash install.sh
 ```
 
-安装脚本会链接 `writing-master` 和 `writing-rewrite`，并创建默认数据目录 `~/.writing-master/`。如果本机存在 `uv` 或 `pipx`，脚本还会从仓库根目录安装 CLI。
+安装脚本会链接 `writing-master` 和 `writing-rewrite`，并创建默认数据目录 `~/.writing-master/`（含空的 `personal-context/` 根目录）。它不会初始化画像、读取或导入旧 `personal_materials/`。如果本机存在 `uv` 或 `pipx`，脚本还会从仓库根目录安装 CLI。
 
 验证仓库内 CLI：
 
@@ -70,6 +70,21 @@ writing-master --version
 - 依次完成证据层、编辑层和声音层审校；
 - 输出标题和验收报告。
 
+#### 可选：先配置个人上下文
+
+Profile 和素材需要显式管理；安装或首次写作不会自动把历史文件作为个人事实使用。
+
+```bash
+writing-master context init
+writing-master context profile set profile.json --expected-revision 0
+writing-master context material add experience.md \
+  --kind experiences --title '一次可追溯经历' \
+  --source-kind user_provided --source-ref 'local://experience-001' \
+  --visibility ask_before_use --tag example
+```
+
+标准或深度任务在内容契约确认后才创建任务内 Snapshot。`ask_before_use` 素材需要 `context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote`；`private` 素材不会进入 Snapshot。可用 `context search`、`context snapshot` 和 `context verify-run` 查看或核验 Runtime 结果，完整参数见 [CLI 工具指南](cli-guide.md#context个人上下文)。
+
 ### 深度写作
 
 ```text
@@ -84,7 +99,7 @@ writing-master --version
 - Writer 只读取已接受的内容包；
 - Auditor 独立审查后，由 Writer 统一修订。
 
-这些是深度模式的角色协议。只有当前宿主提供真实子代理能力时，才执行实际角色交接；在此之前不把单 Agent 的角色模拟标为真实 Handoff。快速和标准模式不会隐式创建子代理。
+这些是深度模式的角色协议。深度模式 Handoff Runtime 已验收：对已建立的 deep/multi-agent 运行目录，它校验 Manifest、Result、hash、stale 与 attempt，并已有真实宿主链路证据。每次任务仍要由 capability preflight 确认当前宿主能够实际创建子代理；快速和标准模式不会隐式创建子代理。
 
 ### P0 任务状态与内容契约
 
@@ -192,7 +207,13 @@ writing-master similarity article.md xiaohongshu.md --json
 
 如果已存在 `${WRITING_MASTER_HOME:-~/.writing-master}/runs/TASK_ID/`，可让 Agent 读取其中的 `status.json`、Brief、素材、草稿和审校产物，先给出当前状态摘要，再决定是否继续。
 
-直接提供任务目录或 `task_id`，避免把“上次”解释为错误对象。当前 CLI 尚无可保证的跨会话续跑命令；确定性恢复和真实深度模式 Handoff 属于技术运行时的待验收能力。
+直接提供任务目录或 `task_id`，避免把“上次”解释为错误对象。对于已建立的 deep/multi-agent 运行目录，可使用：
+
+```bash
+writing-master handoff show RUN_DIR --json
+```
+
+它只复核深度角色交接，不发现“最近任务”，也不推进快速或标准写作；`quick/standard` 尚未提供通用的确定性跨会话续跑。
 
 ## 7. 交付包
 

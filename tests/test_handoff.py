@@ -128,6 +128,66 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(shown["effective_status"], "stale")
         self.assertFalse(shown["input_fresh"])
 
+    def test_deep_context_manifest_is_task_local_and_snapshot_tamper_is_stale(self):
+        snapshot = self.run / "personal-context-snapshot.json"
+        material = self.run / "context-materials" / "knowledge-synthetic.md"
+        snapshot.write_text('{"task_id":"TASK-001","snapshot":"frozen"}\n', encoding="utf-8")
+        material.parent.mkdir()
+        material.write_text("Synthetic task-local material\n", encoding="utf-8")
+        global_context = Path(self.temporary.name) / "home" / "personal-context"
+        global_context.mkdir(parents=True)
+        (global_context / "author-profile.json").write_text("global-only\n", encoding="utf-8")
+
+        writer = handoff.prepare(
+            self.run,
+            to_role="writer",
+            phase="draft",
+            objective="write from frozen task context",
+            decision_to_inform="draft review",
+            inputs=["brief.md", "personal-context-snapshot.json", "context-materials/knowledge-synthetic.md"],
+            write_scope=["draft-v1.md"],
+            done_criteria=["draft exists"],
+            forbidden_inputs=["parent_conversation"],
+        )
+        self.assertEqual(
+            [item["path"] for item in writer["manifest"]["allowed_inputs"]],
+            ["brief.md", "personal-context-snapshot.json", "context-materials/knowledge-synthetic.md"],
+        )
+        self.assertEqual(writer["manifest"]["forbidden_inputs"], ["parent_conversation"])
+        self.assertNotIn(str(global_context), [item["path"] for item in writer["manifest"]["allowed_inputs"]])
+        for item in writer["manifest"]["allowed_inputs"]:
+            self.assertTrue(item["required"])
+            self.assertEqual(item["sha256"], handoff.sha256_file(self.run / item["path"]))
+        handoff.mark_running(self.run, "writer-agent")
+        self.finish(writer, actual_paths=True)
+        handoff.complete(self.run)
+
+        auditor = handoff.prepare(
+            self.run,
+            to_role="auditor",
+            phase="review",
+            objective="audit from frozen task context",
+            decision_to_inform="revision",
+            inputs=["draft-v1.md", "personal-context-snapshot.json", "context-materials/knowledge-synthetic.md"],
+            write_scope=["review-report.yaml"],
+            done_criteria=["review exists"],
+            forbidden_inputs=["parent_conversation"],
+        )
+        self.assertEqual(
+            [item["path"] for item in auditor["manifest"]["allowed_inputs"]],
+            ["draft-v1.md", "personal-context-snapshot.json", "context-materials/knowledge-synthetic.md"],
+        )
+        self.assertEqual(auditor["manifest"]["forbidden_inputs"], ["parent_conversation"])
+        for item in auditor["manifest"]["allowed_inputs"]:
+            self.assertTrue(item["required"])
+            self.assertEqual(item["sha256"], handoff.sha256_file(self.run / item["path"]))
+
+        snapshot.write_text('{"task_id":"TASK-001","snapshot":"tampered"}\n', encoding="utf-8")
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["handoff"]["status"], "stale")
+        self.assertEqual(shown["effective_status"], "stale")
+        self.assertIn("input hash changed: personal-context-snapshot.json", shown["blocking_reasons"])
+
     def test_show_reports_stale_upstream_and_blocks_downstream_prepare(self):
         self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])
         self.complete_stage("editorial_strategist", "strategy", ["claims.yaml"], ["outline.md"])

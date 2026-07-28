@@ -69,6 +69,8 @@ fi
 
 # 创建子目录
 mkdir -p "$HOME_DIR/runs"
+# ponytail: only provision the root; context init owns schema files and legacy import stays explicit.
+mkdir -p "$HOME_DIR/personal-context"
 mkdir -p "$HOME_DIR/personal_materials/articles"
 mkdir -p "$HOME_DIR/personal_materials/experiences"
 mkdir -p "$HOME_DIR/personal_materials/topics"

@@ -1,0 +1,170 @@
+{
+  "empty_profile": {
+    "schema_version": 1,
+    "status": "empty",
+    "profile_id": "author-default",
+    "revision": 0,
+    "identity": {},
+    "expertise": [],
+    "content_directions": [],
+    "values": [],
+    "expression": {"tone": []},
+    "avoid": [],
+    "provenance": {"kind": "empty"},
+    "content_sha256": "eb7877b5514de357ac7596eb7f894c85985b67f0e1ff39158d1f2cb121351452"
+  },
+  "ready_profile": {
+    "schema_version": 1,
+    "status": "ready",
+    "profile_id": "author-default",
+    "revision": 1,
+    "updated_at": "2026-07-28T00:00:00+00:00",
+    "identity": {"display_name": "ROLE_A"},
+    "expertise": ["AI Agent"],
+    "content_directions": ["software development"],
+    "values": ["evidence first"],
+    "expression": {"tone": ["analytical", "concise"]},
+    "avoid": ["generic summaries"],
+    "provenance": {"kind": "user_confirmed"},
+    "content_sha256": "98acb3846eca4356a2469b331f6a774c74b669b947fee5864ebcd1d410c590a7"
+  },
+  "empty_style": {
+    "schema_version": 1,
+    "status": "empty",
+    "profile_id": "style-default",
+    "revision": 0,
+    "rules": [],
+    "provenance": {"kind": "empty"},
+    "content_sha256": "e11311951da1bacb28a2dda57b6c4be4d7f4baffe1a3b6ce07bb770d80ac1ff0"
+  },
+  "empty_knowledge_index": {
+    "schema_version": 1,
+    "revision": 0,
+    "items": []
+  },
+  "knowledge_index": {
+    "schema_version": 1,
+    "revision": 1,
+    "items": ["knowledge-orbit-17"]
+  },
+  "normalization": {
+    "input": "é\r\n",
+    "normalized_content_sha256": "edd3a863872a04239eb29ad4bc12fc892b3d4ae57cc7e786a3697816f8e141c2"
+  },
+  "knowledge_item": {
+    "schema_version": 1,
+    "item_id": "knowledge-orbit-17",
+    "revision": 1,
+    "kind": "experiences",
+    "status": "active",
+    "title": "Synthetic ORBIT-17 note",
+    "summary": "Synthetic fixture only.",
+    "tags": ["fixture", "orbit"],
+    "source_kind": "user_provided",
+    "ingest_kind": "managed_add",
+    "source_ref": "fixture://orbit-17",
+    "source_sha256": "3e3c8aa5dea5171718309db46787b177b7f4986ceb1f57de4b631453faa0bd45",
+    "normalized_content_sha256": "3e3c8aa5dea5171718309db46787b177b7f4986ceb1f57de4b631453faa0bd45",
+    "content_sha256": "3e3c8aa5dea5171718309db46787b177b7f4986ceb1f57de4b631453faa0bd45",
+    "content_path": "knowledge/experiences/knowledge-orbit-17/content.md",
+    "visibility": "ask_before_use",
+    "created_at": "2026-07-28T00:00:00+00:00",
+    "updated_at": "2026-07-28T00:00:00+00:00"
+  },
+  "approval_log": {
+    "schema_version": 1,
+    "task_id": "SYNTHETIC-TASK-001",
+    "revision": 1,
+    "approvals": [
+      {
+        "approval_id": "approval-orbit-17",
+        "item_id": "knowledge-orbit-17",
+        "allowed_use": "background",
+        "status": "approved",
+        "approved_at": "2026-07-28T00:00:00+00:00",
+        "approval_sha256": "51fa96f6f2c57be107ee38f7ce24f08aa87979fe1ff7ba883b5f712c35d0eb4d"
+      }
+    ]
+  },
+  "snapshot": {
+    "schema_version": 1,
+    "task_id": "SYNTHETIC-TASK-001",
+    "created_at": "2026-07-28T00:00:00+00:00",
+    "profile": {
+      "status": "empty",
+      "profile_id": "author-default",
+      "revision": 0,
+      "content": {
+        "identity": {},
+        "expertise": [],
+        "content_directions": [],
+        "values": [],
+        "expression": {"tone": []},
+        "avoid": [],
+        "provenance": {"kind": "empty"}
+      },
+      "content_sha256": "eb7877b5514de357ac7596eb7f894c85985b67f0e1ff39158d1f2cb121351452"
+    },
+    "style": {
+      "status": "empty",
+      "profile_id": "style-default",
+      "revision": 0,
+      "content": {
+        "rules": [],
+        "provenance": {"kind": "empty"}
+      },
+      "content_sha256": "e11311951da1bacb28a2dda57b6c4be4d7f4baffe1a3b6ce07bb770d80ac1ff0"
+    },
+    "materials": [
+      {
+        "item_id": "knowledge-orbit-17",
+        "kind": "experiences",
+        "metadata": {
+          "schema_version": 1,
+          "item_id": "knowledge-orbit-17",
+          "revision": 1,
+          "kind": "experiences",
+          "status": "active",
+          "title": "Synthetic ORBIT-17 note",
+          "summary": "Synthetic fixture only.",
+          "tags": ["fixture", "orbit"],
+          "source_kind": "user_provided",
+          "ingest_kind": "managed_add",
+          "visibility": "ask_before_use"
+        },
+        "metadata_sha256": "2f99d91a5469056a70cbf9de306181e9e4bf8968710cf0a47e3eda5e87561de3",
+        "content_sha256": "3e3c8aa5dea5171718309db46787b177b7f4986ceb1f57de4b631453faa0bd45",
+        "purpose": "background",
+        "approval": {
+          "approval_id": "approval-orbit-17",
+          "item_id": "knowledge-orbit-17",
+          "allowed_use": "background",
+          "status": "approved",
+          "approved_at": "2026-07-28T00:00:00+00:00",
+          "approval_sha256": "51fa96f6f2c57be107ee38f7ce24f08aa87979fe1ff7ba883b5f712c35d0eb4d"
+        },
+        "copy_path": "context-materials/knowledge-orbit-17.md"
+      }
+    ],
+    "snapshot_sha256": "a10c1f0dad427ff0144477528d01373d1a0d3823e54a4df68d3b6f3aeed46c2a"
+  },
+  "context_usage": {
+    "schema_version": 1,
+    "task_id": "SYNTHETIC-TASK-001",
+    "snapshot_sha256": "a10c1f0dad427ff0144477528d01373d1a0d3823e54a4df68d3b6f3aeed46c2a",
+    "status": "complete",
+    "uses": [
+      {
+        "item_id": "knowledge-orbit-17",
+        "purpose": "background",
+        "section": "opening",
+        "claim_id": "claim-orbit-17"
+      }
+    ],
+    "artifacts": {
+      "final": {"path": "final.md", "sha256": "fe36d35ed2681a82d3f05e974848994a049b0ebc23e3f48e6e16293e60710506"},
+      "acceptance": {"path": "acceptance-report.md", "sha256": "55bdc2e42ab6d1e02147f03da0656c0281489702e50b14e7e4b6a25953f1ef27"}
+    },
+    "recorded_at": "2026-07-28T00:00:00+00:00"
+  }
+}

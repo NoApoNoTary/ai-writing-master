@@ -1,6 +1,6 @@
 # AI Writing Master：项目现状与迁移核对
 
-**核对日期：2026-07-27**
+**核对日期：2026-07-28**
 
 **仓库：** `NoApoNoTary/ai-writing-master`
 
@@ -23,7 +23,7 @@
 |---|---|---|
 | 快速草稿 | 当前 Agent | 简版内容契约、关键事实、一次合并审校 |
 | 标准写作 | 当前 Agent | 完整事实/素材双轨、三层审校和验收 |
-| 深度写作 | Lead + 专项子代理 | 研究、策划、写作和审计上下文隔离 |
+| 深度写作 | Lead + 专项子代理 | 已验收的 Handoff Runtime 处理已建立 deep/multi-agent 运行目录；本次仍需宿主实际具备子代理能力 |
 
 新建完整文章必须由用户选择模式。主写作流程的多 Agent 只属于深度写作，不作为默认路由；改写流程也保持单 Agent 默认值，仅响应用户明确提出的深度或多 Agent 改写。
 
@@ -34,6 +34,8 @@
 | `writing-master quality` | 五项机械文本特征检查；保留 `quality_score` 兼容字段 |
 | `writing-master similarity` | 字符 n-gram Jaccard 表面相似度 |
 | `writing-master home` | 输出运行数据目录 |
+| `writing-master handoff` | 已建立 deep/multi-agent 运行目录的 `prepare`、`complete`、`show` 交接操作 |
+| `writing-master context` | 显式管理 Profile、五类素材、privacy approval、不可变 Snapshot 与 usage/run 验证 |
 
 机械检查不负责事实核验、证据强度、原创性、论证质量或作者声音判断。
 
@@ -44,8 +46,8 @@ Baoyu 不随本仓库分发。当前集成层负责：
 1. 模式选择后发现当前运行时已有的 Baoyu 能力；
 2. 提取 URL、YouTube、Markdown 和本地素材；
 3. 维护 `asset-manifest.yaml` 与 `storyboard.md`；
-4. 正文结构稳定后按需生成视觉或 HTML；
-5. 验收通过且用户明确发布后，才调用发布 Skill。
+4. 标题与正文内容验收形成 canonical final 后，按需生成视觉或 HTML；
+5. 交付包验收通过且用户明确发布后，才调用发布 Skill。
 
 ## 来源项目的迁移情况
 
@@ -83,6 +85,9 @@ Baoyu 不随本仓库分发。当前集成层负责：
 - Researcher、Editorial Strategist、Writer、Auditor 角色卡；
 - Baoyu 的 Preflight → Planning → Production → Publish 分阶段路由；
 - 机械脚本与独立编辑审查分离。
+- `personal_context` 深模块：revisioned Author Profile、五类来源身份明确的 Knowledge Item、visibility/approval、任务内 Snapshot、usage 和 hash 验证。
+
+Goal A 不包含确认式风格学习、`learn` CLI、Research Brief 或通用 quick/standard Task Runtime；这些能力仍未交付。
 
 ## 2026-07-27 仓库审计修正
 
@@ -96,6 +101,7 @@ Baoyu 不随本仓库分发。当前集成层负责：
 - 修正 Baoyu 的路由时机：早预检、早摄入、晚生成、明确指令后发布；
 - 修正安装文档，使其与仓库根目录的实际 Python 包结构一致；
 - 把多 Agent 从默认路线收缩为用户显式选择的深度模式。
+- 对齐事实：深度模式 Handoff Runtime 已验收；`quick/standard` 的通用任务恢复仍未实现。
 
 ## 当前目录边界
 

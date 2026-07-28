@@ -23,6 +23,7 @@
 - `LICENSE` 保持纯 MIT 文本；来源项目致谢集中维护在 README 与项目现状文档。
 - 重写 README、项目现状、快速开始和 CLI 指南，删除 Roadmap、固定模型推荐和未落地能力宣传。
 - Baoyu 调用原则调整为“早预检、早摄入、晚生成、明确指令后发布”。
+- 对齐运行时事实：深度模式 Handoff Runtime 已通过真实宿主验收；`quick/standard` 仍没有通用任务恢复，并在 CLI 指南列出 `handoff prepare|complete|show`。
 
 ### Fixed
 

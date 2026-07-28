@@ -32,17 +32,24 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertNotIn("## 📈 Roadmap", readme)
         self.assertNotIn("### v2.0 (长期)", readme)
 
-    def test_readme_marks_cross_session_resume_and_handoff_as_runtime_gaps(self):
+    def test_docs_distinguish_verified_deep_handoff_from_generic_resume_gap(self):
         readme = read("README.md")
+        quick_start = read("docs/quick-start.md")
+        summary = read("PROJECT_SUMMARY.md")
+        cli_guide = read("docs/cli-guide.md")
+        product_prd = read("docs/proposals/2026-07-27-product-capability-prd.md")
 
-        self.assertRegex(
-            readme,
-            r"(?s)(?:跨会话(?:恢复|继续|续跑).{0,180}(?:尚未|未|技术依赖|技术运行时|Product.?Technical Gap)|(?:尚未|未|技术依赖|技术运行时|Product.?Technical Gap).{0,180}跨会话(?:恢复|继续|续跑))",
-        )
-        self.assertRegex(
-            readme,
-            r"(?s)(?:Handoff.{0,180}(?:尚未|未|技术依赖|技术运行时|不是|不等于).{0,180}(?:运行时|真实执行|宿主验收)|(?:运行时|真实执行|宿主验收).{0,180}(?:尚未|未|技术依赖|技术运行时|不是|不等于).{0,180}Handoff)",
-        )
+        self.assertIn("深度模式 Handoff Runtime 已通过运行时和真实宿主验收", readme)
+        self.assertIn("`quick/standard` 仍没有通用的确定性跨会话任务恢复服务", readme)
+        self.assertIn("`writing-master handoff prepare|complete|show`", readme)
+        self.assertIn("深度模式 Handoff Runtime 已验收", quick_start)
+        self.assertIn("`quick/standard` 尚未提供通用的确定性跨会话续跑", quick_start)
+        self.assertIn("writing-master handoff show RUN_DIR --json", quick_start)
+        self.assertIn("深度模式 Handoff Runtime 已验收", summary)
+        self.assertIn("`writing-master handoff`", summary)
+        self.assertIn("writing-master handoff prepare", cli_guide)
+        self.assertIn("深度模式 Handoff Runtime 已验收", product_prd)
+        self.assertIn("quick/standard 的通用任务恢复", product_prd)
 
     def test_quick_start_does_not_advertise_cross_session_resume(self):
         quick_start = read("docs/quick-start.md")
@@ -55,6 +62,20 @@ class DocumentationContractTests(unittest.TestCase):
             quick_start,
             r"(?s)从\s*`?\$\{WRITING_MASTER_HOME.*?/runs/.*?(?:读取|恢复).*?(?:最近|未完成)",
         )
+
+    def test_goal_a_docs_describe_context_cli_without_goal_b_or_c_claims(self):
+        readme = read("README.md")
+        quick_start = read("docs/quick-start.md")
+        cli_guide = read("docs/cli-guide.md")
+        summary = read("PROJECT_SUMMARY.md")
+
+        self.assertIn("writing-master context init", readme)
+        self.assertIn("writing-master context init", quick_start)
+        self.assertIn("writing-master context verify-run RUN_DIR", cli_guide)
+        self.assertIn("`writing-master context`", summary)
+        for document in (readme, quick_start, cli_guide, summary):
+            self.assertNotIn("`learn` CLI 已实现", document)
+            self.assertNotIn("Research Brief 已实现", document)
 
     def test_p0_critical_scenarios_preserve_ordered_happy_and_failure_paths(self):
         prd = read("docs/proposals/2026-07-27-product-capability-prd.md")

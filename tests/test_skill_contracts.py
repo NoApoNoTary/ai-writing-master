@@ -200,6 +200,33 @@ class WritingSkillContractTests(unittest.TestCase):
             "canonical final + channel contract：Baoyu 排版 / HTML",
         )
 
+    def test_deep_protocol_orders_content_acceptance_before_optional_delivery(self):
+        orchestration = read("skills/writing-master/references/agent-orchestration.md")
+
+        self.assert_in_order(
+            orchestration,
+            "Lead：标题与 canonical final 内容验收",
+            "可选视觉、HTML 或平台草稿",
+            "Lead：交付包验收与发布确认",
+        )
+
+    def test_deep_personal_context_is_manifest_only_not_os_isolation(self):
+        main = read("skills/writing-master/SKILL.md")
+        bridge = read("skills/writing-master/references/personal-context.md")
+        orchestration = read("skills/writing-master/references/agent-orchestration.md")
+
+        self.assertIn("标准或深度写作", main)
+        self.assertIn("Deep 模式由 Lead", bridge)
+        for token in (
+            "personal-context-snapshot.json",
+            "context-materials/ITEM_ID.md",
+            "不得列出 `${WRITING_MASTER_HOME}/personal-context/`",
+            "父对话全文",
+            "Host 输入构造",
+            "不是 OS 级文件访问隔离声明",
+        ):
+            self.assertIn(token, orchestration)
+
     def test_deep_mode_role_cards_exist(self):
         cards = [
             "researcher.md",
@@ -209,6 +236,39 @@ class WritingSkillContractTests(unittest.TestCase):
         ]
         for card in cards:
             self.assertTrue((ROOT / "skills/writing-master/agents" / card).is_file())
+
+    def test_standard_personal_context_uses_only_task_snapshot_and_records_usage(self):
+        main = read("skills/writing-master/SKILL.md")
+        bridge = read("skills/writing-master/references/personal-context.md")
+        phase0 = section(main, "### Phase 0：内容契约、能力预检与素材接收")
+        phase1 = section(main, "### Phase 1：事实与素材双轨调研")
+        phase2 = section(main, "### Phase 2：角度、读者决策与 Storyboard")
+        phase3 = section(main, "### Phase 3：初稿")
+        phase6 = section(main, "### Phase 6：交付包、视觉、排版与发布")
+
+        self.assertIn("references/personal-context.md", main)
+        self.assert_in_order(
+            phase0,
+            "内容契约确认后、Phase 1 前",
+            "personal-context-snapshot.json",
+            "personal_context: unavailable",
+        )
+        for phase in (phase1, phase2, phase3):
+            self.assertIn("Snapshot", phase)
+        self.assertIn("不得在调研阶段回读全局个人素材目录", phase1)
+        self.assertIn("不得用全局 Profile/Knowledge 覆盖任务内版本", phase2)
+        self.assertIn("任务 Snapshot 和任务内材料副本", phase3)
+        self.assert_in_order(
+            phase6,
+            "final.md` 与 `acceptance-report.md` 已存在后",
+            "context-usage.json",
+            "context verify-run {run_dir}",
+        )
+        self.assertIn("personal_context: {unavailable | empty | ready}", main)
+        self.assertIn("selected_materials: {N}", main)
+        self.assertIn("pending_approvals: {N}", main)
+        self.assertIn("不得扫描或直接读取 `${WRITING_MASTER_HOME}/personal-context/`", bridge)
+        self.assertIn("不对正文作语义性“绝无私密泄露”声明", bridge)
 
     def test_rewrite_reads_real_platform_contracts(self):
         rewrite = read("skills/writing-rewrite/SKILL.md")

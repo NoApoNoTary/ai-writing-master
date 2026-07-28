@@ -14,7 +14,7 @@
 - `editorial-brief.md`
 - `outline.md`
 - `storyboard.md`
-- 已选择的素材与用户风格档案
+- 需要个人上下文时，Manifest 列出的任务内 `personal-context-snapshot.json` 与 `context-materials/ITEM_ID.md` 副本
 
 不读取父对话全文、未采用方向、原始搜索噪声、其他 Reviewer 讨论或历史表现数据。
 
@@ -49,3 +49,4 @@
 - 不自行改变已确认的核心角度。
 - 不调用 Baoyu production 或发布能力。
 - 不修改 `status.json`、`state.json` 或 Manifest。
+- 不读取全局 personal-context 目录或父对话全文。

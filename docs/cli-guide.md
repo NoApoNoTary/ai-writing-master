@@ -1,6 +1,6 @@
 # CLI 工具指南
 
-AI Writing Master 的 CLI 提供三项确定性辅助能力：机械文本检查、字符相似度和运行目录查询。它们不替代事实研究或编辑审查。
+AI Writing Master 的 CLI 提供五项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接和个人上下文管理。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
 
@@ -13,6 +13,8 @@ cd ~/ai-writing-master
 ```
 
 `bin/writing-master` 会把仓库的 `src/` 加入 `PYTHONPATH`，因此无需先安装 Python 包。
+
+完整仓库还包含两个 Skills、角色卡、参考文件与 `install.sh`；只安装 build wheel 时只得到 Python CLI 包和 `writing-master` 命令，不会安装 Skills、角色卡或用户数据目录。需要完整写作工作流时，从仓库运行 `install.sh`；只需 Runtime CLI 时可安装 wheel。
 
 需要全局命令时，把 `bin` 加入 PATH：
 
@@ -45,6 +47,19 @@ writing-master --version
 writing-master quality <file> [--verbose | --json]
 writing-master similarity <file> <file> [...] [--json] [-n N]
 writing-master home
+writing-master handoff prepare RUN_DIR --to-role ROLE --phase PHASE --objective TEXT --decision-to-inform TEXT --input FILE --write FILE --done-criterion TEXT
+writing-master handoff complete RUN_DIR [--result RESULT_PATH]
+writing-master handoff show RUN_DIR [--json]
+writing-master context init
+writing-master context profile set PROFILE.json --expected-revision N [--json]
+writing-master context profile show [--json]
+writing-master context material add FILE --kind KIND --title TITLE --source-kind KIND --source-ref REF --visibility VISIBILITY [--tag TAG ...]
+writing-master context material list [--kind KIND] [--status STATUS] [--json]
+writing-master context search QUERY [--kind KIND] [--tag TAG] [--limit N] [--json]
+writing-master context import-legacy SOURCE_DIR [--kind KIND]
+writing-master context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote
+writing-master context snapshot RUN_DIR --material ITEM_ID:PURPOSE [--material ITEM_ID:PURPOSE ...]
+writing-master context verify-run RUN_DIR [--json]
 ```
 
 ## `quality`：机械文本检查
@@ -171,6 +186,64 @@ writing-master home
 ```
 
 `home` 只输出路径，不创建任务、不读取状态，也不执行写作流程。
+
+## `context`：个人上下文
+
+`context` 管理版本化 Author Profile、五类 Knowledge Item、任务级 approval 与不可变任务 Snapshot。所有运行时 JSON 由 Python 标准库维护；初始化、导入、Snapshot、usage 和 verify 都是显式动作。它不扫描或自动导入旧 `personal_materials/`，也不包含 Goal B 的 `learn` 命令或 Goal C 的 Research Brief。
+
+```bash
+# 初始化 Profile、Style 与 Knowledge Index 的 canonical 空状态
+writing-master context init
+
+# Profile 以 optimistic revision 更新
+writing-master context profile set profile.json --expected-revision 0 --json
+writing-master context profile show --json
+
+# 导入、查询和控制素材生命周期
+writing-master context material add experience.md \
+  --kind experiences --title '一次可追溯经历' \
+  --source-kind user_provided --source-ref 'local://experience-001' \
+  --visibility ask_before_use --tag example --json
+writing-master context search '可追溯' --json
+writing-master context material disable ITEM_ID
+writing-master context material enable ITEM_ID
+```
+
+素材 kind 是 `experiences`、`opinions`、`cases`、`references`、`previous_articles`。重复导入只在同一 `(kind, normalized_content_hash, source_kind)` 身份内幂等；相同正文以不同 kind 或 source identity 导入时保留为独立 item。
+
+```bash
+# legacy 导入仍是显式操作；每个文件独立报告 imported/skipped/failed
+writing-master context import-legacy personal_materials
+
+# ask_before_use 需要当前任务 approval，之后才能进入 Snapshot
+writing-master context approve RUN_DIR ITEM_ID --allow background
+writing-master context snapshot RUN_DIR --material ITEM_ID:background
+
+# final.md 与 acceptance-report.md 存在后，由 Runtime 记录 usage 并核验整条链路
+writing-master context verify-run RUN_DIR --json
+```
+
+`publishable` 可直接进入新 Snapshot；`ask_before_use` 需要对应任务、item 和用途的 approval；`private` 永远不会进入写作 Snapshot。Snapshot 写入后保持不可变，任务只读取 Snapshot 和任务内 `context-materials/` 副本；`verify-run` 检查明确记录的 hash、approval、usage 及 final/acceptance 文件，不宣称对正文作语义性隐私审计。
+
+## `handoff`：深度模式角色交接
+
+`handoff` 只处理已建立且 `status.json` 为 `mode=deep`、`execution=multi_agent` 的运行目录。它创建不可变 Manifest、校验专项 Agent Result 并显示输入新鲜度；路径、hash、stale 和 attempt 历史由 Runtime 复核。
+
+```bash
+writing-master handoff prepare RUN_DIR \
+  --to-role researcher \
+  --phase research \
+  --objective '建立证据包' \
+  --decision-to-inform '后续角度选择' \
+  --input brief.md \
+  --write claims.yaml \
+  --done-criterion '关键主张可追溯'
+
+writing-master handoff complete RUN_DIR
+writing-master handoff show RUN_DIR --json
+```
+
+`prepare` 输出 Manifest 路径，`complete` 在 Result 和已暂存输出都通过校验后推进状态，`show` 显示当前 handoff、输入新鲜度和阻断原因。它不是“继续最近任务”命令，也不为 quick/standard 提供通用恢复。
 
 ## 在自动化中使用
 

@@ -17,7 +17,7 @@
 - `outline.md`
 - `storyboard.md`
 - `draft-v1.md`
-- 用户风格档案与少量代表性正反例
+- 需要个人上下文时，Manifest 列出的任务内 `personal-context-snapshot.json` 与 `context-materials/ITEM_ID.md` 副本
 
 首轮不读取 Writer 的解释、父对话全文、历史表现数据和其他审计结论。
 
@@ -51,3 +51,4 @@ verdict: pass | revise
 - 不为追求口语感添加虚构经历、情绪和数字。
 - 不直接覆盖 Writer 的文件。
 - 不修改 `status.json`、`state.json` 或 Manifest。
+- 不读取全局 personal-context 目录或父对话全文。

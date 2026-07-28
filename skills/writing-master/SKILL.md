@@ -98,6 +98,9 @@ allowed-tools:
 等待你：{没有则写“无”}
 下一步：{继续方式}
 最近失败：{没有则写“无”}
+personal_context: {unavailable | empty | ready}
+selected_materials: {N}
+pending_approvals: {N}
 ```
 
 | 用户状态 | 含义 | 允许动作 |
@@ -142,6 +145,7 @@ allowed-tools:
 5. 按 `references/evidence-and-assets.md` 将每项素材与素材接收结果写入 `capability-preflight.md`，并先向用户返回：已接收、已提取、等待处理、失败、需要确认及其影响。失败项不阻塞无关素材。
 6. 只完成 capability/material preflight，不生成图片、不排版、不发布。
 7. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。
+8. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。
 
 产物：
 
@@ -181,6 +185,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 快速模式只维护实际会进入正文的关键主张；标准和深度模式维护完整证据链。涉及近期变化、产品能力、数据、政策或版本时，执行实时检索。素材提取成功不等于事实确认；失败或待确认的素材继续保留在 `capability-preflight.md`，并在任务摘要中说明影响。
 
+标准写作如有个人上下文，只读取任务 Snapshot（`personal-context-snapshot.json`）和 `context-materials/`；不得在调研阶段回读全局个人素材目录。
+
 ### Phase 2：角度、读者决策与 Storyboard
 
 1. 按 `references/mode-selection.md` 中当前模式的用户确认规则，给出一个建议角度或多个候选角度及其取舍。
@@ -188,6 +194,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 3. 需要时读取 `references/creative-drainage.md`，排除可替换主题名仍成立的套话角度。
 4. 形成文章结构，并为每个视觉位定义职责：Cover、Hero（可省略）、Evidence、Explanation 或 Decorative。
 5. 需要确认时等待用户确认核心方向；用户已经明确角度，或 quick 模式没有明显分叉时，只做简短复述并继续。
+
+标准写作只把 Snapshot 中冻结的身份、风格和已选素材作为个人上下文；不得用全局 Profile/Knowledge 覆盖任务内版本。
 
 产物：
 
@@ -197,7 +205,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 3：初稿
 
-正文只使用已经接受的 Brief、主张、来源、素材、风格档案和大纲。
+正文只使用已经接受的 Brief、主张、来源、素材、风格档案和大纲。标准写作的个人上下文只能来自任务 Snapshot 和任务内材料副本。
 
 写作要求：
 
@@ -253,6 +261,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `acceptance-report.md`
 
 `acceptance-report.md` 必须列出交付包清单、缺失项、canonical final 的内容验收结果、可选视觉/HTML/平台草稿的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
+
+标准写作实际使用 Snapshot 素材时，在 `final.md` 与 `acceptance-report.md` 已存在后，用 Personal Context Runtime 写入 `context-usage.json`，记录精确 `item_id`、purpose、section/claim 和两个 artifact。交付前运行 `writing-master context verify-run {run_dir}`；校验失败时保留既有产物并报告失败，不把任务标为已完成。
 
 图像类视觉闸门同时满足以下条件后，才执行 Baoyu production：
 

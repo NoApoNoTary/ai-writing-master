@@ -30,7 +30,11 @@ Auditor：结构化审计报告
   ↓ Lead 合并 accepted issues
 Writer：draft-v2/final + revision report
   ↓
-Lead：标题、视觉闸门、Baoyu production、验收与发布确认
+Lead：标题与 canonical final 内容验收
+  ↓
+可选视觉、HTML 或平台草稿
+  ↓
+Lead：交付包验收与发布确认
 ```
 
 ## Handoff Manifest（唯一实际输入合同）
@@ -82,6 +86,12 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 - Writer 只读取接受后的 Brief、claims、style、editorial brief、outline 和素材选择。
 - 代理只写自己的 attempt 产物；Lead/Runtime 维护 `status.json`。
 - 输入变化后由 Runtime 校验 hash；只重跑受影响节点。
+
+### Goal A personal context
+
+内容契约确认后，Lead 创建或确认任务内 `personal-context-snapshot.json`。当 Deep 的 Writer 或 Auditor 需要个人上下文时，其 Manifest 必须逐项列出该 Snapshot 与所选 `context-materials/ITEM_ID.md` 副本；不得列出 `${WRITING_MASTER_HOME}/personal-context/`、其他全局个人目录或父对话全文。篡改 Snapshot 会使引用它的 handoff stale。
+
+这是 Host 输入构造、Manifest/hash 和 stale 的可证明合同，不是 OS 级文件访问隔离声明。
 
 ## 角色卡
 
