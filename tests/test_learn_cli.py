@@ -118,6 +118,15 @@ class LearnCliTests(unittest.TestCase):
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "invalid_input")
 
+        from writing_master.personal_context import ContextStore
+
+        ContextStore().initialize()
+        code, output, error = self.invoke([
+            "decide", "observation-deadbeefdeadbeef", "--accept", "--json",
+        ])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "unknown_id")
+
     def test_text_errors_go_to_stderr_with_learn_prefix(self):
         code, output, error = self.invoke(["show"])
         self.assertEqual((code, output), (1, ""))
