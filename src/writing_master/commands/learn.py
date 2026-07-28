@@ -18,12 +18,19 @@ class _Parser(argparse.ArgumentParser):
         raise ContextError("invalid_input", message)
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(value)
+
+
 def _read_candidate(path: str) -> dict:
     try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"))
+        value = json.loads(
+            Path(path).read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+        )
     except (OSError, UnicodeDecodeError) as error:
         raise ContextError("invalid_input", f"cannot read candidate input: {path}") from error
-    except json.JSONDecodeError as error:
+    except (json.JSONDecodeError, ValueError) as error:
         raise ContextError("invalid_json", f"invalid candidate JSON: {path}") from error
     if not isinstance(value, dict):
         raise ContextError("invalid_json", f"candidate JSON object required: {path}")

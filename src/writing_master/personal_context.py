@@ -951,6 +951,7 @@ def _validate_frozen_style(document: dict) -> None:
         not isinstance(document, dict)
         or set(document) != {"status", "profile_id", "revision", "content", "content_sha256"}
         or document.get("profile_id") != "style-default"
+        or not isinstance(document.get("content"), dict)
     ):
         raise ContextError("schema_unsupported", "unsupported frozen style")
     content = document["content"]
@@ -1242,8 +1243,9 @@ class ContextStore:
                 return []
             raise
 
-    def _style_from_observations_at(self, root_fd: int) -> dict:
-        accepted = self._list_style_observations_at(root_fd, status="accepted")
+    def _style_from_observations_at(self, root_fd: int, observations: list[dict] | None = None) -> dict:
+        observations = observations if observations is not None else self._list_style_observations_at(root_fd)
+        accepted = [item for item in observations if item["status"] == "accepted"]
         if not accepted:
             return empty_style()
         rules = []
@@ -1280,7 +1282,18 @@ class ContextStore:
         if style is None:
             style = read_json_at(root_fd, STYLE_FILE)
         validate_style(style)  # Never mask a corrupt derived document.
-        rebuilt = self._style_from_observations_at(root_fd)
+        observations = self._list_style_observations_at(root_fd)
+        if style["status"] == "ready":
+            accepted = {item["observation_id"]: item for item in observations if item["status"] == "accepted"}
+            for rule in style["rules"]:
+                reference = rule["observation_refs"][0]
+                observation = accepted.get(reference["observation_id"])
+                if observation is None or (
+                    observation["revision"] != reference["revision"]
+                    or observation["observation_sha256"] != reference["observation_sha256"]
+                ):
+                    raise ContextError("hash_mismatch", "accepted style observation no longer matches Style")
+        rebuilt = self._style_from_observations_at(root_fd, observations)
         if style != rebuilt:
             atomic_write_json_at(root_fd, STYLE_FILE, rebuilt)
         return rebuilt
@@ -1358,9 +1371,10 @@ class ContextStore:
                     if observation["observation_id"] != observation_id:
                         raise ContextError("schema_unsupported", "style observation filename does not match id")
                     if observation["status"] != "proposed":
+                        reconciled = self._reconcile_style_at(root_fd, style)
                         if observation["status"] != decision:
                             raise ContextError("revision_conflict", "style observation decision conflicts")
-                        return {"observation": observation, "style": self._reconcile_style_at(root_fd, style)}
+                        return {"observation": observation, "style": reconciled}
                     decided = {
                         **observation,
                         "revision": 2,
