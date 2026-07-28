@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import subprocess
@@ -239,6 +240,83 @@ class HandoffTests(unittest.TestCase):
         handoff.mark_running(self.run, "agent")
         with self.assertRaises(handoff.HandoffError):
             handoff.mark_running(self.run, "agent-again")
+
+    def test_prepare_rejects_symlinked_handoff_stage_without_writing_outside(self):
+        outside_temp = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_temp.cleanup)
+        outside = Path(outside_temp.name)
+        handoffs = self.run / "handoffs"
+        handoffs.mkdir()
+        (handoffs / "research-researcher").symlink_to(outside, target_is_directory=True)
+
+        with self.assertRaises(handoff.HandoffError):
+            self.prepare()
+
+        self.assertEqual(list(outside.iterdir()), [])
+        status = json.loads((self.run / "status.json").read_text(encoding="utf-8"))
+        self.assertNotIn("current_handoff", status)
+
+    def test_prepare_keeps_the_anchored_run_when_an_ancestor_is_retargeted(self):
+        ancestor = self.run / "ancestor"
+        original_run = ancestor / "run"
+        original_run.mkdir(parents=True)
+        status = {
+            "task_id": "TASK-RETARGET",
+            "mode": "deep",
+            "execution": "multi_agent",
+            "status": "in_progress",
+        }
+        (original_run / "status.json").write_text(json.dumps(status), encoding="utf-8")
+        (original_run / "brief.md").write_text("original", encoding="utf-8")
+
+        replacement = self.run / "replacement"
+        replacement_run = replacement / "run"
+        replacement_run.mkdir(parents=True)
+        (replacement_run / "status.json").write_text(json.dumps(status), encoding="utf-8")
+        (replacement_run / "brief.md").write_text("replacement", encoding="utf-8")
+        moved_ancestor = self.run / "original-ancestor"
+        original_hash = handoff._sha256_relative_file_at
+        swapped = False
+
+        def retarget_before_hash(run_fd, relative):
+            nonlocal swapped
+            if not swapped:
+                ancestor.rename(moved_ancestor)
+                ancestor.symlink_to(replacement, target_is_directory=True)
+                swapped = True
+            return original_hash(run_fd, relative)
+
+        with patch(
+            "writing_master.handoff._sha256_relative_file_at",
+            side_effect=retarget_before_hash,
+        ):
+            prepared = handoff.prepare(
+                original_run,
+                to_role="researcher",
+                phase="research",
+                objective="objective",
+                decision_to_inform="decision",
+                inputs=["brief.md"],
+                write_scope=["output.md"],
+                done_criteria=["done"],
+            )
+
+        anchored_run = moved_ancestor / "run"
+        self.assertEqual(
+            prepared["manifest"]["allowed_inputs"][0]["sha256"],
+            hashlib.sha256(b"original").hexdigest(),
+        )
+        self.assertTrue((anchored_run / prepared["manifest"]["output_root"]).is_dir())
+        self.assertTrue((prepared["attempt_dir"] / "manifest.json").is_file())
+        self.assertFalse((replacement_run / "handoffs").exists())
+        self.assertIn(
+            "current_handoff",
+            json.loads((anchored_run / "status.json").read_text(encoding="utf-8")),
+        )
+        self.assertNotIn(
+            "current_handoff",
+            json.loads((replacement_run / "status.json").read_text(encoding="utf-8")),
+        )
 
     def test_corrupt_json_and_manifest_hash_mismatch_are_rejected(self):
         prepared = self.prepare()

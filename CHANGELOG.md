@@ -36,6 +36,8 @@
 - 删除不存在的示例、模板、配置和文档路径。
 - 修复文档中的失效内部链接和错误 GitHub 反馈地址。
 - 删除“AI 味百分比”、默认准确性分和整体质量保证等无法由 CLI 验证的表述。
+- 使用 run-local 锁和 no-clobber 发布保护跨 Context Home 的 approval 与不可变 Snapshot 竞争。
+- Handoff prepare 从入口逐段锚定 run 目录并 descriptor-relative 创建 attempt，拒绝 symlink 与 ancestor retarget 写出任务目录。
 
 ## [1.0.0] - 2026-07-24
 

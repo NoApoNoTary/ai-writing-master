@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 import re
+import secrets
+import stat
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -39,6 +41,42 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sha256_relative_file_at(run_fd: int, relative: str) -> str:
+    """Hash one regular run-local file without reopening the run path."""
+    parts = PurePosixPath(_relative_path(relative)).parts
+    directory_fd = os.dup(run_fd)
+    descriptor = None
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        for part in parts[:-1]:
+            try:
+                next_fd = os.open(part, directory_flags, dir_fd=directory_fd)
+            except OSError as error:
+                raise HandoffError(f"missing or invalid input: {relative}") from error
+            os.close(directory_fd)
+            directory_fd = next_fd
+        try:
+            descriptor = os.open(
+                parts[-1],
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0),
+                dir_fd=directory_fd,
+            )
+        except OSError as error:
+            raise HandoffError(f"missing or invalid input: {relative}") from error
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise HandoffError(f"input is not a file: {relative}")
+        digest = hashlib.sha256()
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = None
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        os.close(directory_fd)
 
 
 def _json_hash(value: object) -> str:
@@ -81,6 +119,129 @@ def atomic_write_json(path: Path, value: dict) -> None:
         raise
 
 
+def _atomic_write_json_at(directory_fd: int, name: str, value: dict) -> None:
+    """Durably replace one JSON file relative to an already-open directory."""
+    encoded = (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
+    descriptor = None
+    temporary = None
+    try:
+        for _ in range(100):
+            candidate = f".{name}.{secrets.token_hex(16)}"
+            try:
+                descriptor = os.open(
+                    candidate,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                    0o600,
+                    dir_fd=directory_fd,
+                )
+                temporary = candidate
+                break
+            except FileExistsError:
+                continue
+        if descriptor is None or temporary is None:
+            raise HandoffError(f"cannot allocate temporary file for {name}")
+        with os.fdopen(descriptor, "wb") as handle:
+            descriptor = None
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+        temporary = None
+        os.fsync(directory_fd)
+    except BaseException:
+        if descriptor is not None:
+            os.close(descriptor)
+        if temporary is not None:
+            try:
+                os.unlink(temporary, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+        raise
+
+
+@contextmanager
+def _directory_at(parent_fd: int, name: str, *, create: bool = False):
+    """Open one direct child directory without following a symlink."""
+    if not isinstance(name, str) or not name or "/" in name or "\\" in name or name in {".", ".."}:
+        raise HandoffError(f"unsafe managed directory: {name}")
+    if create:
+        try:
+            os.mkdir(name, 0o700, dir_fd=parent_fd)
+        except FileExistsError:
+            pass
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(name, flags, dir_fd=parent_fd)
+    except OSError as error:
+        raise HandoffError(f"unsafe managed directory: {name}") from error
+    try:
+        yield descriptor
+    finally:
+        os.close(descriptor)
+
+
+@contextmanager
+def _anchored_run_directory(run_dir: Path | str):
+    """Open every run path component without following symlinks."""
+    if not isinstance(run_dir, (str, os.PathLike)) or not os.fspath(run_dir):
+        raise HandoffError("run directory is required")
+    try:
+        path = Path(run_dir).expanduser()
+    except (OSError, RuntimeError, ValueError) as error:
+        raise HandoffError("run directory is unsafe") from error
+    parts = path.parts[1:] if path.is_absolute() else path.parts
+    if any(part in {".", ".."} for part in parts):
+        raise HandoffError("run directory contains an unsafe path component")
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    start = path.anchor if path.is_absolute() else "."
+    try:
+        descriptor = os.open(start, flags)
+    except OSError as error:
+        raise HandoffError("run directory is unsafe") from error
+    try:
+        for part in parts:
+            try:
+                next_descriptor = os.open(part, flags, dir_fd=descriptor)
+            except OSError as error:
+                raise HandoffError("run directory is unsafe") from error
+            os.close(descriptor)
+            descriptor = next_descriptor
+        yield descriptor, Path(f"/proc/self/fd/{descriptor}")
+    finally:
+        os.close(descriptor)
+
+
+@contextmanager
+def _new_attempt_directory(run_fd: int, run_dir: Path, phase: str, to_role: str):
+    """Create and anchor the next attempt below the real run directory."""
+    with _directory_at(run_fd, "handoffs", create=True) as handoffs_fd:
+        stage_name = f"{phase}-{to_role}"
+        with _directory_at(handoffs_fd, stage_name, create=True) as stage_fd:
+            attempts = []
+            for name in os.listdir(stage_fd):
+                suffix = name.removeprefix("attempt-")
+                if not name.startswith("attempt-") or not suffix.isdigit():
+                    continue
+                try:
+                    metadata = os.stat(name, dir_fd=stage_fd, follow_symlinks=False)
+                except OSError as error:
+                    raise HandoffError("cannot inspect handoff attempts") from error
+                if stat.S_ISDIR(metadata.st_mode):
+                    attempts.append(int(suffix))
+            attempt = max(attempts, default=0) + 1
+            attempt_name = f"attempt-{attempt:02d}"
+            try:
+                os.mkdir(attempt_name, 0o700, dir_fd=stage_fd)
+            except OSError as error:
+                raise HandoffError("cannot create handoff attempt") from error
+            with _directory_at(stage_fd, attempt_name) as attempt_fd:
+                try:
+                    os.mkdir("outputs", 0o700, dir_fd=attempt_fd)
+                except OSError as error:
+                    raise HandoffError("cannot create handoff output directory") from error
+                yield attempt, _attempt_dir(run_dir, phase, to_role, attempt), attempt_fd
+
+
 @contextmanager
 def _lock(run_dir: Path):
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -90,6 +251,26 @@ def _lock(run_dir: Path):
             yield
         finally:
             fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+@contextmanager
+def _lock_fd(run_fd: int):
+    """Serialize one anchored run without reopening its path."""
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(".handoff.lock", flags, 0o600, dir_fd=run_fd)
+    except OSError as error:
+        raise HandoffError("handoff lock is unsafe") from error
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise HandoffError("handoff lock must be a regular file")
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def _relative_path(value: str) -> str:
@@ -286,8 +467,11 @@ def _load_attempt(attempt_dir: Path, run_dir: Path) -> tuple[dict, dict]:
     return manifest, state
 
 
-def _write_state(attempt_dir: Path, state: dict) -> None:
-    atomic_write_json(attempt_dir / "state.json", state)
+def _write_state(attempt_dir: Path, state: dict, *, directory_fd: int | None = None) -> None:
+    if directory_fd is None:
+        atomic_write_json(attempt_dir / "state.json", state)
+    else:
+        _atomic_write_json_at(directory_fd, "state.json", state)
 
 
 def _set_state(
@@ -323,7 +507,6 @@ def prepare(
     inputs: list[str], write_scope: list[str], done_criteria: list[str], from_role: str = "lead",
     forbidden_inputs: list[str] | None = None, expected_outputs: list[str] | None = None,
 ) -> dict:
-    run_dir = Path(run_dir).resolve()
     if to_role not in ROLES - {"lead"} or from_role not in ROLES:
         raise HandoffError("to_role must be a specialist role and from_role must be known")
     _slug(phase, "phase")
@@ -331,77 +514,85 @@ def prepare(
         raise HandoffError("phase, objective, and decision_to_inform are required")
     expected_outputs = expected_outputs or write_scope
     input_records = []
-    with _lock(run_dir):
-        status = _status(run_dir)
-        current_manifest = current_state = None
-        current = status.get("current_handoff")
-        if isinstance(current, dict) and isinstance(current.get("path"), str):
-            current_dir = safe_path(run_dir, current["path"], must_exist=True)
-            current_manifest, current_state = _load_attempt(current_dir, run_dir)
-            if current_state["status"] in {"prepared", "running"}:
-                raise HandoffError("current handoff must finish or become stale before preparing another")
-        retry = (phase, to_role)
-        stale_stages = _latest_completed_stale(run_dir)
-        if stale_stages:
-            earliest = stale_stages[0]["handoff"]
-            if retry != (earliest["phase"], earliest["to_role"]):
-                raise HandoffError("retry the earliest stale handoff before downstream work")
-        elif current_state and current_state["status"] in {"failed", "stale"}:
-            if retry != (current_manifest["phase"], current_manifest["to_role"]):
-                raise HandoffError("retry the current failed or stale handoff before downstream work")
-        for raw in inputs:
-            relative = _relative_path(raw)
-            path = safe_path(run_dir, relative, must_exist=True)
-            if not path.is_file():
-                raise HandoffError(f"input is not a file: {relative}")
-            input_records.append({"path": relative, "sha256": sha256_file(path), "required": True})
-        for path in write_scope + expected_outputs:
-            _relative_path(path)
-        if not all(_within_scope(path, write_scope) for path in expected_outputs):
-            raise HandoffError("expected outputs must be inside write_scope")
-        base = run_dir / "handoffs" / f"{phase}-{to_role}"
-        attempts = [int(path.name.split("-")[-1]) for path in base.glob("attempt-*") if path.name.split("-")[-1].isdigit()]
-        attempt = max(attempts, default=0) + 1
-        attempt_dir = _attempt_dir(run_dir, phase, to_role, attempt)
-        attempt_dir.mkdir(parents=True, exist_ok=False)
-        output_root = attempt_dir / "outputs"
-        output_root.mkdir()
-        relative_attempt = attempt_dir.relative_to(run_dir).as_posix()
-        manifest = {
-            "schema_version": SCHEMA_VERSION,
-            "handoff_id": f"{status['task_id']}-{phase}-{to_role}-{attempt:02d}",
-            "task_id": status["task_id"],
-            "attempt": attempt,
-            "from_role": from_role,
-            "to_role": to_role,
-            "phase": phase,
-            "objective": objective,
-            "decision_to_inform": decision_to_inform,
-            "allowed_inputs": input_records,
-            "forbidden_inputs": forbidden_inputs or [],
-            "write_scope": write_scope,
-            "expected_outputs": expected_outputs,
-            "done_criteria": done_criteria,
-            "status": "prepared",
-            "role_card": f"skills/writing-master/agents/{to_role.replace('_', '-')}.md",
-            "output_root": f"{relative_attempt}/outputs",
-            "result_path": f"{relative_attempt}/result.json",
-        }
-        validate_manifest(manifest, run_dir)
-        atomic_write_json(attempt_dir / "manifest.json", manifest)
-        state = {
-            "schema_version": SCHEMA_VERSION,
-            "handoff_id": manifest["handoff_id"],
-            "attempt": attempt,
-            "status": "prepared",
-            "manifest_sha256": _json_hash(manifest),
-            "created_at": _now(),
-            "updated_at": _now(),
-        }
-        _write_state(attempt_dir, state)
-        status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
-        _write_status(run_dir, status)
-    return {"manifest": manifest, "state": state, "attempt_dir": attempt_dir}
+    with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
+        with _lock_fd(run_fd):
+            status = _status(anchored_run_dir)
+            current_manifest = current_state = None
+            current = status.get("current_handoff")
+            if isinstance(current, dict) and isinstance(current.get("path"), str):
+                current_dir = safe_path(anchored_run_dir, current["path"], must_exist=True)
+                current_manifest, current_state = _load_attempt(current_dir, anchored_run_dir)
+                if current_state["status"] in {"prepared", "running"}:
+                    raise HandoffError("current handoff must finish or become stale before preparing another")
+            retry = (phase, to_role)
+            stale_stages = _latest_completed_stale(anchored_run_dir)
+            if stale_stages:
+                earliest = stale_stages[0]["handoff"]
+                if retry != (earliest["phase"], earliest["to_role"]):
+                    raise HandoffError("retry the earliest stale handoff before downstream work")
+            elif current_state and current_state["status"] in {"failed", "stale"}:
+                if retry != (current_manifest["phase"], current_manifest["to_role"]):
+                    raise HandoffError("retry the current failed or stale handoff before downstream work")
+            for raw in inputs:
+                relative = _relative_path(raw)
+                input_records.append({
+                    "path": relative,
+                    "sha256": _sha256_relative_file_at(run_fd, relative),
+                    "required": True,
+                })
+            for path in write_scope + expected_outputs:
+                _relative_path(path)
+            if not all(_within_scope(path, write_scope) for path in expected_outputs):
+                raise HandoffError("expected outputs must be inside write_scope")
+            with _new_attempt_directory(run_fd, anchored_run_dir, phase, to_role) as (
+                attempt,
+                attempt_dir,
+                attempt_fd,
+            ):
+                relative_attempt = attempt_dir.relative_to(anchored_run_dir).as_posix()
+                manifest = {
+                    "schema_version": SCHEMA_VERSION,
+                    "handoff_id": f"{status['task_id']}-{phase}-{to_role}-{attempt:02d}",
+                    "task_id": status["task_id"],
+                    "attempt": attempt,
+                    "from_role": from_role,
+                    "to_role": to_role,
+                    "phase": phase,
+                    "objective": objective,
+                    "decision_to_inform": decision_to_inform,
+                    "allowed_inputs": input_records,
+                    "forbidden_inputs": forbidden_inputs or [],
+                    "write_scope": write_scope,
+                    "expected_outputs": expected_outputs,
+                    "done_criteria": done_criteria,
+                    "status": "prepared",
+                    "role_card": f"skills/writing-master/agents/{to_role.replace('_', '-')}.md",
+                    "output_root": f"{relative_attempt}/outputs",
+                    "result_path": f"{relative_attempt}/result.json",
+                }
+                validate_manifest(manifest, anchored_run_dir)
+                _atomic_write_json_at(attempt_fd, "manifest.json", manifest)
+                state = {
+                    "schema_version": SCHEMA_VERSION,
+                    "handoff_id": manifest["handoff_id"],
+                    "attempt": attempt,
+                    "status": "prepared",
+                    "manifest_sha256": _json_hash(manifest),
+                    "created_at": _now(),
+                    "updated_at": _now(),
+                }
+                _write_state(attempt_dir, state, directory_fd=attempt_fd)
+            status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
+            _atomic_write_json_at(run_fd, "status.json", status)
+            try:
+                stable_run_dir = Path(os.readlink(f"/proc/self/fd/{run_fd}"))
+            except OSError as error:
+                raise HandoffError("cannot resolve anchored run directory") from error
+    return {
+        "manifest": manifest,
+        "state": state,
+        "attempt_dir": stable_run_dir / relative_attempt,
+    }
 
 
 def _current_attempt(run_dir: Path) -> tuple[Path, dict, dict]:

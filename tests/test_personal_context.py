@@ -53,6 +53,46 @@ def _record_competing_context_usage(home: str, run_dir: str, uses: list[dict], w
         results.put(("error", error.code))
 
 
+def _approve_competing_material(home: str, run_dir: str, item_id: str, write_barrier, results) -> None:
+    original_write = personal_context.atomic_write_json_at
+
+    def synchronized_write(directory_fd, name, value):
+        if name == personal_context.APPROVAL_FILE:
+            try:
+                write_barrier.wait(timeout=0.5)
+            except threading.BrokenBarrierError:
+                pass
+        return original_write(directory_fd, name, value)
+
+    try:
+        with mock.patch.object(personal_context, "atomic_write_json_at", side_effect=synchronized_write):
+            approval = ContextStore(home).approve(run_dir, item_id, allowed_use="background")
+        results.put(("ok", approval))
+    except ContextError as error:
+        results.put(("error", error.code))
+
+
+def _create_competing_snapshot(home: str, run_dir: str, item_id: str, build_barrier, results) -> None:
+    original_now = personal_context._now
+
+    def synchronized_now():
+        try:
+            build_barrier.wait(timeout=0.5)
+        except threading.BrokenBarrierError:
+            pass
+        return original_now()
+
+    try:
+        with mock.patch.object(personal_context, "_now", side_effect=synchronized_now):
+            snapshot = ContextStore(home).create_snapshot(
+                run_dir,
+                materials=[(item_id, "background")],
+            )
+        results.put(("ok", snapshot))
+    except ContextError as error:
+        results.put(("error", error.code))
+
+
 def _wait_for_flock_waiter(lock_path: Path, process_id: int, timeout: float = 3) -> bool:
     """Wait until Linux reports this process blocked on this lock's inode."""
     deadline = time.monotonic() + timeout
@@ -485,6 +525,50 @@ class PersonalContextStoreTests(unittest.TestCase):
             lambda: self.store.admit_material(run, ask["item_id"], purpose="background"),
         )
 
+    def test_different_home_concurrent_approvals_preserve_both_revisions(self):
+        context = multiprocessing.get_context("fork")
+        run = self.run_directory("TASK-APPROVAL-RACE")
+        homes = [Path(self.temporary.name) / name for name in ("home-a", "home-b")]
+        item_ids = []
+        for index, home in enumerate(homes):
+            store = ContextStore(home)
+            store.initialize()
+            source = self.write_material(f"approval-race-{index}.md", f"approval race {index}")
+            item = store.add_material(
+                source,
+                kind="experiences",
+                title=f"Approval race {index}",
+                source_kind="user_provided",
+                source_ref=f"synthetic://approval-race-{index}",
+                visibility="ask_before_use",
+            )
+            item_ids.append(item["item_id"])
+
+        barrier = context.Barrier(2)
+        results = context.Queue()
+        processes = [
+            context.Process(
+                target=_approve_competing_material,
+                args=(str(home), str(run), item_id, barrier, results),
+            )
+            for home, item_id in zip(homes, item_ids)
+        ]
+        for process in processes:
+            self.addCleanup(lambda process=process: process.is_alive() and process.terminate())
+            process.start()
+        for process in processes:
+            process.join(5)
+            self.assertEqual(process.exitcode, 0)
+
+        outcomes = [results.get(timeout=2) for _ in processes]
+        self.assertEqual([outcome[0] for outcome in outcomes], ["ok", "ok"])
+        stored = json.loads((run / "context-approvals.json").read_text(encoding="utf-8"))
+        self.assertEqual(stored["revision"], 2)
+        self.assertEqual(
+            {approval["item_id"] for approval in stored["approvals"]},
+            set(item_ids),
+        )
+
     def test_explicit_legacy_import_is_idempotent_and_keeps_per_file_failures(self):
         legacy = Path(self.temporary.name) / "legacy"
         experiences = legacy / "experiences"
@@ -577,6 +661,48 @@ class PersonalContextStoreTests(unittest.TestCase):
             "privacy_unapproved",
             lambda: self.store.create_snapshot(unapproved_run, materials=[(private["item_id"], "background")]),
         )
+
+    def test_different_home_conflicting_snapshots_have_one_winner(self):
+        context = multiprocessing.get_context("fork")
+        run = self.run_directory("TASK-SNAPSHOT-RACE")
+        homes = [Path(self.temporary.name) / name for name in ("snapshot-home-a", "snapshot-home-b")]
+        item_ids = []
+        for index, home in enumerate(homes):
+            store = ContextStore(home)
+            store.initialize()
+            source = self.write_material(f"snapshot-race-{index}.md", f"snapshot race {index}")
+            item = store.add_material(
+                source,
+                kind="experiences",
+                title=f"Snapshot race {index}",
+                source_kind="user_provided",
+                source_ref=f"synthetic://snapshot-race-{index}",
+                visibility="publishable",
+            )
+            item_ids.append(item["item_id"])
+
+        barrier = context.Barrier(2)
+        results = context.Queue()
+        processes = [
+            context.Process(
+                target=_create_competing_snapshot,
+                args=(str(home), str(run), item_id, barrier, results),
+            )
+            for home, item_id in zip(homes, item_ids)
+        ]
+        for process in processes:
+            self.addCleanup(lambda process=process: process.is_alive() and process.terminate())
+            process.start()
+        for process in processes:
+            process.join(5)
+            self.assertEqual(process.exitcode, 0)
+
+        outcomes = [results.get(timeout=2) for _ in processes]
+        self.assertCountEqual([outcome[0] for outcome in outcomes], ["ok", "error"])
+        self.assertEqual([outcome[1] for outcome in outcomes if outcome[0] == "error"], ["snapshot_conflict"])
+        successful = next(outcome[1] for outcome in outcomes if outcome[0] == "ok")
+        stored = json.loads((run / "personal-context-snapshot.json").read_text(encoding="utf-8"))
+        self.assertEqual(stored, successful)
 
     def test_context_usage_is_write_once_and_verify_run_checks_copies_and_artifacts(self):
         self.store.initialize()

@@ -595,6 +595,33 @@ def atomic_write_json_at(directory_fd: int, name: str, value: dict) -> None:
     atomic_write_bytes_at(directory_fd, name, canonical_json_bytes(value))
 
 
+def _publish_json_once_at(directory_fd: int, name: str, value: dict) -> bool:
+    """Atomically publish JSON without replacing an existing local file."""
+    name = _managed_name(name)
+    staging = f".{name}.{secrets.token_hex(16)}.publish"
+    try:
+        atomic_write_bytes_at(directory_fd, staging, canonical_json_bytes(value))
+        try:
+            os.link(
+                staging,
+                name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+                follow_symlinks=False,
+            )
+        except FileExistsError:
+            return False
+        except OSError as error:
+            raise ContextError("path_escape", f"cannot publish managed file: {name}") from error
+        os.fsync(directory_fd)
+        return True
+    finally:
+        try:
+            os.unlink(staging, dir_fd=directory_fd)
+        except FileNotFoundError:
+            pass
+
+
 def atomic_write_json(path: Path | str, value: dict) -> None:
     """Fsync a temporary canonical JSON document, then atomically replace it."""
     path = Path(path)
@@ -613,7 +640,7 @@ def context_lock(root: Path | str) -> Iterator[None]:
 
 @contextmanager
 def _context_lock_fd(root_fd: int) -> Iterator[None]:
-    """Lock a file through an anchored context directory descriptor."""
+    """Lock a file through an anchored directory descriptor."""
     flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
     try:
         descriptor = os.open(".personal-context.lock", flags, 0o600, dir_fd=root_fd)
@@ -1615,50 +1642,51 @@ class ContextStore:
             raise ContextError("invalid_input", "run directory is invalid")
         self._require_root()
         with self._locked_root() as root_fd:
-            metadata = self._read_item_metadata_at(root_fd, item_id)
-            if metadata["status"] != "active":
-                raise ContextError("disabled", f"knowledge item is disabled: {item_id}")
-            if metadata["visibility"] == "private":
-                raise ContextError("privacy_unapproved", f"private knowledge item cannot be approved: {item_id}")
             with _directory_fd(Path(run_dir)) as run_fd:
-                status = read_json_at(run_fd, "status.json")
-                task_id = status.get("task_id")
-                if not isinstance(task_id, str) or not task_id:
-                    raise ContextError("unknown_id", "run directory has no task_id")
-                try:
-                    log = read_json_at(run_fd, APPROVAL_FILE)
-                    validate_approval_log(log, task_id=task_id)
-                except ContextError as error:
-                    if error.code != "not_initialized":
-                        raise
-                    log = {
+                with _context_lock_fd(run_fd):
+                    metadata = self._read_item_metadata_at(root_fd, item_id)
+                    if metadata["status"] != "active":
+                        raise ContextError("disabled", f"knowledge item is disabled: {item_id}")
+                    if metadata["visibility"] == "private":
+                        raise ContextError("privacy_unapproved", f"private knowledge item cannot be approved: {item_id}")
+                    status = read_json_at(run_fd, "status.json")
+                    task_id = status.get("task_id")
+                    if not isinstance(task_id, str) or not task_id:
+                        raise ContextError("unknown_id", "run directory has no task_id")
+                    try:
+                        log = read_json_at(run_fd, APPROVAL_FILE)
+                        validate_approval_log(log, task_id=task_id)
+                    except ContextError as error:
+                        if error.code != "not_initialized":
+                            raise
+                        log = {
+                            "schema_version": SCHEMA_VERSION,
+                            "task_id": task_id,
+                            "revision": 0,
+                            "approvals": [],
+                        }
+                    for approval in log["approvals"]:
+                        if approval["item_id"] == item_id and approval["allowed_use"] == allowed_use:
+                            return approval
+                    approval = {
+                        "approval_id": "approval-" + hashlib.sha256(
+                            f"{task_id}\0{item_id}\0{allowed_use}".encode("utf-8")
+                        ).hexdigest()[:16],
+                        "item_id": item_id,
+                        "allowed_use": allowed_use,
+                        "status": "approved",
+                        "approved_at": _now(),
+                    }
+                    approval["approval_sha256"] = _approval_sha256(approval)
+                    updated = {
                         "schema_version": SCHEMA_VERSION,
                         "task_id": task_id,
-                        "revision": 0,
-                        "approvals": [],
+                        "revision": log["revision"] + 1,
+                        "approvals": [*log["approvals"], approval],
                     }
-                for approval in log["approvals"]:
-                    if approval["item_id"] == item_id and approval["allowed_use"] == allowed_use:
-                        return approval
-                approval = {
-                    "approval_id": "approval-" + hashlib.sha256(
-                        f"{task_id}\0{item_id}\0{allowed_use}".encode("utf-8")
-                    ).hexdigest()[:16],
-                    "item_id": item_id,
-                    "allowed_use": allowed_use,
-                    "status": "approved",
-                    "approved_at": _now(),
-                }
-                approval["approval_sha256"] = _approval_sha256(approval)
-                updated = {
-                    "schema_version": SCHEMA_VERSION,
-                    "task_id": task_id,
-                    "revision": log["revision"] + 1,
-                    "approvals": [*log["approvals"], approval],
-                }
-                validate_approval_log(updated, task_id=task_id)
-                atomic_write_json_at(run_fd, APPROVAL_FILE, updated)
-                return approval
+                    validate_approval_log(updated, task_id=task_id)
+                    atomic_write_json_at(run_fd, APPROVAL_FILE, updated)
+                    return approval
 
     def _admit_material_at(
         self,
@@ -1767,6 +1795,27 @@ class ContextStore:
             if hashlib.sha256(raw).hexdigest() != material["content_sha256"]:
                 raise ContextError("hash_mismatch", f"Snapshot material copy hash does not match: {material['item_id']}")
 
+    def _existing_snapshot_at(
+        self,
+        run_fd: int,
+        task_id: str,
+        pairs: list[tuple[str, str]],
+    ) -> dict | None:
+        try:
+            existing = read_json_at(run_fd, SNAPSHOT_FILE)
+        except ContextError as error:
+            if error.code == "not_initialized":
+                return None
+            raise
+        validate_snapshot(existing)
+        if existing["task_id"] != task_id:
+            raise ContextError("snapshot_conflict", "Snapshot task_id does not match run directory")
+        existing_pairs = [(item["item_id"], item["purpose"]) for item in existing["materials"]]
+        if existing_pairs != pairs:
+            raise ContextError("snapshot_conflict", "task already owns a different Snapshot")
+        self._verify_snapshot_at(run_fd, existing)
+        return existing
+
     def create_snapshot(
         self,
         run_dir: Path | str,
@@ -1797,71 +1846,68 @@ class ContextStore:
         self._require_root()
         with self._locked_root() as root_fd:
             with _directory_fd(Path(run_dir)) as run_fd:
-                task_id = self._task_id_at(run_fd)
-                current_style = read_json_at(root_fd, STYLE_FILE)
-                self._reconcile_style_at(root_fd, current_style)
-                try:
-                    existing = read_json_at(run_fd, SNAPSHOT_FILE)
-                except ContextError as error:
-                    if error.code != "not_initialized":
-                        raise
-                else:
-                    validate_snapshot(existing)
-                    if existing["task_id"] != task_id:
-                        raise ContextError("snapshot_conflict", "Snapshot task_id does not match run directory")
-                    existing_pairs = [(item["item_id"], item["purpose"]) for item in existing["materials"]]
-                    if existing_pairs != pairs:
-                        raise ContextError("snapshot_conflict", "task already owns a different Snapshot")
-                    self._verify_snapshot_at(run_fd, existing)
-                    return existing
+                with _context_lock_fd(run_fd):
+                    task_id = self._task_id_at(run_fd)
+                    current_style = read_json_at(root_fd, STYLE_FILE)
+                    self._reconcile_style_at(root_fd, current_style)
+                    existing = self._existing_snapshot_at(run_fd, task_id, pairs)
+                    if existing is not None:
+                        return existing
 
-                profile = read_json_at(root_fd, PROFILE_FILE)
-                style = read_json_at(root_fd, STYLE_FILE)
-                validate_profile(profile)
-                validate_style(style)
-                snapshot_materials: list[dict] = []
-                copies: dict[str, bytes] = {}
-                for item_id, purpose in pairs:
-                    metadata, approval = self._admit_material_at(root_fd, run_fd, task_id, item_id, purpose)
-                    with managed_directory_fd(root_fd, f"knowledge/{metadata['kind']}/{item_id}") as item_fd:
-                        raw = read_bytes_at(item_fd, "content.md")
-                    if hashlib.sha256(raw).hexdigest() != metadata["content_sha256"]:
-                        raise ContextError("hash_mismatch", f"knowledge item content hash does not match: {item_id}")
-                    copy_path = f"{CONTEXT_MATERIALS_DIRECTORY}/{item_id}.md"
-                    copies[copy_path] = raw
-                    projection = task_safe_metadata(metadata)
-                    snapshot_materials.append({
-                        "item_id": item_id,
-                        "kind": metadata["kind"],
-                        "metadata": projection,
-                        "metadata_sha256": canonical_sha256(projection),
-                        "content_sha256": metadata["content_sha256"],
-                        "purpose": purpose,
-                        "approval": dict(approval),
-                        "copy_path": copy_path,
-                    })
-                snapshot = {
-                    "schema_version": SCHEMA_VERSION,
-                    "task_id": task_id,
-                    "created_at": _now(),
-                    "profile": _frozen_profile(profile),
-                    "style": _frozen_style(style),
-                    "materials": snapshot_materials,
-                }
-                snapshot["snapshot_sha256"] = canonical_sha256(snapshot)
-                validate_snapshot(snapshot)
-                for copy_path, raw in copies.items():
+                    profile = read_json_at(root_fd, PROFILE_FILE)
+                    style = read_json_at(root_fd, STYLE_FILE)
+                    validate_profile(profile)
+                    validate_style(style)
+                    snapshot_materials: list[dict] = []
+                    copies: dict[str, bytes] = {}
+                    for item_id, purpose in pairs:
+                        metadata, approval = self._admit_material_at(root_fd, run_fd, task_id, item_id, purpose)
+                        with managed_directory_fd(root_fd, f"knowledge/{metadata['kind']}/{item_id}") as item_fd:
+                            raw = read_bytes_at(item_fd, "content.md")
+                        if hashlib.sha256(raw).hexdigest() != metadata["content_sha256"]:
+                            raise ContextError("hash_mismatch", f"knowledge item content hash does not match: {item_id}")
+                        copy_path = f"{CONTEXT_MATERIALS_DIRECTORY}/{item_id}.md"
+                        copies[copy_path] = raw
+                        projection = task_safe_metadata(metadata)
+                        snapshot_materials.append({
+                            "item_id": item_id,
+                            "kind": metadata["kind"],
+                            "metadata": projection,
+                            "metadata_sha256": canonical_sha256(projection),
+                            "content_sha256": metadata["content_sha256"],
+                            "purpose": purpose,
+                            "approval": dict(approval),
+                            "copy_path": copy_path,
+                        })
+                    snapshot = {
+                        "schema_version": SCHEMA_VERSION,
+                        "task_id": task_id,
+                        "created_at": _now(),
+                        "profile": _frozen_profile(profile),
+                        "style": _frozen_style(style),
+                        "materials": snapshot_materials,
+                    }
+                    snapshot["snapshot_sha256"] = canonical_sha256(snapshot)
+                    validate_snapshot(snapshot)
+                    for copy_path, raw in copies.items():
+                        try:
+                            existing_copy = read_relative_bytes_at(run_fd, copy_path)
+                        except ContextError as error:
+                            if error.code != "not_initialized":
+                                raise
+                            write_relative_bytes_at(run_fd, copy_path, raw)
+                        else:
+                            if existing_copy != raw:
+                                raise ContextError("snapshot_conflict", "existing material copy conflicts with Snapshot")
+                    if _publish_json_once_at(run_fd, SNAPSHOT_FILE, snapshot):
+                        return snapshot
                     try:
-                        existing_copy = read_relative_bytes_at(run_fd, copy_path)
+                        winner = self._existing_snapshot_at(run_fd, task_id, pairs)
                     except ContextError as error:
-                        if error.code != "not_initialized":
-                            raise
-                        write_relative_bytes_at(run_fd, copy_path, raw)
-                    else:
-                        if existing_copy != raw:
-                            raise ContextError("snapshot_conflict", "existing material copy conflicts with Snapshot")
-                atomic_write_json_at(run_fd, SNAPSHOT_FILE, snapshot)
-                return snapshot
+                        raise ContextError("snapshot_conflict", "Snapshot publication winner is not idempotent") from error
+                    if winner is None:
+                        raise ContextError("snapshot_conflict", "Snapshot publication winner is missing")
+                    return winner
 
     def record_usage(
         self,
