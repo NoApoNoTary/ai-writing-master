@@ -297,6 +297,20 @@ class StyleLearningTests(unittest.TestCase):
         )
         self.assertEqual(json.loads(self.store.style_path.read_text(encoding="utf-8"))["status"], "ready")
 
+    def test_initialize_reconciles_after_interrupted_style_write(self):
+        proposed = self.store.propose_style_observation(candidate())
+        original_write = personal_context.atomic_write_json_at
+
+        def fail_ready_style(directory_fd, name, value):
+            if name == personal_context.STYLE_FILE and value.get("status") == "ready":
+                raise RuntimeError("synthetic process interruption")
+            return original_write(directory_fd, name, value)
+
+        with mock.patch.object(personal_context, "atomic_write_json_at", side_effect=fail_ready_style):
+            with self.assertRaises(RuntimeError):
+                self.store.decide_style_observation(proposed["observation_id"], decision="accepted")
+        self.assertEqual(ContextStore(self.home).initialize()["style"]["status"], "ready")
+
     def test_corrupt_style_or_observation_is_not_masked(self):
         proposed = self.store.propose_style_observation(candidate())
         self.store.decide_style_observation(proposed["observation_id"], decision="accepted")
