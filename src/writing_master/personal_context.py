@@ -18,6 +18,7 @@ SCHEMA_VERSION = 1
 CONTEXT_DIRECTORY = "personal-context"
 PROFILE_FILE = "author-profile.json"
 STYLE_FILE = "style-profile.json"
+STYLE_OBSERVATIONS_DIRECTORY = "style-observations"
 INDEX_FILE = "knowledge-index.json"
 APPROVAL_FILE = "context-approvals.json"
 SNAPSHOT_FILE = "personal-context-snapshot.json"
@@ -52,6 +53,9 @@ ALLOWED_USES = ("background", "paraphrase", "quote")
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
 )
+STYLE_DIMENSIONS = ("expression", "sentence", "structure", "stance", "platform")
+STYLE_SCOPE_KINDS = ("global", "platform", "content_type", "topic")
+STYLE_OBSERVATION_STATUSES = ("proposed", "accepted", "rejected")
 
 
 class ContextError(ValueError):
@@ -110,6 +114,134 @@ def empty_style() -> dict:
         **content,
         "content_sha256": canonical_sha256(content),
     }
+
+
+def _nfc(value: object) -> object:
+    """Normalize persisted candidate text without changing its JSON shape."""
+    if isinstance(value, str):
+        return unicodedata.normalize("NFC", value)
+    if isinstance(value, list):
+        return [_nfc(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _nfc(item) for key, item in value.items()}
+    return value
+
+
+def _style_candidate(candidate: object, *, error_code: str) -> dict:
+    """Validate the caller-owned observation content and return its NFC form."""
+    candidate = _nfc(candidate)
+    required = {"source", "evidence", "rule", "proposal"}
+    if not isinstance(candidate, dict) or set(candidate) != required:
+        raise ContextError(error_code, "style observation candidate fields are unsupported")
+    source, evidence, rule, proposal = (
+        candidate["source"], candidate["evidence"], candidate["rule"], candidate["proposal"]
+    )
+    if (
+        not isinstance(source, dict)
+        or set(source) != {"task_id", "baseline", "edited"}
+        or not isinstance(source["task_id"], str)
+        or not source["task_id"]
+    ):
+        raise ContextError(error_code, "style observation source is invalid")
+    for side in ("baseline", "edited"):
+        value = source[side]
+        if not isinstance(value, dict) or set(value) != {"path", "sha256"} or not _is_sha256(value["sha256"]):
+            raise ContextError(error_code, "style observation source revision is invalid")
+        try:
+            safe_relative_path(value["path"])
+        except ContextError as exc:
+            raise ContextError(error_code, "style observation source path is invalid") from exc
+    if source["baseline"]["sha256"] == source["edited"]["sha256"]:
+        raise ContextError(error_code, "style observation source hashes must differ")
+    if not isinstance(evidence, list) or not evidence:
+        raise ContextError(error_code, "style observation evidence is invalid")
+    for item in evidence:
+        if not isinstance(item, dict) or not isinstance(item.get("kind"), str):
+            raise ContextError(error_code, "style observation evidence is invalid")
+        if item["kind"] == "snippet":
+            if set(item) != {"kind", "before", "after"} or not all(
+                isinstance(item.get(key), str) and item[key] for key in ("before", "after")
+            ) or item["before"] == item["after"]:
+                raise ContextError(error_code, "style observation snippet is invalid")
+        elif item["kind"] == "diff_ref":
+            if set(item) != {"kind", "path", "ref"} or not isinstance(item.get("ref"), str) or not item["ref"]:
+                raise ContextError(error_code, "style observation diff reference is invalid")
+            try:
+                safe_relative_path(item["path"])
+            except ContextError as exc:
+                raise ContextError(error_code, "style observation diff path is invalid") from exc
+        else:
+            raise ContextError(error_code, "style observation evidence kind is invalid")
+    if (
+        not isinstance(rule, dict)
+        or set(rule) != {"dimension", "guidance", "scope"}
+        or rule.get("dimension") not in STYLE_DIMENSIONS
+        or not isinstance(rule.get("guidance"), str)
+        or not rule["guidance"]
+        or not isinstance(rule.get("scope"), dict)
+        or set(rule["scope"]) != {"kind", "value"}
+        or rule["scope"].get("kind") not in STYLE_SCOPE_KINDS
+        or not isinstance(rule["scope"].get("value"), str)
+    ):
+        raise ContextError(error_code, "style observation rule is invalid")
+    if (rule["scope"]["kind"] == "global") != (rule["scope"]["value"] == ""):
+        raise ContextError(error_code, "style observation scope is invalid")
+    if (
+        not isinstance(proposal, dict)
+        or set(proposal) != {"model", "prompt"}
+        or not isinstance(proposal.get("model"), str)
+        or not proposal["model"]
+        or not isinstance(proposal.get("prompt"), str)
+        or not proposal["prompt"]
+    ):
+        raise ContextError(error_code, "style observation proposal is invalid")
+    return candidate
+
+
+def _observation_payload(document: dict) -> dict:
+    return {key: value for key, value in document.items() if key != "observation_sha256"}
+
+
+def validate_style_observation(document: dict) -> None:
+    """Validate one append-only Style Observation document."""
+    if not isinstance(document, dict):
+        raise ContextError("schema_unsupported", "unsupported style observation schema")
+    status = document.get("status")
+    base = {
+        "schema_version", "observation_id", "revision", "status", "proposed_at",
+        "source", "evidence", "rule", "proposal", "content_sha256", "observation_sha256",
+    }
+    required = base if status == "proposed" else base | {"decided_at", "decision_provenance"}
+    if (
+        status not in STYLE_OBSERVATION_STATUSES
+        or set(document) != required
+        or type(document.get("schema_version")) is not int
+        or document.get("schema_version") != SCHEMA_VERSION
+        or type(document.get("revision")) is not int
+        or document["revision"] != (1 if status == "proposed" else 2)
+        or not isinstance(document.get("observation_id"), str)
+        or not re.fullmatch(r"observation-[0-9a-f]{16}", document["observation_id"])
+        or not _valid_rfc3339(document.get("proposed_at"))
+        or not _is_sha256(document.get("content_sha256"))
+        or not _is_sha256(document.get("observation_sha256"))
+    ):
+        raise ContextError("schema_unsupported", "unsupported style observation schema")
+    content = _style_candidate(
+        {key: document[key] for key in ("source", "evidence", "rule", "proposal")},
+        error_code="schema_unsupported",
+    )
+    if content != {key: document[key] for key in ("source", "evidence", "rule", "proposal")}:
+        raise ContextError("schema_unsupported", "style observation text is not NFC normalized")
+    content_sha256 = canonical_sha256(content)
+    if document["content_sha256"] != content_sha256 or document["observation_id"] != "observation-" + content_sha256[:16]:
+        raise ContextError("hash_mismatch", "style observation content hash does not match")
+    if status != "proposed" and (
+        not _valid_rfc3339(document.get("decided_at"))
+        or document.get("decision_provenance") != {"kind": "user_confirmed"}
+    ):
+        raise ContextError("schema_unsupported", "unsupported style observation decision")
+    if document["observation_sha256"] != canonical_sha256(_observation_payload(document)):
+        raise ContextError("hash_mismatch", "style observation hash does not match")
 
 
 def empty_index() -> dict:
@@ -563,7 +695,62 @@ def validate_profile(document: dict) -> None:
 
 
 def validate_style(document: dict) -> None:
-    _validate_empty_document(document, empty_style(), "style profile", ("rules", "provenance"))
+    if isinstance(document, dict) and document.get("status") == "empty":
+        _validate_empty_document(document, empty_style(), "style profile", ("rules", "provenance"))
+        return
+    required = {
+        "schema_version", "status", "profile_id", "revision", "updated_at", "rules", "provenance", "content_sha256",
+    }
+    if (
+        not isinstance(document, dict)
+        or set(document) != required
+        or type(document.get("schema_version")) is not int
+        or document.get("schema_version") != SCHEMA_VERSION
+        or document.get("status") != "ready"
+        or document.get("profile_id") != "style-default"
+        or type(document.get("revision")) is not int
+        or document["revision"] < 1
+        or not _valid_rfc3339(document.get("updated_at"))
+        or document.get("provenance") != {"kind": "accepted_observations"}
+        or not isinstance(document.get("rules"), list)
+        or document["revision"] != len(document["rules"])
+    ):
+        raise ContextError("schema_unsupported", "unsupported style profile schema")
+    expected_ids: list[str] = []
+    for rule in document["rules"]:
+        if (
+            not isinstance(rule, dict)
+            or set(rule) != {"rule_id", "dimension", "guidance", "scope", "observation_refs"}
+            or not isinstance(rule.get("rule_id"), str)
+            or rule.get("dimension") not in STYLE_DIMENSIONS
+            or not isinstance(rule.get("guidance"), str)
+            or not rule["guidance"]
+            or not isinstance(rule.get("scope"), dict)
+            or set(rule["scope"]) != {"kind", "value"}
+            or rule["scope"].get("kind") not in STYLE_SCOPE_KINDS
+            or not isinstance(rule["scope"].get("value"), str)
+            or (rule["scope"]["kind"] == "global") != (rule["scope"]["value"] == "")
+            or not isinstance(rule.get("observation_refs"), list)
+            or len(rule["observation_refs"]) != 1
+        ):
+            raise ContextError("schema_unsupported", "unsupported style rule")
+        reference = rule["observation_refs"][0]
+        if (
+            not isinstance(reference, dict)
+            or set(reference) != {"observation_id", "revision", "observation_sha256"}
+            or not isinstance(reference.get("observation_id"), str)
+            or not re.fullmatch(r"observation-[0-9a-f]{16}", reference["observation_id"])
+            or type(reference.get("revision")) is not int
+            or reference["revision"] != 2
+            or not _is_sha256(reference.get("observation_sha256"))
+            or rule["rule_id"] != "style-rule-" + reference["observation_id"].removeprefix("observation-")
+        ):
+            raise ContextError("schema_unsupported", "unsupported style rule reference")
+        expected_ids.append(rule["rule_id"])
+    if expected_ids != sorted(expected_ids) or len(expected_ids) != len(set(expected_ids)):
+        raise ContextError("schema_unsupported", "style rules are not canonical")
+    if document.get("content_sha256") != canonical_sha256({"rules": document["rules"], "provenance": document["provenance"]}):
+        raise ContextError("hash_mismatch", "style profile content hash does not match")
 
 
 def validate_index(document: dict) -> None:
@@ -765,12 +952,28 @@ def _validate_frozen_style(document: dict) -> None:
     if (
         not isinstance(document, dict)
         or set(document) != {"status", "profile_id", "revision", "content", "content_sha256"}
-        or document.get("status") != "empty"
         or document.get("profile_id") != "style-default"
-        or document.get("revision") != 0
-        or document.get("content") != {"rules": [], "provenance": {"kind": "empty"}}
+        or not isinstance(document.get("content"), dict)
     ):
         raise ContextError("schema_unsupported", "unsupported frozen style")
+    content = document["content"]
+    style = {
+        "schema_version": SCHEMA_VERSION,
+        "status": document["status"],
+        "profile_id": document["profile_id"],
+        "revision": document["revision"],
+        **content,
+        "content_sha256": document["content_sha256"],
+    }
+    if document["status"] == "empty":
+        if set(content) != {"rules", "provenance"}:
+            raise ContextError("schema_unsupported", "unsupported frozen empty style")
+    elif document["status"] == "ready":
+        # Snapshot deliberately omits updated_at; validate the invariant-bearing fields here.
+        style["updated_at"] = "1970-01-01T00:00:00+00:00"
+    else:
+        raise ContextError("schema_unsupported", "unsupported frozen style")
+    validate_style(style)
     if document.get("content_sha256") != canonical_sha256(document["content"]):
         raise ContextError("hash_mismatch", "frozen style content hash does not match")
 
@@ -954,6 +1157,12 @@ class ContextStore:
         context_root(self.home)
         return safe_path(self.root, INDEX_FILE)
 
+    @property
+    def style_observations_path(self) -> Path:
+        self._assert_home_unchanged()
+        context_root(self.home)
+        return safe_path(self.root, STYLE_OBSERVATIONS_DIRECTORY)
+
     def _ensure_root(self) -> None:
         with self._root_fd(create=True):
             pass
@@ -995,6 +1204,7 @@ class ContextStore:
                 values.append(value)
             for name, value in missing:
                 atomic_write_json_at(root_fd, name, value)
+            values[1] = self._reconcile_style_at(root_fd, values[1])
         return {"profile": values[0], "style": values[1], "index": values[2]}
 
     def _read(self, name: str, validator) -> dict:
@@ -1007,7 +1217,181 @@ class ContextStore:
         return self._read(PROFILE_FILE, validate_profile)
 
     def read_style(self) -> dict:
-        return self._read(STYLE_FILE, validate_style)
+        self._require_root()
+        with self._locked_root() as root_fd:
+            style = read_json_at(root_fd, STYLE_FILE)
+            validate_style(style)
+            return self._reconcile_style_at(root_fd, style)
+
+    def _list_style_observations_at(self, root_fd: int, *, status: str | None = None) -> list[dict]:
+        if status is not None and status not in STYLE_OBSERVATION_STATUSES:
+            raise ContextError("invalid_input", "unsupported style observation status")
+        try:
+            with managed_directory_fd(root_fd, STYLE_OBSERVATIONS_DIRECTORY) as observations_fd:
+                names = os.listdir(observations_fd)
+                documents: list[dict] = []
+                for name in names:
+                    if not re.fullmatch(r"observation-[0-9a-f]{16}\.json", name):
+                        continue
+                    document = read_json_at(observations_fd, name)
+                    validate_style_observation(document)
+                    if document["observation_id"] + ".json" != name:
+                        raise ContextError("schema_unsupported", "style observation filename does not match id")
+                    if status is None or document["status"] == status:
+                        documents.append(document)
+                return sorted(documents, key=lambda item: item["observation_id"])
+        except ContextError as error:
+            if error.code == "not_initialized":
+                return []
+            raise
+
+    def _style_from_observations_at(self, root_fd: int, observations: list[dict] | None = None) -> dict:
+        observations = observations if observations is not None else self._list_style_observations_at(root_fd)
+        accepted = [item for item in observations if item["status"] == "accepted"]
+        if not accepted:
+            return empty_style()
+        rules = []
+        for observation in accepted:
+            suffix = observation["observation_id"].removeprefix("observation-")
+            rule = observation["rule"]
+            rules.append({
+                "rule_id": "style-rule-" + suffix,
+                "dimension": rule["dimension"],
+                "guidance": rule["guidance"],
+                "scope": rule["scope"],
+                "observation_refs": [{
+                    "observation_id": observation["observation_id"],
+                    "revision": observation["revision"],
+                    "observation_sha256": observation["observation_sha256"],
+                }],
+            })
+        rules.sort(key=lambda item: item["rule_id"])
+        content = {"rules": rules, "provenance": {"kind": "accepted_observations"}}
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "status": "ready",
+            "profile_id": "style-default",
+            "revision": len(rules),
+            "updated_at": max(
+                (item["decided_at"] for item in accepted),
+                key=lambda value: datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value),
+            ),
+            **content,
+            "content_sha256": canonical_sha256(content),
+        }
+
+    def _reconcile_style_at(self, root_fd: int, style: dict | None = None) -> dict:
+        if style is None:
+            style = read_json_at(root_fd, STYLE_FILE)
+        validate_style(style)  # Never mask a corrupt derived document.
+        observations = self._list_style_observations_at(root_fd)
+        if style["status"] == "ready":
+            accepted = {item["observation_id"]: item for item in observations if item["status"] == "accepted"}
+            for rule in style["rules"]:
+                reference = rule["observation_refs"][0]
+                observation = accepted.get(reference["observation_id"])
+                if observation is None or (
+                    observation["revision"] != reference["revision"]
+                    or observation["observation_sha256"] != reference["observation_sha256"]
+                ):
+                    raise ContextError("hash_mismatch", "accepted style observation no longer matches Style")
+        rebuilt = self._style_from_observations_at(root_fd, observations)
+        if style != rebuilt:
+            atomic_write_json_at(root_fd, STYLE_FILE, rebuilt)
+        return rebuilt
+
+    def propose_style_observation(self, candidate: dict) -> dict:
+        content = _style_candidate(candidate, error_code="invalid_input")
+        content_sha256 = canonical_sha256(content)
+        observation_id = "observation-" + content_sha256[:16]
+        self._require_root()
+        with self._locked_root() as root_fd:
+            # Existing Style corruption remains observable on any operation which could mutate its inputs.
+            style = read_json_at(root_fd, STYLE_FILE)
+            validate_style(style)
+            with managed_directory_fd(root_fd, STYLE_OBSERVATIONS_DIRECTORY, create=True) as observations_fd:
+                name = observation_id + ".json"
+                try:
+                    existing = read_json_at(observations_fd, name)
+                except ContextError as error:
+                    if error.code != "not_initialized":
+                        raise
+                else:
+                    validate_style_observation(existing)
+                    if existing["content_sha256"] != content_sha256:
+                        raise ContextError("duplicate", "style observation id collision")
+                    return existing
+                observation = {
+                    "schema_version": SCHEMA_VERSION,
+                    "observation_id": observation_id,
+                    "revision": 1,
+                    "status": "proposed",
+                    "proposed_at": _now(),
+                    **content,
+                    "content_sha256": content_sha256,
+                }
+                observation["observation_sha256"] = canonical_sha256(_observation_payload(observation))
+                validate_style_observation(observation)
+                atomic_write_json_at(observations_fd, name, observation)
+                return observation
+
+    def read_style_observation(self, observation_id: str) -> dict:
+        if not isinstance(observation_id, str) or not re.fullmatch(r"observation-[0-9a-f]{16}", observation_id):
+            raise ContextError("unknown_id", "unknown style observation")
+        self._require_root()
+        with self._locked_root() as root_fd:
+            try:
+                with managed_directory_fd(root_fd, STYLE_OBSERVATIONS_DIRECTORY) as observations_fd:
+                    observation = read_json_at(observations_fd, observation_id + ".json")
+            except ContextError as error:
+                if error.code == "not_initialized":
+                    raise ContextError("unknown_id", "unknown style observation") from error
+                raise
+            validate_style_observation(observation)
+            if observation["observation_id"] != observation_id:
+                raise ContextError("schema_unsupported", "style observation filename does not match id")
+            return observation
+
+    def list_style_observations(self, *, status: str | None = None) -> list[dict]:
+        self._require_root()
+        with self._locked_root() as root_fd:
+            return self._list_style_observations_at(root_fd, status=status)
+
+    def decide_style_observation(self, observation_id: str, *, decision: str) -> dict:
+        if not isinstance(decision, str) or decision not in {"accepted", "rejected"}:
+            raise ContextError("invalid_input", "unsupported style observation decision")
+        if not isinstance(observation_id, str) or not re.fullmatch(r"observation-[0-9a-f]{16}", observation_id):
+            raise ContextError("unknown_id", "unknown style observation")
+        self._require_root()
+        with self._locked_root() as root_fd:
+            style = read_json_at(root_fd, STYLE_FILE)
+            validate_style(style)
+            try:
+                with managed_directory_fd(root_fd, STYLE_OBSERVATIONS_DIRECTORY) as observations_fd:
+                    observation = read_json_at(observations_fd, observation_id + ".json")
+                    validate_style_observation(observation)
+                    if observation["observation_id"] != observation_id:
+                        raise ContextError("schema_unsupported", "style observation filename does not match id")
+                    if observation["status"] != "proposed":
+                        reconciled = self._reconcile_style_at(root_fd, style)
+                        if observation["status"] != decision:
+                            raise ContextError("revision_conflict", "style observation decision conflicts")
+                        return {"observation": observation, "style": reconciled}
+                    decided = {
+                        **observation,
+                        "revision": 2,
+                        "status": decision,
+                        "decided_at": _now(),
+                        "decision_provenance": {"kind": "user_confirmed"},
+                    }
+                    decided["observation_sha256"] = canonical_sha256(_observation_payload(decided))
+                    validate_style_observation(decided)
+                    atomic_write_json_at(observations_fd, observation_id + ".json", decided)
+            except ContextError as error:
+                if error.code == "not_initialized":
+                    raise ContextError("unknown_id", "unknown style observation") from error
+                raise
+            return {"observation": decided, "style": self._reconcile_style_at(root_fd, style)}
 
     def read_index(self) -> dict:
         return self._read(INDEX_FILE, validate_index)
@@ -1414,6 +1798,8 @@ class ContextStore:
         with self._locked_root() as root_fd:
             with _directory_fd(Path(run_dir)) as run_fd:
                 task_id = self._task_id_at(run_fd)
+                current_style = read_json_at(root_fd, STYLE_FILE)
+                self._reconcile_style_at(root_fd, current_style)
                 try:
                     existing = read_json_at(run_fd, SNAPSHOT_FILE)
                 except ContextError as error:
