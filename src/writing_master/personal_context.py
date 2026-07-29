@@ -595,7 +595,7 @@ def atomic_write_json_at(directory_fd: int, name: str, value: dict) -> None:
     atomic_write_bytes_at(directory_fd, name, canonical_json_bytes(value))
 
 
-def _publish_json_once_at(directory_fd: int, name: str, value: dict) -> bool:
+def publish_json_once_at(directory_fd: int, name: str, value: dict) -> bool:
     """Atomically publish JSON without replacing an existing local file."""
     name = _managed_name(name)
     staging = f".{name}.{secrets.token_hex(16)}.publish"
@@ -1899,7 +1899,7 @@ class ContextStore:
                         else:
                             if existing_copy != raw:
                                 raise ContextError("snapshot_conflict", "existing material copy conflicts with Snapshot")
-                    if _publish_json_once_at(run_fd, SNAPSHOT_FILE, snapshot):
+                    if publish_json_once_at(run_fd, SNAPSHOT_FILE, snapshot):
                         return snapshot
                     try:
                         winner = self._existing_snapshot_at(run_fd, task_id, pairs)

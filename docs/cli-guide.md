@@ -48,6 +48,8 @@ writing-master quality <file> [--verbose | --json]
 writing-master similarity <file> <file> [...] [--json] [-n N]
 writing-master home
 writing-master handoff prepare RUN_DIR --to-role ROLE --phase PHASE --objective TEXT --decision-to-inform TEXT --input FILE --write FILE --done-criterion TEXT
+writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF
 writing-master handoff complete RUN_DIR [--result RESULT_PATH]
 writing-master handoff show RUN_DIR [--json]
 writing-master context init
@@ -308,11 +310,14 @@ writing-master handoff prepare RUN_DIR \
   --write claims.yaml \
   --done-criterion '关键主张可追溯'
 
+writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+# 仅当宿主确认该 Agent 已丢失时：
+writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF
 writing-master handoff complete RUN_DIR
 writing-master handoff show RUN_DIR --json
 ```
 
-`prepare` 输出 Manifest 路径，`complete` 在 Result 和已暂存输出都通过校验后推进状态，`show` 显示当前 handoff、输入新鲜度和阻断原因。它不是“继续最近任务”命令，也不为 quick/standard 提供通用恢复。
+`prepare` 输出 Manifest 路径；`start` 在创建 Agent 前持久化 `agent_ref`；`recover-lost` 只处理宿主已确认丢失的同一 Agent；`complete` 在 Result 和已暂存输出都通过校验后推进状态；`show` 显示当前 handoff、输入新鲜度和阻断原因。它不是“继续最近任务”命令，也不为 quick/standard 提供通用恢复。当前运行目录锚定与锁定属于 Linux staging 边界。
 
 ## 在自动化中使用
 

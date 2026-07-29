@@ -92,6 +92,21 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("只有深度模式启用多 Agent", main)
         self.assertIn("本文件只在 `mode=deep` 时读取", orchestration)
 
+    def test_codex_handoff_persists_agent_ref_before_spawn(self):
+        orchestration = read("skills/writing-master/references/agent-orchestration.md")
+
+        self.assert_in_order(
+            orchestration,
+            "writing-master handoff prepare RUN_DIR",
+            "agent_ref = task_name",
+            "writing-master handoff start RUN_DIR --agent-ref AGENT_REF",
+            'spawn_agent(fork_turns="none", task_name=AGENT_REF)',
+            "Agent 只写 Manifest output_root 和 Result",
+            "writing-master handoff complete RUN_DIR",
+        )
+        self.assertIn("writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF", orchestration)
+        self.assertIn("Host 先按精确 `agent_ref` 查询宿主 liveness", orchestration)
+
     def test_baoyu_is_early_preflight_and_late_production(self):
         routing = read("skills/writing-master/references/baoyu-integration.md")
 

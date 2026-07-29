@@ -22,6 +22,12 @@ def main(argv=None) -> int:
     prepare.add_argument("--done-criterion", action="append", required=True, dest="done_criteria")
     prepare.add_argument("--forbidden-input", action="append", default=[])
     prepare.add_argument("--from-role", default="lead", choices=sorted(handoff.ROLES))
+    start = subparsers.add_parser("start", help="在派发 Agent 前持久化 agent_ref")
+    start.add_argument("run_dir")
+    start.add_argument("--agent-ref", required=True)
+    recover = subparsers.add_parser("recover-lost", help="为宿主已确认丢失的 Agent 创建重试")
+    recover.add_argument("run_dir")
+    recover.add_argument("--agent-ref", required=True)
     complete = subparsers.add_parser("complete", help="校验 Result 并推进状态")
     complete.add_argument("run_dir")
     complete.add_argument("--result")
@@ -38,6 +44,14 @@ def main(argv=None) -> int:
                 forbidden_inputs=args.forbidden_input,
             )
             print(result["attempt_dir"] / "manifest.json")
+        elif args.operation == "start":
+            result = handoff.mark_running(args.run_dir, args.agent_ref)
+            if result["status"] != "running":
+                raise handoff.HandoffError(result.get("reason") or "handoff did not enter running state")
+            print(result["status"])
+        elif args.operation == "recover-lost":
+            result = handoff.recover_lost_running(args.run_dir, args.agent_ref)
+            print(result["prepared"]["attempt_dir"] / "manifest.json")
         elif args.operation == "complete":
             result = handoff.complete(args.run_dir, args.result)
             print(result["state"]["status"])

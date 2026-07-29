@@ -84,7 +84,8 @@
 
 - `show`/恢复扫描会复核每个最新 completed attempt：Manifest 指定的 canonical Result 必须存在并通过 schema 校验、Result `agent_ref` 必须匹配 state、暂存输出必须与 Result 的路径和 hash 完全一致、已提升输出必须是实际文件且 hash 一致。
 - 完整性损坏不重写历史 `completed` state；Runtime 返回 `effective_status: stale` 和阻断原因。后续 `prepare` 只允许重试最早受影响阶段。
-- Host 恢复保持单一内部 hook：先按精确 `agent_ref` 查询宿主 liveness，确认丢失后调用 `recover_lost_running(run_dir, agent_ref)`。该 hook 记录旧 running attempt 为 `failed` / `host_failure`，并用既有 `prepare()` 从同一 Manifest 合同创建新 attempt；不新增 CLI 或 adapter 抽象。
+- Host 恢复先按精确 `agent_ref` 查询宿主 liveness，确认丢失后调用 `handoff recover-lost RUN_DIR --agent-ref AGENT_REF`。该命令记录旧 running attempt 为 `failed` / `host_failure`，并用同一 Manifest 合同创建新 attempt；若在创建 retry 前中断，匹配的 `failed` / `host_failure` attempt 可安全继续该操作。
+- `prepare`、`start`、`recover-lost`、`complete`、`show` 全部经 Linux run-directory staging 边界锚定路径并串行加锁；跨平台支持仍不在本期范围。
 - 验证覆盖：新进程中的 completed Result 缺失与 promoted output 损坏、prepared 跨进程恢复、丢失 running host 的失败历史与同阶段新 attempt、以及损坏 completed 上游阻断下游并只允许同阶段重试。
 
 ### Technical Codex Final Return
@@ -260,11 +261,15 @@ Handoff Runtime 只负责：合同生成、schema 校验、文件 hash、状态�
 
 ### 3. 最少命令面
 
-只提供三个操作：
+只提供五个操作：
 
 - `handoff prepare`：生成 Manifest、计算输入 hash 并校验边界。
+- `handoff start`：在宿主创建 Agent 前持久化精确 `agent_ref`。
+- `handoff recover-lost`：在宿主确认同一 `agent_ref` 已丢失后记录 `host_failure` 并创建 retry。
 - `handoff complete`：校验 Result 和实际输出后推进状态。
 - `handoff show`：显示当前 handoff、attempt、输入状态和阻断原因。
+
+以上五个命令当前共享 Linux run-directory staging 边界（无路径组件 symlink、fd 锚定和 `fcntl` 锁）；跨平台支持不属于本期。
 
 宿主原生的“创建子代理”动作仍由 Lead 执行；CLI 不伪装成能够直接控制所有 Agent 平台。
 
@@ -367,7 +372,7 @@ MVP 阶段只追踪可验证指标：
 
 - 固化 Manifest、Result 和状态迁移规则。
 - 实现 JSON 读取、schema 校验、SHA-256、路径边界与原子写入。
-- 增加 `prepare`、`complete`、`show` 三个操作。
+- 增加 `prepare`、`start`、`recover-lost`、`complete`、`show` 五个操作。
 - 完成 fake host 高层测试。
 
 ### P1：深度模式接入
@@ -422,7 +427,7 @@ Handoff Runtime 是当前项目从“可安装的流程说明”升级为“可�
 ### Completed
 
 - P0: `writing_master.handoff` implements schema v1 Manifest/Result validation, SHA-256, run-directory path and symlink boundaries, immutable Manifest hashes, `fcntl` locking, and fsync + replace JSON state writes.
-- P0: `writing-master handoff prepare|complete|show` is registered without changing quick/standard execution paths.
+- P0: `writing-master handoff prepare|start|recover-lost|complete|show` is registered without changing quick/standard execution paths; its run-directory staging boundary is Linux-only.
 - P1: the deep-mode protocol and all four role cards now require Manifest-only inputs, attempt `output_root` writes, Result output, and Lead-owned state transitions.
 - P2 runtime behavior: stale input detection, retained attempt history, failed-result categories, restart-from-run-directory inspection, and an automated fake-host Researcher → Strategist → Writer → Auditor → Writer revision chain are covered by `tests/test_handoff.py`.
 

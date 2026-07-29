@@ -13,6 +13,7 @@ class CiContractTests(unittest.TestCase):
             "pull_request:",
             "actions/checkout@v7",
             "actions/setup-python@v7",
+            'python-version: ["3.11", "3.14"]',
             "python -m unittest discover -s tests -v",
             "python -m compileall -q src tests",
             "bash -n install.sh",
@@ -20,6 +21,7 @@ class CiContractTests(unittest.TestCase):
             "./bin/writing-master research --help",
             "./bin/writing-master voice --help",
             "./bin/writing-master voice list --json",
+            "./bin/writing-master handoff --help",
             "python -m build",
         ):
             self.assertIn(token, workflow)

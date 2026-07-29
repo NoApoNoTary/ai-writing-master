@@ -41,7 +41,8 @@ class DocumentationContractTests(unittest.TestCase):
 
         self.assertIn("深度模式 Handoff Runtime 已通过运行时和真实宿主验收", readme)
         self.assertIn("`quick/standard` 仍没有通用的确定性跨会话任务恢复服务", readme)
-        self.assertIn("`writing-master handoff prepare|complete|show`", readme)
+        self.assertIn("`writing-master handoff prepare|start|recover-lost|complete|show`", readme)
+        self.assertIn("Linux staging 边界", readme)
         self.assertIn("深度模式 Handoff Runtime 已验收", quick_start)
         self.assertIn("`quick/standard` 尚未提供通用的确定性跨会话续跑", quick_start)
         self.assertIn("writing-master handoff show RUN_DIR --json", quick_start)
