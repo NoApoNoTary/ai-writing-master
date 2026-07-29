@@ -68,6 +68,10 @@ allowed-tools:
   "mode": "quick | standard | deep",
   "execution": "single_agent | multi_agent",
   "platform": "wechat | x | other",
+  "voice_id": "natural-default",
+  "voice_profile_version": 1,
+  "voice_snapshot": "pending | ready | legacy | unavailable",
+  "voice_snapshot_sha256": "...",
   "status": "in_progress",
   "current_phase": "contract",
   "phases": {
@@ -102,6 +106,8 @@ allowed-tools:
 personal_context: {unavailable | empty | ready}
 selected_materials: {N}
 pending_approvals: {N}
+voice: {label}
+voice_snapshot: {ready | legacy | unavailable}
 ```
 
 | 用户状态 | 含义 | 允许动作 |
@@ -146,8 +152,10 @@ pending_approvals: {N}
 4. 对用户已经给出的网页、YouTube、文件、图片或历史文章建立素材入口；需要提取时立即路由到对应读取能力。
 5. 按 `references/evidence-and-assets.md` 将每项素材与素材接收结果写入 `capability-preflight.md`，并先向用户返回：已接收、已提取、等待处理、失败、需要确认及其影响。失败项不阻塞无关素材。
 6. 只完成 capability/material preflight，不生成图片、不排版、不发布。
-7. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。
-8. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。
+7. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，展示当前选择与可用写作声音。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。
+8. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。用户回复“确认”同时确认当前 `voice_id`；可用“修改：写作声音=清晰分析”更新选择。
+9. 内容契约确认后、任何初稿前创建或确认 `voice-profile-snapshot.json`。显式非默认 Voice 不可用、无效或创建失败时停留在“等待契约确认”，展示可用项并阻止进入 Phase 3；`natural-default` 运行异常记录 `voice_snapshot: unavailable`，继续既有自然写作而不声称已应用 Voice。
+10. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。Voice Snapshot 与 Personal Context Snapshot 独立，互不写入。
 
 产物：
 
@@ -174,6 +182,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 读取 `references/evidence-and-assets.md`。
 
+本阶段不得读取 `voice-profile-snapshot.json` 或全局 Voice Registry；Voice 不影响来源、事实、素材和 accepted claim 的判断。
+
 当用户明确只要选题、内容契约仍是宽主题，或要求近期热点/值得关注的话题时，先读取 `references/research-brief.md` 并执行 Topic Research：
 
 - Host 先检查实时检索能力；缺失时记录 `realtime_research_unavailable`，不生成 Heat、draft 或 canonical Brief。
@@ -199,6 +209,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 2：角度、读者决策与 Storyboard
 
+本阶段不得读取 `voice-profile-snapshot.json` 或全局 Voice Registry；角度、核心判断、论证结构和 storyboard 保持声音无关。
+
 1. 若存在已验证的 `research-brief.json`，只从用户或 Lead 选定的 candidate 继续；否则按 `references/mode-selection.md` 中当前模式的用户确认规则，给出一个建议角度或多个候选角度及其取舍。
 2. 明确一句“读者看完后应形成的判断或行动”。
 3. 需要时读取 `references/creative-drainage.md`，排除可替换主题名仍成立的套话角度。
@@ -217,6 +229,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 正文只使用已经接受的 Brief、主张、来源、素材、风格档案和大纲。标准写作的个人上下文只能来自任务 Snapshot 和任务内材料副本。
 
+读取 `references/voice-presets.md`。Quick / Standard 在本阶段只读取任务 `voice-profile-snapshot.json`，不回读全局 Registry；Deep 仅由 Writer Manifest 列出该 Snapshot 与 hash 后读取。Snapshot 结构、任务 ID 或 hash 校验失败时停止生成，不自动改用当前 Registry 或默认 Voice。
+
 写作要求：
 
 - 每一部分服务于核心编辑判断。
@@ -224,12 +238,15 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - 个人经历仅来自用户提供的记录。
 - 具体数据关联 `claim_id`；边界条件进入正文，而不是藏在研究笔记里。
 - 风格匹配依赖历史文本的可观察特征，不靠随机添加情绪词或口语套句。
+- Voice 只调整词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比；事实、证据边界、核心判断、作者立场和真实经历优先。
 
 产物：`draft-v1.md` 和 `claim-usage.yaml`。完成后保留 `draft-v1.md` 原样，后续修订另写版本文件。
 
 ### Phase 4：三层审校与修订
 
 读取 `references/three-pass-review.md` 时只采用其中事实、结构、模板句和节奏检查项；本文件中的“展示产物而非隐藏推理”和“以证据报告代替主观百分比”规则优先。
+
+读取 `references/voice-presets.md`。Voice Audit 与 Writer 使用同一任务 `voice-profile-snapshot.json`；每个 Voice issue 都要精确定位正文、引用 Profile 字段/规则、保留原句证据并给出不改变事实或核心判断的修订边界。Snapshot 校验失败时停止审校、验收和发布。
 
 三层职责：
 
@@ -288,7 +305,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 完成后，用户可以独立请求 Rewrite、视觉、排版、发布、保存为个人素材或以此任务创建新任务起点；这些动作都创建关联产物，不改变 canonical final。
 
-用户明确要求从本次编辑中学习时，读取 `references/personal-context.md`：只从具有 baseline/edited hash 和具体证据的修改生成 Style Observation candidate，运行 `writing-master learn propose`，展示规则、范围和证据后等待用户接受或拒绝。Runtime 不自动决定；只有 accepted observation 会进入后续任务的新 Snapshot，当前任务 Snapshot 与 canonical final 均保持不变。
+用户明确要求从本次编辑中学习时，读取 `references/personal-context.md`：只从具有 baseline/edited hash 和具体证据的修改生成 Style Observation candidate，运行 `writing-master learn propose CANDIDATE.json --run-dir RUN_DIR`，展示规则、范围和证据后等待用户接受或拒绝。非默认 Voice 任务的 Profile 驱动表达不作为 Style Observation 的 baseline 或 evidence；Runtime 不自动决定；只有 accepted observation 会进入后续任务的新 Snapshot，当前任务 Snapshot 与 canonical final 均保持不变。
 
 ## 模式差异
 
@@ -315,11 +332,14 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 阶段失败时，任务摘要必须说明失败动作、影响范围、已保留产物和可执行下一步。重试、回退和取消只作用于受影响阶段；没有运行时的 attempt 历史时，不承诺不可变回退。
 
+Voice 恢复只读取任务 Snapshot：旧任务缺少该文件时摘要显示 `voice: 自然默认`、`voice_snapshot: legacy`，内部按 `legacy-natural` 保持原行为；已冻结任务不受 Registry 缺失或升级影响。Snapshot 校验失败不降级，停止后续生成、审校、验收和发布。
+
 ## 可用参考文件
 
 - `references/mode-selection.md`：入口问法与三种模式边界
 - `references/agent-orchestration.md`：仅供深度模式使用的多 Agent 协议
 - `references/personal-context.md`：任务 Snapshot、素材准入、usage 与确认式风格学习
+- `references/voice-presets.md`：内容契约 Voice 选择、任务 Snapshot、读取边界、审校与失败语义
 - `references/research-brief.md`：上下文感知 Topic Research 的 draft、Evidence、评分与作者匹配合同
 - `references/evidence-and-assets.md`：来源、主张、素材与 storyboard 契约
 - `references/baoyu-integration.md`：Baoyu 预检、规划、生产和发布路由

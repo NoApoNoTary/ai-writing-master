@@ -16,6 +16,7 @@ _COMMANDS = {
     "context": ("writing_master.commands.context", "管理个人上下文"),
     "learn": ("writing_master.commands.learn", "确认或拒绝风格学习候选"),
     "research": ("writing_master.commands.research", "保存并校验选题 Research Brief"),
+    "voice": ("writing_master.commands.voice", "选择并冻结任务级写作声音"),
     "home": (None, "输出状态目录路径"),
 }
 

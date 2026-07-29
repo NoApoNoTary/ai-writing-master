@@ -21,6 +21,7 @@ bash install.sh
 cd ~/ai-writing-master
 ./bin/writing-master --version
 ./bin/writing-master --help
+./bin/writing-master voice list --json
 ```
 
 如果已由 `uv` 或 `pipx` 安装，也可以直接运行：
@@ -70,6 +71,20 @@ writing-master --version
 - 依次完成证据层、编辑层和声音层审校；
 - 输出标题和验收报告。
 
+#### 在内容契约中选择写作声音
+
+未指定时确定性使用“自然默认”。选择不增加新的等待点：内容契约会同时显示当前选项与四个可用声音，回复“确认”接受当前值，或回复 `修改：写作声音=清晰分析`。也可以在初始请求中直接写显示名称或稳定 ID。
+
+任务目录建立后，由 Runtime 冻结并校验同一份 Profile：
+
+```bash
+writing-master voice list --json
+writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
+writing-master voice verify-run RUN_DIR --json
+```
+
+Snapshot 创建后，本任务内不热切换声音；要比较另一种声音时建立关联新任务。声音只改表达，不提供新事实、经历或立场。
+
 #### 可选：先配置个人上下文
 
 Profile 和素材需要显式管理；安装或首次写作不会自动把历史文件作为个人事实使用。
@@ -91,11 +106,11 @@ writing-master learn show --json
 用户明确要求从一次编辑中学习时，先准备包含 baseline/edited hash、具体证据、规则与范围的 Candidate，再显式决定：
 
 ```bash
-writing-master learn propose style-candidate.json --json
+writing-master learn propose style-candidate.json --run-dir RUN_DIR --json
 writing-master learn decide OBSERVATION_ID --accept --json
 ```
 
-只有 accepted observation 会进入后续任务的新 Snapshot，当前任务不会被反向改写。完整参数见 [CLI 工具指南](cli-guide.md#learn确认式风格学习)。
+只有 accepted observation 会进入后续任务的新 Snapshot，当前任务不会被反向改写。使用非默认 Voice 的任务默认排除在这条学习链路之外，避免把借用表达写入长期 Style。完整参数见 [CLI 工具指南](cli-guide.md#learn确认式风格学习)。
 
 宽主题、只做选题或近期热点请求可先形成 Research Brief。Agent 生成 3–10 个候选 draft 后，Runtime 负责绑定和校验：
 

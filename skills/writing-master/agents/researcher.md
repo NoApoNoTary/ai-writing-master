@@ -16,6 +16,8 @@
 
 Article Research 通常还会读取 Manifest 明确列出的 `channel-contract.yaml`、`capability-preflight.md`、用户素材和 `references/evidence-and-assets.md`。不要回读全局 Personal Context 文件；任务 Snapshot 和任务内副本是唯一的个人上下文来源。
 
+不得读取 `voice-profile-snapshot.json`、Voice Snapshot hash、全局 Voice Registry 或等价 Profile 内容。Voice 不参与 Topic Research、Article Research、来源筛选、accepted claim 或素材判断。
+
 ## Manifest 模式与产出
 
 ### `topic_research`

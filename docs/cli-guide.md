@@ -1,6 +1,6 @@
 # CLI 工具指南
 
-AI Writing Master 的 CLI 提供七项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习和 Research Brief 校验。它们不替代事实研究或编辑审查。
+AI Writing Master 的 CLI 提供八项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验和任务级 Voice Snapshot。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
 
@@ -60,11 +60,14 @@ writing-master context import-legacy SOURCE_DIR [--kind KIND]
 writing-master context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote
 writing-master context snapshot RUN_DIR --material ITEM_ID:PURPOSE [--material ITEM_ID:PURPOSE ...]
 writing-master context verify-run RUN_DIR [--json]
-writing-master learn propose CANDIDATE.json [--json]
+writing-master learn propose CANDIDATE.json --run-dir RUN_DIR [--json]
 writing-master learn decide OBSERVATION_ID (--accept | --reject) [--json]
 writing-master learn show [--json]
 writing-master research save RUN_DIR DRAFT.json [--json]
 writing-master research verify RUN_DIR [--json]
+writing-master voice list [--json]
+writing-master voice snapshot RUN_DIR [VOICE] [--source default|request|content-contract] [--json]
+writing-master voice verify-run RUN_DIR [--json]
 ```
 
 ## `quality`：机械文本检查
@@ -235,7 +238,7 @@ writing-master context verify-run RUN_DIR --json
 `learn` 保存可追溯的 Style Observation Candidate，并要求用户显式接受或拒绝。Runtime 不从一次编辑自动修改 Style，也不对规则语义作判断。
 
 ```bash
-writing-master learn propose style-candidate.json --json
+writing-master learn propose style-candidate.json --run-dir RUN_DIR --json
 writing-master learn decide OBSERVATION_ID --accept --json
 writing-master learn decide OBSERVATION_ID --reject --json
 writing-master learn show --json
@@ -250,9 +253,25 @@ Candidate 记录：
 - global/platform/content type/topic 适用范围；
 - proposal model 与 prompt。
 
-`propose` 只创建 `proposed` observation。终态为 `accepted` 或 `rejected`；重复相同决定幂等，相反决定返回 revision conflict。Style Profile 只由 accepted observations 确定性重建，每条规则保留 observation ID/revision/hash 引用。全局 Style 更新只影响之后创建的新 Snapshot，既有任务不变化。
+`propose` 只创建 `proposed` observation。终态为 `accepted` 或 `rejected`；重复相同决定幂等，相反决定返回 revision conflict。Style Profile 只由 accepted observations 确定性重建，每条规则保留 observation ID/revision/hash 引用。全局 Style 更新只影响之后创建的新 Snapshot，既有任务不变化。`--run-dir RUN_DIR` 必须绑定来源任务并执行 Voice 隔离校验；非默认 Voice 任务的表达变化不进入 Style Observation。
 
 完整 Candidate schema 见 [`Goal B Contract`](goals/2026-07-28-v0.2b-goal-contract.md)。
+
+## `voice`：任务级写作声音
+
+```bash
+writing-master voice list --json
+writing-master voice snapshot RUN_DIR
+writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
+writing-master voice snapshot RUN_DIR 清晰分析 --json
+writing-master voice verify-run RUN_DIR --json
+```
+
+`list` 返回稳定 ID、版本、显示名称、说明和适用场景。`snapshot` 接受序号、ID 或显示名称；省略时使用 `natural-default`。同一任务、同一 Voice 重试幂等，不同 Voice 返回 `snapshot_conflict` 且保留原文件。
+
+任务 Snapshot 保存任务 ID、选择来源、Profile ID/版本、Profile hash、完整 Profile 与 Snapshot hash，并同步更新 `status.json` 的 `voice_id`、`voice_profile_version`、`voice_snapshot` 和 `voice_snapshot_sha256`。新任务在调用 `snapshot` 前由工作流写入 `voice_snapshot: pending`；缺少全部 Voice 字段的旧任务会标记为 `legacy-natural`，不回填新 Profile。`verify-run` 只读任务文件校验完整性，不依赖当前 Registry。显式非默认 Voice 加载失败会阻止进入初稿；自然默认 Registry 异常会标记 `unavailable` 并保留既有自然写作行为。
+
+首版内置四项：`natural-default`、`clear-analytical`、`conversational-observer`、`sharp-commentary`。Profile 只约束表达维度，不得改变事实、证据边界、核心判断、作者立场或真实经历。
 
 ## `research`：上下文感知选题 Brief
 

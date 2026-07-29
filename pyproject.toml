@@ -23,3 +23,6 @@ writing-master = "writing_master.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+writing_master = ["voice_profiles/*.json"]

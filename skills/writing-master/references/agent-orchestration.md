@@ -85,7 +85,7 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 
 - `allowed_inputs` 使用明确文件路径，不传整个运行目录。
 - Reviewer 首轮不读取作者解释、未采用的讨论、历史表现数据和其他 Reviewer 结论。
-- Writer 只读取接受后的 Brief、claims、style、editorial brief、outline 和素材选择。
+- Writer 只读取接受后的 Brief、claims、style、editorial brief、outline、素材选择，以及 Manifest 列出的 Voice Snapshot。
 - 代理只写自己的 attempt 产物；Lead/Runtime 维护 `status.json`。
 - 输入变化后由 Runtime 校验 hash；只重跑受影响节点。
 
@@ -94,6 +94,21 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 内容契约确认后，Lead 创建或确认任务内 `personal-context-snapshot.json`。当 Deep 的 Researcher、Writer 或 Auditor 需要个人上下文时，其 Manifest 必须逐项列出该 Snapshot 与所选 `context-materials/ITEM_ID.md` 副本；不得列出 `${WRITING_MASTER_HOME}/personal-context/`、其他全局个人目录或父对话全文。篡改 Snapshot 会使引用它的 handoff stale。
 
 这是 Host 输入构造、Manifest/hash 和 stale 的可证明合同，不是 OS 级文件访问隔离声明。
+
+### Voice Preset
+
+Voice 选择在内容契约中完成；Lead 在确认后创建或确认任务内 `voice-profile-snapshot.json`，不把全局 Registry 交给任何专项 Agent。Phase 1 与 Phase 2 保持 Voice-free：Researcher 和 Editorial Strategist 的 Manifest `allowed_inputs` **不得**列出 `voice-profile-snapshot.json`、其 hash、Registry Profile 或其等价内容。
+
+Deep 模式只有 Writer 与 Auditor 可通过 Manifest 接收 Voice Snapshot；每次列入都必须带任务文件的精确 hash：
+
+```yaml
+allowed_inputs:
+  - path: voice-profile-snapshot.json
+    sha256: "..."
+    required: true
+```
+
+Writer 只在 Phase 3 使用该 Snapshot 调整表达；Auditor 用同一 Snapshot 进行 Voice Audit。Snapshot 输入 hash 变化或校验失败会使相关 handoff stale，并阻断生成、审校、验收和发布；不得改读当前 Registry 或回退为另一 Voice。`natural-default` 的 Snapshot 不可用时由 Lead 记录 `voice_snapshot: unavailable` 并走既有自然写作；显式非默认 Voice 的创建失败保持在内容契约确认，不能派发 Writer。
 
 ### Topic Research
 

@@ -367,6 +367,30 @@ def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-standard JSON constant: {value}")
 
 
+def reject_excessive_json_nesting(text: str, *, limit: int = 1000) -> None:
+    """Keep invalid-JSON behavior stable on runtimes whose decoder no longer recurses."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > limit:
+                raise ContextError("invalid_json", "JSON nesting limit exceeded")
+        elif character in "]}":
+            depth -= 1
+
+
 def _canonical_json_bytes(value: dict) -> bytes:
     try:
         return json.dumps(
@@ -430,6 +454,7 @@ def _read_json_at(run_fd: int, name: str) -> dict:
     try:
         with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
             text = handle.read()
+        reject_excessive_json_nesting(text)
         value = json.loads(text, parse_constant=_reject_json_constant)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as error:
         raise ContextError("invalid_json", f"invalid JSON document: {name}") from error

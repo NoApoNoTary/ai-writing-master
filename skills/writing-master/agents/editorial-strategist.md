@@ -17,6 +17,8 @@
 - `references/reader-value.md`
 - 需要时读取 `references/creative-drainage.md`
 
+不得读取 `voice-profile-snapshot.json`、Voice Snapshot hash、全局 Voice Registry 或等价 Profile 内容。Voice 不影响核心判断、角度取舍、论证结构或 storyboard。
+
 ## 产出
 
 - `editorial-brief.md`

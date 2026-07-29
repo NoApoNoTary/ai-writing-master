@@ -22,14 +22,15 @@ class CliTests(unittest.TestCase):
         with redirect_stderr(StringIO()):
             self.assertEqual(main(["unknown"]), 2)
 
-    def test_integration_registers_learn_and_research(self):
+    def test_integration_registers_learn_research_and_voice(self):
         output = StringIO()
         with redirect_stdout(output):
             self.assertEqual(main(["--help"]), 0)
         self.assertIn("learn", output.getvalue())
         self.assertIn("research", output.getvalue())
+        self.assertIn("voice", output.getvalue())
 
-        for command, token in (("learn", "propose"), ("research", "verify")):
+        for command, token in (("learn", "propose"), ("research", "verify"), ("voice", "snapshot")):
             output = StringIO()
             with redirect_stdout(output), self.assertRaises(SystemExit) as captured:
                 main([command, "--help"])

@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from writing_master.commands.learn import main
+from writing_master.voice_presets import VoicePresetStore
 
 
 def candidate() -> dict:
@@ -36,6 +37,9 @@ class LearnCliTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name) / "home"
+        self.run = Path(self.temporary.name) / "run"
+        self.run.mkdir()
+        (self.run / "status.json").write_text(json.dumps({"task_id": "TASK-N"}), encoding="utf-8")
         self.environment = patch.dict(os.environ, {"WRITING_MASTER_HOME": str(self.home)})
         self.environment.start()
         self.addCleanup(self.environment.stop)
@@ -54,14 +58,14 @@ class LearnCliTests(unittest.TestCase):
 
     def test_propose_decide_show_json(self):
         candidate_path = self.write_candidate()
-        code, output, error = self.invoke(["propose", str(candidate_path), "--json"])
+        code, output, error = self.invoke(["propose", str(candidate_path), "--run-dir", str(self.run), "--json"])
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "not_initialized")
 
         from writing_master.personal_context import ContextStore
 
         ContextStore().initialize()
-        code, output, error = self.invoke(["propose", str(candidate_path), "--json"])
+        code, output, error = self.invoke(["propose", str(candidate_path), "--run-dir", str(self.run), "--json"])
         self.assertEqual((code, error), (0, ""))
         observation = json.loads(output)
         self.assertEqual(observation["status"], "proposed")
@@ -84,32 +88,32 @@ class LearnCliTests(unittest.TestCase):
         from writing_master.personal_context import ContextStore
 
         ContextStore().initialize()
-        code, output, error = self.invoke(["propose", str(self.write_candidate())])
+        code, output, error = self.invoke(["propose", str(self.write_candidate()), "--run-dir", str(self.run)])
         self.assertEqual((code, error), (0, ""))
         self.assertRegex(output, r"^observation-[0-9a-f]{16}\n$")
 
     def test_missing_or_malformed_candidate_is_machine_readable(self):
         missing = self.home / "missing.json"
-        code, output, error = self.invoke(["propose", str(missing), "--json"])
+        code, output, error = self.invoke(["propose", str(missing), "--run-dir", str(self.run), "--json"])
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "invalid_input")
 
         malformed = self.home / "bad.json"
         malformed.parent.mkdir(parents=True, exist_ok=True)
         malformed.write_text("{", encoding="utf-8")
-        code, output, error = self.invoke(["propose", str(malformed), "--json"])
+        code, output, error = self.invoke(["propose", str(malformed), "--run-dir", str(self.run), "--json"])
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "invalid_json")
 
         nonstandard = self.home / "nonstandard.json"
         nonstandard.write_text('{"source":NaN}', encoding="utf-8")
-        code, output, error = self.invoke(["propose", str(nonstandard), "--json"])
+        code, output, error = self.invoke(["propose", str(nonstandard), "--run-dir", str(self.run), "--json"])
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "invalid_json")
 
         invalid_utf8 = self.home / "invalid-utf8.json"
         invalid_utf8.write_bytes(b"\xff")
-        code, output, error = self.invoke(["propose", str(invalid_utf8), "--json"])
+        code, output, error = self.invoke(["propose", str(invalid_utf8), "--run-dir", str(self.run), "--json"])
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "invalid_json")
 
@@ -138,12 +142,37 @@ class LearnCliTests(unittest.TestCase):
         self.assertEqual((code, output), (1, ""))
         self.assertTrue(error.startswith("learn: "))
 
+    def test_propose_run_dir_excludes_non_default_voice_and_checks_task_id(self):
+        from writing_master.personal_context import ContextStore
+
+        ContextStore().initialize()
+        candidate_path = self.write_candidate()
+        run = Path(self.temporary.name) / "non-default-run"
+        run.mkdir()
+        (run / "status.json").write_text(json.dumps({
+            "task_id": "TASK-N", "voice_snapshot": "pending",
+        }), encoding="utf-8")
+        VoicePresetStore().create_snapshot(run, "clear-analytical")
+
+        code, output, error = self.invoke(["propose", str(candidate_path), "--run-dir", str(run), "--json"])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "learning_isolated")
+
+        (run / "status.json").write_text(json.dumps({"task_id": "OTHER"}), encoding="utf-8")
+        code, output, error = self.invoke(["propose", str(candidate_path), "--run-dir", str(run), "--json"])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "hash_mismatch")
+
     def test_error_output_uses_parsed_json_option(self):
+        code, output, error = self.invoke(["propose", str(self.write_candidate()), "--json"])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "invalid_input")
+
         code, output, error = self.invoke(["show", "--j"])
         self.assertEqual((code, error), (1, ""))
         self.assertEqual(json.loads(output)["error"]["code"], "not_initialized")
 
-        code, output, error = self.invoke(["propose", "--", "--json"])
+        code, output, error = self.invoke(["propose", "--run-dir", str(self.run), "--", "--json"])
         self.assertEqual((code, output), (1, ""))
         self.assertTrue(error.startswith("learn: "))
 

@@ -19,6 +19,14 @@ Standard 的 Phase 1、2、3 只能读取 `{run_dir}/personal-context-snapshot.j
 
 Deep 模式由 Lead 在内容契约确认后创建或确认同一 Snapshot；需要个人上下文的 Writer 或 Auditor 只通过自己的 Manifest `allowed_inputs` 读取 Snapshot 和逐项列出的任务内副本。Host 不把全局个人目录或父对话全文传给专项 Agent。
 
+## Voice Preset 独立边界
+
+`voice-profile-snapshot.json` 与 `personal-context-snapshot.json` 是两个独立任务文件：Voice Profile 不写入 Personal Context Snapshot，Personal Context 也不成为 Voice Profile 的来源。Voice 的选择、版本、hash、Phase 3/Voice Audit 读取和失败语义见 `voice-presets.md`。
+
+- Phase 1 Research 与 Phase 2 Editorial 不读取 Voice Snapshot；它不影响个人材料选择、事实、角度或结构。
+- Quick / Standard 仅在 Phase 3 与 Voice Audit 读取任务 Voice Snapshot。
+- Deep 仅 Writer 与 Auditor Manifest 可列 Voice Snapshot 及 hash；Researcher 与 Editorial Strategist Manifest 不得列它。
+
 ## 用户摘要
 
 只显示下列摘要，不显示 hash、全局路径或私密正文：
@@ -38,7 +46,7 @@ pending_approvals: N
 风格学习不是自动动作。只有用户明确要求从一次可追溯编辑中学习时，Agent 才生成 candidate：
 
 ```text
-writing-master learn propose CANDIDATE.json --json
+writing-master learn propose CANDIDATE.json --run-dir RUN_DIR --json
 writing-master learn decide OBSERVATION_ID --accept --json
 writing-master learn decide OBSERVATION_ID --reject --json
 writing-master learn show --json
@@ -49,6 +57,7 @@ writing-master learn show --json
 - 用户明确接受或拒绝后才运行 `decide`；同一决定幂等，相反终态决定返回冲突。
 - Style Profile 只从 accepted observations 确定性重建；proposed/rejected 不进入规则。
 - 当前任务 Snapshot 写入后保持不变；accepted Style 只影响后续新任务 Snapshot。
+- 非默认 Voice 任务不作为确认式风格学习的 baseline 或 evidence；其 Profile 驱动表达不生成 Style Observation，也不进入 Style Profile 重建。把借用的声音变成长期风格属于后续显式采纳能力，不在 v0.3 隐式执行。
 
 ## Usage 与验证
 

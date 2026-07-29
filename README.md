@@ -1,6 +1,6 @@
 # AI Writing Master
 
-面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再完成内容契约、事实与素材调研、写作、审校和交付。
+面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定任务级写作声音，完成事实与素材调研、写作、审校和交付。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg)](pyproject.toml)
@@ -38,7 +38,7 @@
 
 ```text
 模式选择
-  → 内容契约 + 能力/素材预检
+  → 内容契约（含写作声音）+ 能力/素材预检
   → 事实轨 + 素材轨调研
   → 角度、读者决策、大纲和 storyboard
   → 初稿
@@ -66,6 +66,8 @@
 ```text
 任务：TASK_ID（已建立任务目录时显示）
 模式：标准写作
+写作声音：自然默认
+voice_snapshot：ready
 阶段：等待内容契约确认
 已完成：素材接收结果
 下一步：回复“确认”，或说明要修改的字段
@@ -73,7 +75,7 @@
 
 素材接收先报告已接收、已提取、等待处理、失败和待确认项；接收或提取不表示其中事实已经接受。进入正文的陈述仍关联来源和 `claim_id`，真实素材与后续生成的编辑视觉也保持不同身份。
 
-内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、平台、目的、篇幅、时效、证据等级及视觉、排版和发布意图。用户可以确认、指出修改字段或取消；未请求发布时只准备可审阅产物。
+内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、平台、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消；未请求发布时只准备可审阅产物。
 
 先完成内容验收，使 `final.md` 成为 canonical final；仅在其后生成本次要求的视觉资产、HTML 或平台草稿。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加本次明确要求的派生产物。
 
@@ -202,6 +204,11 @@ writing-master learn show --json
 
 # 保存并校验任务内选题 Research Brief
 writing-master research verify RUN_DIR --json
+
+# 列出声音并冻结任务 Snapshot
+writing-master voice list --json
+writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
+writing-master voice verify-run RUN_DIR --json
 ```
 
 `quality` 这个命令名为兼容现有调用保留。它只检查套话、句长变化、段落节奏、副词密度和字符 bigram 多样性，并输出机械预警分数。它不验证事实、证据、原创性、论证质量或作者风格，也不产生“AI 味百分比”。
@@ -209,6 +216,12 @@ writing-master research verify RUN_DIR --json
 `similarity` 使用字符 n-gram Jaccard 相似度。默认阈值 `0.6` 是工作流预警线，不等于抄袭、版权或原创性结论。
 
 完整说明见 [CLI 工具指南](docs/cli-guide.md)。
+
+## Voice Preset：任务级写作声音
+
+Voice Preset 只控制词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比，不改变事实、证据边界、核心判断、作者立场或真实经历。首版内置“自然默认”“清晰分析”“对话观察”“锐利评论”四项；内容契约确认后写入不可变的 `voice-profile-snapshot.json`，后续恢复只读任务快照，不回读已变化的 Registry。
+
+Quick / Standard 只在初稿和 Voice Audit 读取该 Snapshot。Deep 模式仅 Writer 与 Auditor 的 Manifest 可列出它；Researcher 与 Editorial Strategist 不读取。非默认 Voice 任务默认不作为长期 Style Observation 的 baseline/evidence，平台 Rewrite 继续从已验收 canonical final 开始，不重新选择 Voice。
 
 ## Personal Context：显式、可追溯的个人上下文
 
@@ -226,7 +239,7 @@ writing-master context material add experience.md \
   --visibility ask_before_use --tag example
 
 # Candidate 只进入 proposed；接受或拒绝都需要显式决定
-writing-master learn propose style-candidate.json --json
+writing-master learn propose style-candidate.json --run-dir RUN_DIR --json
 writing-master learn decide OBSERVATION_ID --accept --json
 ```
 

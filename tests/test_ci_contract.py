@@ -18,6 +18,8 @@ class CiContractTests(unittest.TestCase):
             "bash -n install.sh",
             "./bin/writing-master learn --help",
             "./bin/writing-master research --help",
+            "./bin/writing-master voice --help",
+            "./bin/writing-master voice list --json",
             "python -m build",
         ):
             self.assertIn(token, workflow)

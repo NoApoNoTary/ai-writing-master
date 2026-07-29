@@ -1,0 +1,98 @@
+{
+  "status": "pass",
+  "ready_path": "experiments/voice-presets/khazix0918/READY",
+  "profile_path": "experiments/voice-presets/khazix0918/voice-profile.json",
+  "baseline_path": "experiments/voice-presets/khazix0918/pilot/baseline.md",
+  "checks": {
+    "ready_required_keys": true,
+    "ready_status": true,
+    "profile_sha256": {
+      "kind": "canonical_json",
+      "expected": "44e921661c17d347a03993bc0209243d1ada317c4dd4710d85ca5abc28378e66",
+      "actual": "44e921661c17d347a03993bc0209243d1ada317c4dd4710d85ca5abc28378e66",
+      "match": true
+    },
+    "blind_profile_sha256": {
+      "expected": "e54fe3eb93596e3b39e453a6bf6bce0cb74bce768a396f0b6fca73ab7235a559",
+      "actual": "e54fe3eb93596e3b39e453a6bf6bce0cb74bce768a396f0b6fca73ab7235a559",
+      "match": true
+    },
+    "corpus_manifest_sha256": {
+      "expected": "0df2849312556f07998a11ace47ffcae1b78f44853dda9b8897ea69c44da650f",
+      "actual": "0df2849312556f07998a11ace47ffcae1b78f44853dda9b8897ea69c44da650f",
+      "match": true
+    },
+    "template_report_sha256": {
+      "expected": "0efe79878d0eb02fe7c5ffdbb01a5054edcb5e8d5165843ff9e0c0a769e326d9",
+      "actual": "0efe79878d0eb02fe7c5ffdbb01a5054edcb5e8d5165843ff9e0c0a769e326d9",
+      "match": true
+    },
+    "profile_top_level_keys": true,
+    "profile_voice_keys": true,
+    "profile_identity": {
+      "schema_version": 1,
+      "id": "khazix0918-article-experimental",
+      "version": 2,
+      "scope": "expression_only"
+    },
+    "profile_preserve_exact": true,
+    "profile_types": true,
+    "corpus_gate": {
+      "training_complete": 8,
+      "holdout_complete": 4,
+      "ordinary_status_count": 0,
+      "pass": true
+    },
+    "baseline_sha256": {
+      "expected": "0601c5a1fd9e78416a28032ca65b46518efac5f0debe0c82a7c1b4c0afe26b7d",
+      "pilot_copy": "0601c5a1fd9e78416a28032ca65b46518efac5f0debe0c82a7c1b4c0afe26b7d",
+      "source_final": "0601c5a1fd9e78416a28032ca65b46518efac5f0debe0c82a7c1b4c0afe26b7d",
+      "copy_matches_expected": true,
+      "source_unchanged": true
+    },
+    "citation_marker_multiset": {
+      "baseline": [
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0turn1view1turn1view2",
+        "citeturn1view0",
+        "citeturn1view0turn1view1",
+        "citeturn1view1",
+        "citeturn1view1",
+        "citeturn1view2",
+        "citeturn1view2",
+        "citeturn1view2",
+        "citeturn1view3",
+        "citeturn1view3"
+      ],
+      "rewrite": [
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0",
+        "citeturn0view0turn1view1turn1view2",
+        "citeturn1view0",
+        "citeturn1view0turn1view1",
+        "citeturn1view1",
+        "citeturn1view1",
+        "citeturn1view2",
+        "citeturn1view2",
+        "citeturn1view2",
+        "citeturn1view3",
+        "citeturn1view3"
+      ],
+      "match": true
+    },
+    "source_list_present": true,
+    "profile_file_sha256": {
+      "expected": "fa560413f580652775fff6a20a1c38d8ea06c05880ceb4de1d0347e9c548f4ed",
+      "actual": "fa560413f580652775fff6a20a1c38d8ea06c05880ceb4de1d0347e9c548f4ed",
+      "match": true
+    }
+  },
+  "errors": []
+}

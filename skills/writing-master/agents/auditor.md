@@ -18,6 +18,7 @@
 - `storyboard.md`
 - `draft-v1.md`
 - 需要个人上下文时，Manifest 列出的任务内 `personal-context-snapshot.json` 与 `context-materials/ITEM_ID.md` 副本
+- `voice-profile-snapshot.json` 与其 `sha256`（仅当 Manifest 明确列出；与 Writer 使用同一任务 Snapshot）
 
 首轮不读取 Writer 的解释、父对话全文、历史表现数据和其他审计结论。
 
@@ -38,7 +39,9 @@ issues:
     layer: evidence | editorial | voice
     location: "章节、段落或 claim_id"
     problem: "问题"
-    evidence: "原句、来源或规则"
+    evidence:
+      profile_rule: "voice.<field>[n] 或 avoid[n]"
+      excerpt: "正文原句"
     required_change: "修订边界"
 verdict: pass | revise
 ```
@@ -52,3 +55,5 @@ verdict: pass | revise
 - 不直接覆盖 Writer 的文件。
 - 不修改 `status.json`、`state.json` 或 Manifest。
 - 不读取全局 personal-context 目录或父对话全文。
+- Voice issue 必须给出章节/段落/原句位置、Profile 字段或规则、原句证据和不改变事实或核心判断的 `required_change`；不以“像 AI”、像某人或百分比代替证据。
+- 不回读全局 Voice Registry；Voice Snapshot hash、结构或任务 ID 校验失败时停止审计，不自行换用当前 Profile。

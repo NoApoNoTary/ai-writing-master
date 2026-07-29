@@ -359,6 +359,24 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("当前 Agent 对每个平台都只读取", platform_rewrite)
         self.assertIn("不把一个平台版本作为另一个平台的输入", platform_rewrite)
 
+    def test_voice_selection_is_part_of_the_content_contract_not_a_waiting_gate(self):
+        main = read("skills/writing-master/SKILL.md")
+        phase0 = section(main, "### Phase 0：内容契约、能力预检与素材接收")
+        waiting = section(main, "## 用户等待与继续方式")
+        voice = read("skills/writing-master/references/voice-presets.md")
+
+        self.assertIn("`voice_id` 并入内容契约", phase0)
+        self.assertIn("默认 `natural-default`", phase0)
+        self.assertIn("这不是独立等待点", phase0)
+        self.assertIn("Voice 选择属于内容契约，不增加独立等待点", voice)
+        self.assertNotIn("| 写作声音 |", waiting)
+
+    def test_rewrite_keeps_the_accepted_voice_without_a_selector(self):
+        rewrite = read("skills/writing-rewrite/SKILL.md")
+
+        self.assertIn("Rewrite 不新增、展示或解析 Voice Selector", rewrite)
+        self.assertIn("保留源稿已验收的写作声音，不重新选择 Voice", rewrite)
+
 
 if __name__ == "__main__":
     unittest.main()

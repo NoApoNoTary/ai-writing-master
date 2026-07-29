@@ -1,0 +1,51 @@
+{
+  "score_type": "mechanical_style",
+  "status": "scored",
+  "sufficient_data": true,
+  "mechanical_score": 90.79,
+  "quality_score": 90.79,
+  "dimensions": {
+    "banned_words": {
+      "score": 1.0,
+      "detail": "无套话",
+      "found": []
+    },
+    "sentence_variance": {
+      "score": 0.9126,
+      "detail": "句长标准差: 18.3（目标 ≥15）"
+    },
+    "paragraph_rhythm": {
+      "score": 0.6271,
+      "detail": "22/59 对连续段落长度相似"
+    },
+    "adverb_density": {
+      "score": 1.0,
+      "detail": "副词密度: 0.05/100字（目标 ≤2.0）"
+    },
+    "vocabulary_diversity": {
+      "score": 1.0,
+      "detail": "字符bigram多样性: 0.746（目标 ≥0.6）"
+    }
+  },
+  "weights": {
+    "banned_words": 0.3,
+    "sentence_variance": 0.2,
+    "paragraph_rhythm": 0.2,
+    "adverb_density": 0.15,
+    "vocabulary_diversity": 0.15
+  },
+  "char_count": 4066,
+  "input_stats": {
+    "char_count": 4066,
+    "sentence_count": 137,
+    "paragraph_count": 60,
+    "cjk_char_count": 2296
+  },
+  "insufficient_reasons": [],
+  "manual_review_required": [
+    "factual_accuracy",
+    "claim_support",
+    "editorial_judgment",
+    "voice_fidelity"
+  ]
+}

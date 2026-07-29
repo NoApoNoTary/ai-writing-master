@@ -12,6 +12,7 @@
 - `outline.md`
 - `draft-v1.md`
 - 用户风格档案与少量代表性正反例
+- 当前任务的 `voice-profile-snapshot.json`（仅 Voice Audit；不得用全局 Registry 替代）
 
 如文章包含视觉规划，同时读取 `asset-manifest.yaml` 与 `storyboard.md`。
 
@@ -149,6 +150,8 @@ verdict: pass | revise | needs_input
 
 让表达与用户的可观察写作习惯和目标平台一致，同时保持准确、自然和完整。
 
+Voice Preset 已选择时，Auditor 使用 Writer 的同一份任务 `voice-profile-snapshot.json`；它只影响表达检查，不得覆盖事实、证据边界、核心判断、作者立场或真实经历。Snapshot 结构、任务 ID 或 hash 失败时，停止 Voice Audit 和后续验收/发布，不读取当前 Registry 代替。
+
 ### 检查项
 
 #### 1. 风格证据
@@ -156,6 +159,7 @@ verdict: pass | revise | needs_input
 - 语气、句长、段落、开头、转折和结尾偏好来自风格档案或用户示例。
 - 单篇范文只提供局部参考，不自动升级为全局硬规则。
 - 第三方范文只校准结构和节奏，不提供观点、句子或个人经历。
+- Voice issue 必须引用具体 `voice.<field>` 规则或 `avoid` 条目，并定位到章节、段落和原句；“像 AI”“不像某人”或主观百分比不是 issue 证据。
 
 #### 2. 模板化表达
 
@@ -176,6 +180,22 @@ verdict: pass | revise | needs_input
 - 段落长度适合目标平台，但复杂论证可以保留必要展开。
 - 代词指向、连接关系、标点和 Markdown 层级清楚。
 - 大声朗读或逐段阅读时，没有明显拗口、断裂或意义重复。
+
+#### Voice issue 的精确格式
+
+```yaml
+- issue_id: VOICE-001
+  severity: major
+  layer: voice
+  location: "第 3 节，第 2 段，第 1 句"
+  problem: "转折未体现当前 Profile 的克制条件化规则。"
+  evidence:
+    profile_rule: "voice.transitions[1]: 用条件与证据说明转折"
+    excerpt: "所以，这个结论显然成立。"
+  required_change: "保留 claim-004 的范围，改为与现有证据一致的条件性转折；不新增事实或经历。"
+```
+
+每条 Voice issue 的 `location`、`profile_rule`、`excerpt` 和 `required_change` 都必填。`required_change` 只能在表达层修订；Evidence 或 Editorial 合同冲突时，Voice 问题不要求加强结论、删除必要边界或改变作者判断。
 
 ### 机械预警
 
@@ -219,5 +239,5 @@ final_verdict: pass | needs_input
 - 关键事实可追溯到 accepted claim 和来源。
 - 个人经历均来自用户素材，没有扩写式细节。
 - 核心判断、反方、边界和读者决策清晰。
-- 表达符合风格证据，没有固定口语模板和伪细节。
+- 表达符合风格与 Voice Snapshot 证据，没有固定口语模板和伪细节；每个 Voice issue 可定位、可复核。
 - `review-report.yaml`、`accepted-issues.yaml`（深度模式）和 `revision-report.yaml` 已保存。

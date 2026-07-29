@@ -14,6 +14,9 @@
 - 增加 Personal Context Runtime：版本化 Profile、五类素材、隐私准入、不可变任务 Snapshot、usage 与 hash 验证。
 - 增加 `writing-master learn`：可追溯 Style Observation、显式接受/拒绝和 accepted-only Style Profile。
 - 增加 `writing-master research`：3–10 个上下文感知候选、实时 Evidence、四维评分及任务 Brief/Snapshot 绑定。
+- 增加 `writing-master voice`：四个内置表达 Profile、任务级不可变 Snapshot、状态/hash 校验及 legacy/default 降级语义。
+- 在内容契约、Phase 3、Voice Audit 与 Deep Handoff 中接入任务 Voice Snapshot；仅 Writer/Auditor 读取。
+- 将内置 Voice Registry JSON 作为实际 package data 打入 wheel，保持零第三方运行依赖。
 - 增加最小 GitHub Actions，执行全量单元测试、compileall、CLI smoke、安装脚本语法检查和包构建。
 
 ### Changed

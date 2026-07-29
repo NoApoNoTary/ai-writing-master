@@ -9,7 +9,7 @@ import stat
 import sys
 
 from writing_master.personal_context import ContextError
-from writing_master.research_brief import save_research_brief, verify_research_brief
+from writing_master.research_brief import reject_excessive_json_nesting, save_research_brief, verify_research_brief
 
 
 class _Parser(argparse.ArgumentParser):
@@ -36,6 +36,7 @@ def _read_draft(path: str) -> dict:
         with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
             descriptor = None
             text = handle.read()
+        reject_excessive_json_nesting(text)
         value = json.loads(
             text,
             parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
