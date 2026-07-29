@@ -32,13 +32,13 @@ missing_routes: []
 
 预检只确认“这次可能用到什么、当前有哪些能力、需要哪些输入”，不触发图像生成、排版或发布。
 
-当用户选择深度模式时，`handoff_runtime` 只记录当前宿主对**真实 Handoff Runtime** 的实际预检结果。`unavailable` 时展示深度执行不可用，不模拟角色执行，也不把单 Agent 产物称为深度产物。
+当用户选择深度模式时，`handoff_runtime` 只记录当前宿主对**真实 Handoff Runtime** 的实际预检结果。该检查属于更早的所选模式就绪闸门；`unavailable` 时使用 `WM-CAP-001` 结束任务，Level 1 的素材提取调用次数为 0，不模拟角色执行，也不把单 Agent 产物称为深度产物。
 
 ## 四级路由
 
 ### Level 1：Preflight + Material Intake（开题阶段）
 
-在模式选择完成、建立 Brief 时执行。
+只在模式选择完成且所选模式就绪闸门通过后，于建立 Brief 时执行。
 
 1. 识别本次唯一的 `target_id`、内容类型、来源展示策略、视觉需求和发布意图。
 2. 列出用户已经提供的 URL、YouTube、Markdown、图片、文档和历史文章。

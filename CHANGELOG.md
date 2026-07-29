@@ -22,6 +22,8 @@
 
 ### Changed
 
+- 将 `docs/quick-start.md` 收敛为普通用户唯一上手入口，CLI 与工程资料按受众分层导航。
+- 所选模式未就绪时在素材提取、调研和生成前停止；运行途中影响模式承诺时保留产物并停止，统一使用 `WM-CAP-001` / `WM-RUN-001`，不切换模式或自动创建 Issue。
 - 主写作流程仅在用户选择深度写作时启用多 Agent；快速和标准模式保持单 Agent。
 - `writing-master quality` 改为五维机械文本检查；新增 `mechanical_score` 与 `score_type`，保留 `quality_score` 兼容字段。
 - `quality` 对短标题、提纲和过短输入返回 `insufficient_data`，避免中性占位值被误读为通过。
@@ -31,7 +33,7 @@
 - `LICENSE` 保持纯 MIT 文本；来源项目致谢集中维护在 README 与项目现状文档。
 - 重写 README、项目现状、快速开始和 CLI 指南，删除 Roadmap、固定模型推荐和未落地能力宣传。
 - Baoyu 调用原则调整为“早预检、早摄入、晚生成、明确指令后发布”。
-- 对齐运行时事实：深度模式 Handoff Runtime 已通过真实宿主验收；`quick/standard` 仍没有通用任务恢复，并在 CLI 指南列出 `handoff prepare|complete|show`。
+- 对齐运行时事实：深度模式 Handoff Runtime 已通过真实宿主验收；`quick/standard` 仍没有通用任务恢复，并在 CLI 指南列出 `handoff prepare|start|recover-lost|complete|show`。
 - 主写作流程按需在文章事实研究前执行 Topic Research，并只在用户明确决定后把 accepted 风格规则用于后续任务 Snapshot。
 - Rewrite 状态收缩为单目标结构；第二个渠道使用新 Rewrite，不引入批处理 Router 或目标数组。
 - 渠道适配任务在完整成品处结束；自动发布、X Article 和渠道数据反馈留在后续阶段。

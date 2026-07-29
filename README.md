@@ -5,6 +5,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg)](pyproject.toml)
 
+## 文档入口
+
+**普通用户唯一上手入口：** [用户上手指南](docs/quick-start.md)，覆盖第一次写作、补充素材和修改结果。
+
+技术资料按需阅读：
+
+- 从 Shell 调用或编写自动化：[CLI 工具指南](docs/cli-guide.md)；
+- 维护仓库或核对实现边界：[项目现状与迁移核对](PROJECT_SUMMARY.md)。
+
+本 README 只提供项目定位、安装和能力概览；普通用户的连续操作步骤只在用户上手指南维护。`docs/goals/`、`docs/plans/` 和 `docs/proposals/` 属于工程记录，不进入普通用户主路径。
+
 ## 项目定位
 
 这个仓库目前提供两个可安装的 Skill：
@@ -28,7 +39,7 @@
 | 标准写作 | 当前 Agent | 常规长文和可发布文章；默认推荐 |
 | 深度写作 | 宿主具备真实子代理能力时由 Lead + 专项角色执行 | 重要长文，需要隔离研究、写作和审计上下文 |
 
-**多 Agent 不是默认入口。** 对新建完整文章，只有用户选择深度写作时才进入角色协议；实际创建子代理还取决于宿主能力。用户已经在当前请求中说出“快速”“标准”“深度”或“多 Agent 写作”等明确模式时，直接采用，不重复询问，也不根据题目难度隐式代选。
+**多 Agent 不是默认入口。** 对新建完整文章，只有用户选择深度写作时才进入角色协议；实际创建子代理还取决于宿主能力。用户已经在当前请求中说出“快速”“标准”“深度”或“多 Agent 写作”等明确模式时，直接采用，不重复询问，也不根据题目难度隐式代选。所选模式未就绪时，任务在素材提取、调研和写作前停止，不自动切换到其他模式。
 
 已有正文改写和只做标题、审校、选题等单一模块请求不触发这道完整文章模式闸门。`writing-rewrite` 在 P0 始终由当前 Agent 单独执行；每次只生成一个 `target_id`。需要第二个渠道时创建新的 Rewrite，并复用相同 source hash、canonical package 支持产物与 `source-analysis.md`。深度或多 Agent 改写不属于当前 P0。
 
@@ -38,6 +49,7 @@
 
 ```text
 模式选择
+  → 所选模式就绪检查
   → 单一 target_id + 内容契约（含写作声音）+ 能力/素材预检
   → 事实轨 + 素材轨调研
   → 角度、读者决策、大纲和 storyboard
@@ -150,39 +162,9 @@ cd ~/ai-writing-master
 export PATH="$HOME/ai-writing-master/bin:$PATH"
 ```
 
-## 快速使用
+## 开始使用
 
-### 新建文章
-
-```text
-写一篇关于本地 AI Agent 工作流的公众号文章。
-```
-
-此时先选择快速、标准或深度模式。若希望直接跳过询问，在请求中明确模式：
-
-```text
-用深度写作模式，基于下面三个链接和两个本地截图写一篇公众号长文。
-```
-
-每个主写作任务只选择 `wechat`、`x-post`、`x-thread` 中的一个目标，正文从初稿开始就按该渠道合同创作。
-
-### 改写已有文章
-
-```text
-把 article.md 改写成 X Thread，保留事实和立场，重构叙事顺序。
-```
-
-此请求进入 `writing-rewrite`，不启动深度写作代理链。之后说“再生成一个 X 单帖”会创建新的 Rewrite，并复用同一 source hash 与分析结果。
-
-### 只执行一个环节
-
-```text
-只帮我审校这篇文章，重点检查证据和空话。
-```
-
-单模块任务由当前 Agent 在 `writing-master` 内执行，不伪装成不存在的独立 Skill。
-
-更多示例见[快速开始指南](docs/quick-start.md)。
+普通用户从[用户上手指南](docs/quick-start.md)开始。该文档集中维护第一次写作、补充素材、修改结果、改写已有文章和任务停止后的处理方式；这里不再复制第二套操作教程。
 
 ## CLI：机械检查，不是编辑裁判
 
@@ -315,7 +297,7 @@ ai-writing-master/
 - CLI 是确定性辅助工具；文章事实和编辑质量仍由研究与审校流程处理。
 - 深度模式 Handoff Runtime 已验收，覆盖已建立 deep/multi-agent 运行目录的交接、hash、stale、attempt 与真实宿主链路；`quick/standard` 的通用任务恢复仍未实现。
 
-项目现状和迁移核对见 [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)。
+维护者需要核对实现边界时再阅读 [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)；它不是普通用户教程。
 
 ## 来源与致谢
 

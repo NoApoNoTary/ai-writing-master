@@ -45,9 +45,80 @@ class WritingSkillContractTests(unittest.TestCase):
         for line in prompt_lines:
             self.assertIn(line, canonical, f"Canonical prompt 缺少统一模式文案: {line}")
 
-        for relative in ("README.md", "docs/quick-start.md"):
-            content = read(relative)
-            self.assertIn("mode-selection.md", content)
+        self.assertIn("mode-selection.md", read("README.md"))
+        quick_start = read("docs/quick-start.md")
+        for label in ("快速草稿", "标准写作", "深度写作"):
+            self.assertIn(label, quick_start)
+        self.assertNotIn("mode-selection.md", quick_start)
+
+    def test_selected_mode_readiness_stops_before_expensive_work(self):
+        main = read("skills/writing-master/SKILL.md")
+        mode = section(
+            read("skills/writing-master/references/mode-selection.md"),
+            "## 所选模式就绪闸门",
+        )
+        gate = section(main, "### 所选模式就绪闸门")
+
+        self.assertLess(main.index("### 模式选择闸门"), main.index("### 所选模式就绪闸门"))
+        self.assertLess(main.index("### 所选模式就绪闸门"), main.index("### Phase 0"))
+        for operation in ("素材提取", "实时检索", "正文生成", "视觉生成", "角色派发"):
+            self.assertIn(operation, gate)
+            self.assertIn(operation, mode)
+        self.assertIn("调研和生成调用次数为 0", gate)
+        self.assertIn("调用次数必须为 0", mode)
+        self.assertIn("mode_readiness=ready", gate)
+        self.assertIn("Phase 0–6 流程不变", gate)
+        for forbidden in ("等待用户选择 quick", "改用标准", "切换到 standard"):
+            self.assertNotIn(forbidden, gate + mode)
+
+    def test_mode_failures_use_stable_user_messages_without_internal_terms(self):
+        main = read("skills/writing-master/SKILL.md")
+        unavailable = section(main, "### 用户正文：所选模式未就绪")
+        interrupted = section(main, "### 用户正文：运行途中停止")
+
+        self.assertIn("诊断编号：WM-CAP-001", unavailable)
+        self.assertIn("所选的{模式显示名}当前未就绪", unavailable)
+        self.assertIn("快速草稿", diagnostics := section(main, "### 诊断详情"))
+        self.assertIn("标准写作", diagnostics)
+        self.assertIn("深度写作", diagnostics)
+        self.assertIn("版本：VERSION", unavailable)
+        self.assertIn("诊断编号：WM-RUN-001", interrupted)
+        self.assertIn("已有内容已保留", interrupted)
+        for body in (unavailable, interrupted):
+            self.assertIn("提交 Issue", body)
+            for internal in ("Runtime", "Handoff", "Agent", "multi-agent", "异常栈"):
+                self.assertNotIn(internal, body)
+
+        self.assertIn("内部异常栈", diagnostics)
+        self.assertIn("不自动创建 Issue", diagnostics)
+        self.assertIn("不生成 Issue 草稿", diagnostics)
+
+    def test_mid_run_mode_failure_preserves_outputs_without_fallback(self):
+        main = section(read("skills/writing-master/SKILL.md"), "## 恢复与失败的用户表现")
+        orchestration = section(
+            read("skills/writing-master/references/agent-orchestration.md"),
+            "## 失败即停",
+        )
+
+        for contract in (main, orchestration):
+            self.assertIn("保留", contract)
+            self.assertIn("不切换", contract)
+            self.assertIn("WM-RUN-001", contract)
+        self.assertIn("不由当前 Agent 补做深度角色工作", main)
+        self.assertIn("不得由 Lead 或当前 Agent 补做缺失角色", orchestration)
+        self.assertIn("不改变最终交付标准", main)
+
+    def test_readiness_diagnostic_is_written_before_phase_zero_content(self):
+        main = section(read("skills/writing-master/SKILL.md"), "### 所选模式就绪闸门")
+        mode = section(
+            read("skills/writing-master/references/mode-selection.md"),
+            "## 所选模式就绪闸门",
+        )
+
+        for contract in (main, mode):
+            self.assertIn("最小运行目录", contract)
+            self.assertIn("capability-preflight.md", contract)
+            self.assertIn("不创建 Brief、素材副本或其他写作产物", contract)
 
     def test_mode_selection_requires_an_explicit_resume_target(self):
         entry_rules = section(
