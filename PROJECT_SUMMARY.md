@@ -34,7 +34,7 @@
 | `writing-master quality` | 五项机械文本特征检查；保留 `quality_score` 兼容字段 |
 | `writing-master similarity` | 字符 n-gram Jaccard 表面相似度 |
 | `writing-master home` | 输出运行数据目录 |
-| `writing-master handoff` | 已建立 deep/multi-agent 运行目录的 `prepare`、`complete`、`show` 交接操作 |
+| `writing-master handoff` | 已建立 deep/multi-agent 运行目录的 `prepare`、`start`、`recover-lost`、`complete`、`show` 交接操作 |
 | `writing-master context` | 显式管理 Profile、五类素材、privacy approval、不可变 Snapshot 与 usage/run 验证 |
 | `writing-master learn` | 提交、接受或拒绝可追溯 Style Observation，并显示 accepted-only Style Profile |
 | `writing-master research` | 将 Agent 选题 draft 绑定到任务 Brief/Snapshot，并保存或验证 canonical Research Brief |
