@@ -50,7 +50,7 @@ handoff_runtime: available | unavailable
 - 产物：与标准模式相同的核心文件：简版 `brief.md`、关键 `sources.yaml`/`claims.yaml`、`asset-manifest.yaml`、简版大纲、`draft-v1.md`、一次合并 `review-report.yaml`、`revision-report.yaml`、`final.md` 和 `acceptance-report.md`。
 - 调研：仅覆盖正文实际使用的关键事实；近期或易变化信息仍实时核验。
 - 用户确认：内容契约；主题存在明显分叉时确认角度；其余环节连续推进。
-- Baoyu：照常做早期 capability/material preflight；内容验收通过后，只有明确需要且图像类视觉闸门通过才生产视觉资产。
+- Baoyu：照常做早期 capability/material preflight；内容验收通过后先完成当前渠道合同的必要派生产物，其他图像类视觉只在明确需要且闸门通过时生产。
 
 ### 2. 标准写作（standard）
 
@@ -59,7 +59,7 @@ handoff_runtime: available | unavailable
 - 产物：完整 Brief、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、选题、大纲、storyboard、初稿、三层审校、标题、验收报告。
 - 调研：事实与素材双轨进行。
 - 用户确认：内容契约、核心角度、发布动作。标题随最终稿交付，除非用户主动要求选择或修改。
-- Baoyu：早期预检和素材摄入；内容验收通过后按需生产。图像类视觉另需结构稳定和 storyboard。
+- Baoyu：早期预检和素材摄入；内容验收通过后先完成当前渠道合同的必要派生产物，其他图像类视觉按需生产并要求结构稳定和 storyboard。
 
 ### 3. 深度写作（deep）
 
@@ -70,7 +70,7 @@ handoff_runtime: available | unavailable
 - 策划：Editorial Strategist 基于已核验证据形成角度、读者决策和 storyboard。
 - 写作：Writer 只读取接受后的内容包。
 - 审校：Auditor 首轮不读取 Writer 的解释和父对话全文。
-- Baoyu：由 Lead 统一执行预检和闸门；子代理只产出计划与 manifest。
+- Baoyu：由 Lead 统一执行预检和闸门，完成当前渠道必要派生产物；子代理只产出计划与 manifest。
 
 完整协议见 `agent-orchestration.md`。
 

@@ -29,6 +29,14 @@ class InstallContractTests(unittest.TestCase):
         self.assertNotIn('templates/config.example.yaml', script)
         self.assertNotIn('templates/style.example.yaml', script)
 
+    def test_installer_advertises_only_the_two_single_channel_entries(self):
+        script = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+        self.assertIn("writing-master    - 单渠道完整创作主入口", script)
+        self.assertIn("writing-rewrite   - 单渠道内容改写", script)
+        self.assertIn("把这篇文章改写成 X Thread", script)
+        self.assertNotIn("改写成小红书", script)
+
     def test_installer_preserves_existing_skill_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary) / "home"

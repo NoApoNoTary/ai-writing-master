@@ -40,7 +40,7 @@ missing_routes: []
 
 在模式选择完成、建立 Brief 时执行。
 
-1. 识别平台、内容类型、来源展示策略、视觉需求和发布意图。
+1. 识别本次唯一的 `target_id`、内容类型、来源展示策略、视觉需求和发布意图。
 2. 列出用户已经提供的 URL、YouTube、Markdown、图片、文档和历史文章。
 3. 对需要提取的素材立即选择读取路由；提取结果进入研究目录，而不是直接拼进正文。
 4. 对图片、GIF、视频和图表只登记来源、文件位置与用途候选。
@@ -93,7 +93,7 @@ missing_routes: []
 
 ### Level 3：Production（canonical final 验收后）
 
-从 Writing Master 任务进入本层时，来源分类必须是 `accepted_writing_master_final`：同一任务中的 `final.md` 存在，且 `acceptance-report.md` 内容明确验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或未通过验收的 `final.md` 都不得作为视觉、格式或发布来源。
+从 Writing Master 任务进入本层时，`source_ref` 必须是 `accepted_final`：同一任务中的 `final.md` 存在，且 `acceptance-report.md` 内容明确验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或未通过验收的 `final.md` 都不得作为视觉、格式或发布来源。
 
 | 任务 | Baoyu Skill | 主要输入 | 输出 |
 |---|---|---|---|
@@ -115,16 +115,18 @@ missing_routes: []
 
 Markdown 格式化和 HTML 转换不属于图像类视觉生产：它们在 canonical final 通过内容验收后，读取 `channel-contract.yaml` 的主题和外链策略即可执行；不要求 storyboard、`asset-manifest.yaml` 或图像生成意图。
 
+当 `target_id=wechat` 时，`channel-contract.yaml.required_derivatives` 中的 `formatted.md`、`wechat.html` 与 `cover.png` 属于渠道完整交付；Lead 组合现有 Baoyu 能力完成它们。`x-post` 与 `x-thread` 不因此增加图像或 HTML 产物。
+
 ### Level 4：Publish（验收之后）
 
 | 任务 | Baoyu Skill |
 |---|---|
 | 创建微信公众号草稿或发布 | `baoyu-post-to-wechat` |
-| 创建普通 X 帖子或 X Article | `baoyu-post-to-x` |
+| 创建普通 X 帖子 | `baoyu-post-to-x` |
 
 发布顺序：
 
-1. 确认来源为 `accepted_writing_master_final`，再完成视觉资产和平台 HTML/Markdown；
+1. 确认来源为 `accepted_final`，再完成视觉资产和平台 HTML/Markdown；
 2. 检查图片路径、GIF、外链、封面、摘要和移动端预览；
 3. 在已有 `acceptance-report.md` 中追加视觉/排版验收结果，不重新打开内容验收或修改 canonical `final.md`；
 4. 用户发出清晰发布指令后调用对应 Skill；
@@ -141,9 +143,10 @@ Markdown 格式化和 HTML 转换不属于图像类视觉生产：它们在 cano
   → 策划：asset manifest + storyboard
   → 写作与审校
   → 内容验收：canonical final
-  → 图像类视觉闸门通过：Baoyu 视觉 production
+  → 当前渠道必要视觉：Baoyu 视觉 production
   → canonical final + channel contract：Baoyu 排版 / HTML
-  → 验收通过 + 明确发布指令：Baoyu publish
+  → 渠道完整交付
+  → 后续明确发布指令：独立 Baoyu publish 动作
 ```
 
 这条规则可以概括为：**早预检、早摄入、晚生成、后发布。**

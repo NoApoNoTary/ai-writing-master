@@ -18,7 +18,7 @@ Lead Agent 负责模式、Brief、文件状态、用户确认、问题合并、B
 ## 执行图
 
 ```text
-Lead：模式 + 内容契约 + Baoyu preflight
+Lead：模式 + 单一 target_id + 内容契约 + Baoyu preflight
   ↓
 可选 Researcher：topic research brief（宽主题/近期选题）
   ↓ 用户确认候选方向
@@ -34,9 +34,9 @@ Writer：draft-v2/final + revision report
   ↓
 Lead：标题与 canonical final 内容验收
   ↓
-可选视觉、HTML 或平台草稿
+当前渠道合同要求的完整产物
   ↓
-Lead：交付包验收与发布确认
+Lead：交付包验收
 ```
 
 ## Handoff Manifest（唯一实际输入合同）
@@ -134,8 +134,9 @@ Writer 只在 Phase 3 使用该 Snapshot 调整表达；Auditor 用同一 Snapsh
 适合并行：
 
 - Researcher 内部的事实检索与素材检索；
-- 证据审计与声音审计（需要拆分 Auditor 时）；
-- 已确定 canonical final 后的多个平台适配。
+- 证据审计与声音审计（需要拆分 Auditor 时）。
+
+渠道适配不在同一任务内并行：当前任务只处理一个 `target_id`；另一个渠道由后续 Rewrite 独立执行。
 
 保持串行：
 

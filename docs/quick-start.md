@@ -199,23 +199,31 @@ writing-master research verify RUN_DIR --json
 ## 4. 改写已有文章
 
 ```text
-把 ./article.md 改写成小红书版本。
+把 ./article.md 改写成 X Thread。
 保留原文事实和立场，但重构信息顺序、开头和表达方式。
 ```
 
-此请求由 `writing-rewrite` 处理，不询问三种新写作模式。若未指定目标平台，Agent 会先让你选择平台。
+此请求由 `writing-rewrite` 处理，不询问三种新写作模式。若未指定目标，Agent 会先让你从 `wechat`、`x-post`、`x-thread` 中选择一个 `target_id`。
 
-当前仓库内置的小红书和抖音平台合同分别位于 `platforms/xiaohongshu.yaml` 与 `platforms/douyin.yaml`。其他平台需要先提供对应输出合同。
+P0 渠道合同位于：
 
-改写在 P0 始终由当前 Agent 完成；每个目标平台都从同一个只读源稿独立生成。深度或多 Agent 改写不属于当前 P0。来自 Writing Master 的输入必须是同一任务中内容验收通过的 `final.md`；用户直接提供的完整正文则作为独立的 `standalone_user_input`，不被描述为已验收的 Writing Master final。
+- `platforms/wechat.yaml`
+- `platforms/x-post.yaml`
+- `platforms/x-thread.yaml`
+
+改写在 P0 始终由当前 Agent 完成；一个 Rewrite 只接受一个 `target_id`。来自 Writing Master 的输入必须是同一任务中内容验收通过的 canonical package，至少包含 `final.md`、`sources.yaml`、`claims.yaml` 和 `acceptance-report.md`，记录为 `accepted_final`；用户直接提供的完整正文记录为 `standalone_input`，不被描述为已验收的 Writing Master final。
+
+如果完成 X 单帖后再说“生成一个 X Thread”，系统创建新的 Rewrite，复用相同 `source_sha256`、canonical package 支持产物和匹配的 `source-analysis.md`，不重新调研，也不把 X 单帖作为 Thread 输入。
 
 相似度命令可以提供表面重合预警：
 
 ```bash
-writing-master similarity article.md xiaohongshu.md --json
+writing-master similarity source.md x-thread.md --json
 ```
 
 它不替代人工的原创性、版权和事实审查。
+
+完整交付包括 source hash、source analysis、当前渠道正文、渠道审查和 YAML 要求的必要产物。微信目标还会组合现有 Baoyu 能力生成格式化 Markdown、公众号 HTML 和封面。
 
 ## 5. 只做一个模块
 
@@ -253,15 +261,15 @@ writing-master handoff show RUN_DIR --json
 
 ## 7. 交付包
 
-标准写作先完成标题与正文的内容验收，使 `final.md` 成为 canonical final；只有随后按需生成视觉资产、HTML 或平台草稿。最后的交付包验收列出本次文件位置和仍缺的请求项：
+标准写作先选择一个 `target_id`，完成标题与正文的内容验收，使 `final.md` 成为该渠道 canonical final；随后生成渠道 YAML 要求的必要产物。最后的交付包验收列出本次文件位置和仍缺的请求项：
 
 - `final.md`；
 - `sources.yaml`、`claims.yaml` 与 `asset-manifest.yaml`；
 - `review-report.yaml` 与 `revision-report.yaml`；
 - `acceptance-report.md`；
-- 用户明确要求的视觉资产、HTML 或平台草稿。
+- 当前渠道要求的视觉资产、HTML 或封面。
 
-未请求发布时，任务停在交付包验收或平台草稿，不产生公开发布动作。
+渠道适配任务在完整交付包处结束，不产生公开发布动作；发布由用户之后单独触发。
 
 ## 8. CLI 辅助检查
 

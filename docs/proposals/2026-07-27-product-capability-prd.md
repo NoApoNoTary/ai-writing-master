@@ -18,8 +18,8 @@ AI Writing Master 当前已经有较完整的写作方法、模式、角色和�
 | 用户可读的任务状态与等待动作 | 通过 | 主 Skill、用户文档和场景合同测试覆盖任务、模式、阶段、已完成项、当前动作和下一步。 |
 | 素材接收结果 | 通过 | 主 Skill、证据/素材合同和用户文档定义已接收、已提取、等待处理、失败和待确认项，并区分素材接收与事实接受。 |
 | 内容契约与审校处理 | 通过 | 主 Skill 与三层审校合同定义确认、修改、取消、受影响阶段、忽略非阻断项和阻断问题闸门。 |
-| 标准写作交付包 | 通过 | 合同定义 `final.md`、证据/素材、审校/修订、内容验收、按需派生产物和交付包验收顺序。 |
-| Canonical Rewrite / 视觉 / 发布边界 | 通过 | 合同区分已验收 Writing Master final 与独立用户输入；canonical final 先于可选视觉/HTML，派生产物不改写它。 |
+| 标准写作交付包 | 通过 | 合同定义 `final.md`、证据/素材、审校/修订、内容验收、渠道必要派生产物和交付包验收顺序。 |
+| Canonical Rewrite / 视觉 / 发布边界 | 通过 | 合同区分已验收 Writing Master final 与独立用户输入；canonical final 先于渠道必要产物，派生产物不改写它。 |
 | 确定性跨会话续跑 | 部分通过 | 已建立 deep/multi-agent 运行目录的 Handoff 可从文件状态复核；quick/standard 没有通用任务恢复。 |
 | 真实深度模式 Handoff | 通过 | Runtime P0–P2、fake-host 高层链路与一次真实宿主完整链路均有验收记录。 |
 
@@ -127,13 +127,14 @@ AI Writing Master 当前已经有较完整的写作方法、模式、角色和�
 ```text
 任务入口
   → 模式选择
+  → 单一 target_id
   → 素材摄入
   → 内容契约
   → 调研与方向
   → 草稿与版本
   → 审校问题处理
   → 内容验收（canonical final）
-  → 按需视觉 / HTML / 平台草稿
+  → 当前渠道必要产物
   → 交付包验收
   → 发布或本地资产复用
 ```
@@ -250,14 +251,14 @@ AI Writing Master 当前已经有较完整的写作方法、模式、角色和�
 
 ### 7. 完成交付
 
-先对标题与正文完成内容验收，使 `final.md` 成为 canonical final；之后才生成本次请求的视觉、HTML 或平台草稿。最后，任务在交付包验收确认下列产物满足本次请求后才标记完成：
+先对标题与正文完成内容验收，使 `final.md` 成为本次所选渠道的 canonical final；之后生成当前渠道合同要求的必要产物。最后，任务在交付包验收确认下列产物满足本次请求后才标记完成：
 
 - `final.md`；
 - 来源与主张记录；
 - 素材清单；
 - 审校或修订报告；
 - 验收报告；
-- 用户要求时的视觉、HTML 或平台草稿。
+- 当前 `target_id` 要求的正文、视觉、HTML 或封面。
 
 用户收到简洁交付摘要和全部文件位置。
 
@@ -333,11 +334,12 @@ P0 是当前产品 MVP，优先于新增平台和高级 Agent 功能。
 - 方向性问题集中询问用户；
 - 修订报告逐项对应接受的问题。
 
-### P0.6 统一交付包
+### P0.6 单渠道完整交付包
 
-- 先完成内容验收，再按请求增加视觉、HTML 或平台草稿，最后完成交付包验收；
+- 每个任务只记录一个 `target_id`；
+- 先完成内容验收，再生成当前渠道必要的视觉、HTML 或封面，最后完成交付包验收；
 - 明确定义任务完成所需的最小文件；
-- 未请求发布时停留在交付包验收或平台草稿状态；
+- 发布不属于渠道适配任务的完成条件；
 - 用户能够查看交付缺失项。
 
 ## P1：深度模式产品化
@@ -351,14 +353,17 @@ P0 是当前产品 MVP，优先于新增平台和高级 Agent 功能。
 
 技术实现由 Handoff Runtime PRD 负责。
 
-## P2：内容复用与平台交付
+## P2：内容复用与渠道交付
 
-- `final.md` 成为唯一 canonical source；
-- 每个平台版本从 canonical source 独立生成；
-- 记录平台版本与源稿版本关系；
+详细单目标合同见 [渠道适配 P0 PRD](2026-07-29-channel-adaptation-p0-prd.md)。
+
+- 已验收 canonical package（`final.md`、来源、主张和验收引用的编辑产物）成为唯一 Rewrite source；
+- 每次 Rewrite 只为一个 `target_id` 生成完整成品；
+- 后续 Rewrite 复用相同 source hash 与 `source-analysis.md`；
+- 记录当前渠道成品与源稿 hash 的关系；
 - Baoyu 视觉和排版只基于已内容验收的 canonical final；
-- 发布前始终要求明确确认；
-- 平台失败不破坏 canonical final。
+- 发布作为后续独立动作处理；
+- 当前渠道失败不破坏 canonical final 或之前完成的 Rewrite。
 
 ## P3：个性化与学习
 
@@ -391,9 +396,9 @@ P0 是当前产品 MVP，优先于新增平台和高级 Agent 功能。
 
 失败结果必须说明：失败动作、影响范围、已保留产物和下一步。
 
-### FR-5 Canonical Source
+### FR-5 Canonical Source 与单目标 Rewrite
 
-Rewrite 输入只分两类：`accepted_writing_master_final` 是同一 Writing Master 任务中内容验收通过的 `final.md`，并有对应 `acceptance-report.md`；`standalone_user_input` 是用户直接提供的完整正文。前者才可作为该 Writing Master 任务的视觉、排版和发布来源。后者只是 Rewrite 的独立只读 canonical source，不等同于已验收的 Writing Master final，也不为来源任务开启视觉、排版或发布。
+Rewrite 输入只分两类：`accepted_final` 是同一 Writing Master 任务中内容验收通过的 canonical package，至少包含 `final.md`、`sources.yaml`、`claims.yaml` 和对应 `acceptance-report.md`；`standalone_input` 是用户直接提供的完整正文。前者才可作为该 Writing Master 任务的视觉、排版和发布来源。后者只是 Rewrite 的独立只读 canonical source，不等同于已验收的 Writing Master final，也不为来源任务开启视觉、排版或发布。每个 Rewrite 只接受一个 `target_id`；后续渠道使用新的 Rewrite，并复用相同 source hash、支持产物 hash 与已验证的 `source-analysis.md`。
 
 ### FR-6 能力发现
 
@@ -409,10 +414,11 @@ Rewrite 输入只分两类：`accepted_writing_master_final` 是同一 Writing M
 
 1. 用户请求新建文章。
 2. 选择标准模式。
-3. 确认内容契约。
-4. 选择方向。
-5. 收到初稿、审校结果、标题与内容验收后的 canonical final。
-6. 未请求视觉、HTML 和发布时，完成交付包验收并收到交付摘要。
+3. 选择 `x-post` 作为本次唯一 `target_id`。
+4. 确认内容契约。
+5. 选择方向。
+6. 收到初稿、审校结果与内容验收后的 canonical final。
+7. 当前渠道没有必要视觉或 HTML 时，完成交付包验收并收到交付摘要。
 
 ### Scenario B：带混合素材写作
 
@@ -441,9 +447,10 @@ Rewrite 输入只分两类：`accepted_writing_master_final` 是同一 Writing M
 ### Scenario E：Canonical Rewrite
 
 1. 主任务完成 canonical final。
-2. 用户请求小红书和抖音版本。
-3. 两个版本独立生成。
-4. 任一平台版本失败不修改 canonical final 和其他平台版本。
+2. 用户请求一个 X 单帖版本。
+3. Rewrite 固定 source hash，完成 `x-post` 正文和渠道审查。
+4. 用户随后请求 X Thread，新 Rewrite 复用相同 source hash 与 `source-analysis.md`。
+5. 第二次 Rewrite 失败不修改 canonical final 或已经完成的 X 单帖。
 
 ## Testing Decisions
 
@@ -457,7 +464,7 @@ Rewrite 输入只分两类：`accepted_writing_master_final` 是同一 Writing M
 
 截至 2026-07-28，深度模式 Handoff Runtime 已通过 Runtime、fake-host 和真实宿主验收；它只覆盖已建立 deep/multi-agent 运行目录。以下缺口仍保持开放：quick/standard 的通用任务恢复、任务发现和确定性版本回退；运行目录与 `status.json` 不自动构成这些通用能力。
 
-深度协议已与 P0 视觉顺序对齐：先完成内容验收形成 canonical final，再按需生成视觉/HTML/平台草稿，最后进行交付包验收；发布仍需要明确用户指令。
+深度协议已与 P0 渠道顺序对齐：先选择一个 `target_id`，完成内容验收形成该渠道 canonical final，再生成渠道必要产物并进行交付包验收；发布是之后单独触发的动作。
 
 以下产品能力需要技术 Worktree 承接：
 

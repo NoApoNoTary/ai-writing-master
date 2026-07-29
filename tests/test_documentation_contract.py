@@ -95,11 +95,12 @@ class DocumentationContractTests(unittest.TestCase):
             scenario_a,
             "用户请求新建文章。",
             "选择标准模式。",
+            "选择 `x-post` 作为本次唯一 `target_id`。",
             "确认内容契约。",
             "选择方向。",
             "收到初稿、审校结果",
             "内容验收后的 canonical final",
-            "未请求视觉、HTML 和发布时",
+            "当前渠道没有必要视觉或 HTML 时",
             "完成交付包验收",
             "交付摘要",
         )
@@ -121,10 +122,32 @@ class DocumentationContractTests(unittest.TestCase):
         self.assert_in_order(
             scenario_e,
             "主任务完成 canonical final。",
-            "用户请求小红书和抖音版本。",
-            "两个版本独立生成。",
-            "任一平台版本失败不修改 canonical final 和其他平台版本。",
+            "用户请求一个 X 单帖版本。",
+            "Rewrite 固定 source hash",
+            "用户随后请求 X Thread",
+            "复用相同 source hash 与 `source-analysis.md`",
+            "不修改 canonical final 或已经完成的 X 单帖。",
         )
+
+    def test_channel_prds_keep_the_single_target_state_model(self):
+        documents = [
+            read("docs/proposals/2026-07-27-product-capability-prd.md"),
+            read("docs/proposals/2026-07-29-channel-adaptation-p0-prd.md"),
+        ]
+        forbidden = (
+            "Content Intent " + "Selector",
+            "全" + "部生成",
+            "主" + "渠道",
+            "次" + "渠道",
+            '"target' + 's"',
+            "部分" + "成功",
+            "跨目标" + "重试",
+            "平台版本之间" + "的相似度",
+        )
+
+        for document in documents:
+            for phrase in forbidden:
+                self.assertNotIn(phrase, document)
 
     def test_relative_markdown_links_resolve(self):
         missing = []

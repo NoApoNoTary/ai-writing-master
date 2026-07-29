@@ -436,7 +436,7 @@ Pilot 产物至少包括：基线副本、`pilot-rewrite.md`、`review-report.ya
 ### Scenario I：Rewrite 平台适配
 
 1. 已验收的 canonical final 使用某个 Voice Preset。
-2. 用户发起小红书或抖音 Rewrite。
+2. 用户发起微信、X 单帖或 X Thread 的单目标 Rewrite。
 
 **通过条件：** Rewrite 以 canonical final 为源，只做平台合同要求的适配；不重新选择 Voice，不修改 canonical final。
 

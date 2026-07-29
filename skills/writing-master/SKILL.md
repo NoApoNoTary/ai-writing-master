@@ -1,7 +1,7 @@
 ---
 name: writing-master
 description: |
-  AI Writing Master 的端到端内容创作入口。新建完整文章时先让用户明确选择快速草稿、标准写作或深度写作；快速与标准模式由当前 Agent 单独完成，只有具备真实 Handoff Runtime 的深度模式启用多 Agent。流程覆盖内容契约、个人上下文、上下文感知选题、事实与素材双轨调研、写作、审校、确认式风格学习、Baoyu 视觉/排版路由和发布验收。适用于“写文章、写公众号、从零创作、深度写稿”等请求；洗稿改写转 writing-rewrite。
+  AI Writing Master 的端到端从零创作入口。新建完整内容时先让用户明确选择快速草稿、标准写作或深度写作，并为本次任务选择一个 target_id；快速与标准模式由当前 Agent 单独完成，只有具备真实 Handoff Runtime 的深度模式启用多 Agent。流程覆盖内容契约、个人上下文、上下文感知选题、事实与素材双轨调研、写作、渠道审校、确认式风格学习和 Baoyu 视觉/排版路由。适用于“写文章、写公众号、从零创作、写 X 单帖或 Thread”等请求；已有正文改写转 writing-rewrite。
 allowed-tools:
   - Bash
   - Read
@@ -23,6 +23,7 @@ allowed-tools:
 核心约束：
 
 - 新建完整文章必须先完成模式选择，Agent 不根据题目难度自行决定模式。
+- 每个任务只选择一个 `target_id`：`wechat`、`x-post` 或 `x-thread`；需要第二个渠道时，在当前 canonical final 完成后新建一次 Rewrite。
 - 快速草稿和标准写作始终使用当前 Agent；只有深度模式启用多 Agent，且当前宿主必须具备真实 Handoff Runtime。
 - 事实、引用、个人经历和测试结果都要可追溯；未知项保留为待确认项。
 - Baoyu 在开题阶段进入能力与素材预检，视觉生产放在证据、角度和文章结构明确之后。
@@ -36,10 +37,11 @@ allowed-tools:
 
 | 请求 | 行为 |
 |---|---|
-| 新建完整文章 | 执行“模式选择闸门” |
+| 从零创作完整内容 | 执行“模式选择闸门”，再在内容契约中确定一个 `target_id` |
 | 用户已在当前请求中明确说快速、标准或深度 | 直接采用该模式，不重复提问 |
 | 继续指定任务 | 检查任务恢复能力；已验证可用时读取指定 `task_id`，否则展示 Product–Technical Gap 和已知产物 |
-| 洗稿、改写、平台重写 | 转 `writing-rewrite` |
+| 已有正文、洗稿、改写或渠道重写 | 转 `writing-rewrite` |
+| 一次要求多个渠道 | 只确认本次一个 `target_id`；其余目标在完成后分别进入新的 Rewrite |
 | 只做选题 | 在当前 Skill 内按需执行 `references/research-brief.md`，不虚构独立 Skill |
 | 只做审校、标题或素材规划 | 在当前 Skill 内执行对应模块，不虚构独立 Skill |
 | 只做配图、封面、信息图、HTML 或发布 | 只读取已验收的 canonical final，读取 `references/baoyu-integration.md` 后路由到实际存在的 Baoyu Skill |
@@ -65,9 +67,10 @@ allowed-tools:
 ```json
 {
   "task_id": "YYYYMMDD-001",
+  "entry": "writing",
   "mode": "quick | standard | deep",
   "execution": "single_agent | multi_agent",
-  "platform": "wechat | x | other",
+  "target_id": "wechat | x-post | x-thread",
   "voice_id": "natural-default",
   "voice_profile_version": 1,
   "voice_snapshot": "pending | ready | legacy | unavailable",
@@ -96,6 +99,7 @@ allowed-tools:
 ```text
 任务：{task_id 或“当前对话任务”}
 模式：{quick | standard | deep}
+渠道：{wechat | x-post | x-thread}
 阶段：{用户状态}
 状态：{进行中 | 等待用户 | 失败 | 已取消 | 已完成}
 已完成：{产物或阶段}
@@ -146,9 +150,9 @@ voice_snapshot: {ready | legacy | unavailable}
 
 ### Phase 0：内容契约、能力预检与素材接收
 
-1. 收集主题、目标读者、平台、时效、字数、文章目的、已有素材、是否需要视觉/排版/发布。
+1. 收集主题、目标读者、时效、字数、内容目的、已有素材，并确认本次唯一的 `target_id`。未指定时只让用户在 `wechat`、`x-post`、`x-thread` 中选择一个；一次给出多个目标时不创建批量任务。
 2. 读取 `references/reader-value.md`；仅对解释、判断、解决问题和行动指导类内容定义读者价值。
-3. 读取 `references/baoyu-integration.md`，按 Skill 名称检查本次任务需要的能力。
+3. 读取 `{skill_dir}/../writing-rewrite/platforms/<target_id>.yaml`，将共享渠道字段复制为任务内 `channel-contract.yaml`，并将主写作入口的 `output_filename` 规范为 `final.md`；YAML 中的 `rewrite_output_filename` 只供 Rewrite 使用。再读取 `references/baoyu-integration.md`，按渠道合同和 Skill 名称检查本次任务需要的能力。
 4. 对用户已经给出的网页、YouTube、文件、图片或历史文章建立素材入口；需要提取时立即路由到对应读取能力。
 5. 按 `references/evidence-and-assets.md` 将每项素材与素材接收结果写入 `capability-preflight.md`，并先向用户返回：已接收、已提取、等待处理、失败、需要确认及其影响。失败项不阻塞无关素材。
 6. 只完成 capability/material preflight，不生成图片、不排版、不发布。
@@ -166,11 +170,13 @@ voice_snapshot: {ready | legacy | unavailable}
 
 `capability-preflight.md` 同时记录外部能力、`handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。
 
-`channel-contract.yaml` 至少记录：
+`channel-contract.yaml` 只记录本次目标，并保留所选平台 YAML 的长度、输出类型、视觉和必要派生产物字段；至少补充：
 
 ```yaml
+entry: writing
+target_id: wechat | x-post | x-thread
+output_filename: final.md
 content_type: release | analysis | review | opinion | tutorial | story
-platform: wechat | x | other
 evidence_level: light | standard | strict
 source_display: inline | footnote | endnotes | none
 asset_policy: source_first | mixed | text_only
@@ -229,6 +235,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 正文只使用已经接受的 Brief、主张、来源、素材、风格档案和大纲。标准写作的个人上下文只能来自任务 Snapshot 和任务内材料副本。
 
+初稿同时读取任务内唯一的 `channel-contract.yaml`：`wechat` 生成完整长文结构，`x-post` 只生成一条可独立成立的帖子，`x-thread` 按逐条推进的 Thread 结构生成。Writer 不为同一任务生成第二个渠道版本。
+
 读取 `references/voice-presets.md`。Quick / Standard 在本阶段只读取任务 `voice-profile-snapshot.json`，不回读全局 Registry；Deep 仅由 Writer Manifest 列出该 Snapshot 与 hash 后读取。Snapshot 结构、任务 ID 或 hash 校验失败时停止生成，不自动改用当前 Registry 或默认 Voice。
 
 写作要求：
@@ -264,7 +272,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 先完成标题与摘要，再确认 canonical final。
 
-标题至少提供自然版、判断版和传播版；每个标题都要与正文证据强度一致。默认采用与正文最一致的推荐标题写入 `final.md`，同时在交付摘要保留其他候选；用户主动要求选择或修改时再等待该决定。
+`wechat` 标题至少提供自然版、判断版和传播版；每个标题都要与正文证据强度一致。默认采用与正文最一致的推荐标题写入 `final.md`，同时在交付摘要保留其他候选；用户主动要求选择或修改时再等待该决定。`x-post` 不添加文章标题，只审查首句；`x-thread` 不添加文章标题，只审查第一条的独立价值与整条 Thread 的顺序。
 
 在视觉、排版、Rewrite 或发布前，先在 `acceptance-report.md` 中完成内容验收：
 
@@ -272,8 +280,9 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - 关键主张均有来源或明确标为观点；
 - 所有 blocking 审校问题已经关闭；
 - `final.md`、来源、主张、素材和审校产物彼此对应。
+- `final.md` 已满足当前 `target_id` 的正文、结构和长度合同。
 
-验收通过后，`final.md` 成为只读 canonical final。后续 Rewrite、视觉、排版和发布只读取该文件及其关联产物，绝不反向改写 canonical final。
+验收通过后，`final.md` 成为本次所选渠道的只读 canonical final；本次验收引用的 `sources.yaml`、`claims.yaml`、`editorial-brief.md`、`outline.md` 与 `research-summary.md` 同时冻结为 canonical package 的只读支持产物。此时向 `channel-contract.yaml` 写入 `source_ref: accepted_final` 和 `source_sha256`；后续 Rewrite 可从该 package 建立渠道中立分析，但视觉、排版、Rewrite 和发布都绝不反向改写 canonical package。
 
 ### Phase 6：交付包、视觉、排版与发布
 
@@ -287,7 +296,15 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `revision-report.yaml`
 - `acceptance-report.md`
 
-`acceptance-report.md` 必须列出交付包清单、缺失项、canonical final 的内容验收结果、可选视觉/HTML/平台草稿的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
+`acceptance-report.md` 必须列出交付包清单、缺失项、canonical final 的内容验收结果、当前渠道必要产物的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
+
+主写作的完整交付还必须满足当前 `channel-contract.yaml`：
+
+- `wechat`：`final.md` 作为渠道正文，并组合现有 Baoyu 能力生成 `formatted.md`、`wechat.html` 与 `cover.png`；
+- `x-post`：`final.md` 是一条完成渠道审查的 X 单帖；
+- `x-thread`：`final.md` 是逐条完成长度和渠道审查的 X Thread。
+
+只在核心交付包和当前渠道必要产物都有效时标记完成。当前渠道失败只影响本任务，不修改其输入材料或之前完成的 Rewrite；第二个渠道始终作为新的 Rewrite 处理。
 
 标准写作实际使用 Snapshot 素材时，在 `final.md` 与 `acceptance-report.md` 已存在后，用 Personal Context Runtime 写入 `context-usage.json`，记录精确 `item_id`、purpose、section/claim 和两个 artifact。交付前运行 `writing-master context verify-run {run_dir}`；校验失败时保留既有产物并报告失败，不把任务标为已完成。
 
@@ -297,11 +314,11 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `claims.yaml` 已明确关键主张；
 - `asset-manifest.yaml` 已区分原始素材与编辑生成素材；
 - `storyboard.md` 已定义每张图的职责；
-- 用户本次请求包含视觉生产，或用户在方案阶段确认执行。
+- 用户本次请求包含视觉生产、用户在方案阶段确认执行，或当前渠道合同把对应视觉列为必要派生产物。
 
-闸门通过后，按 `references/baoyu-integration.md` 路由配图、封面、信息图或单图生成。Markdown 格式化和公众号 HTML 只要求已验收的 canonical final 与适用的 `channel-contract.yaml`，不要求 storyboard、`asset-manifest.yaml` 或图像类视觉意图。未请求视觉、HTML 或平台草稿时，它们不构成交付包缺失项。
+闸门通过后，按 `references/baoyu-integration.md` 路由配图、封面、信息图或单图生成。Markdown 格式化和公众号 HTML 只要求已验收的 canonical final 与适用的 `channel-contract.yaml`，不要求 storyboard、`asset-manifest.yaml` 或图像类视觉意图。`wechat` 合同声明的格式化、HTML 和封面属于本次渠道必要产物；其他未请求视觉不构成交付包缺失项。
 
-准备发布和实际发布是两个状态。先保存草稿和最终验收报告；只有用户明确发出发布指令时，才路由 `baoyu-post-to-wechat` 或 `baoyu-post-to-x`。平台失败只记录在对应平台产物中，不修改 canonical final 或其他平台版本。
+准备发布和实际发布是两个状态。渠道适配 P0 在完整成品处结束，不自动发布；只有用户之后明确发出发布指令时，才把它作为独立动作路由 `baoyu-post-to-wechat` 或 `baoyu-post-to-x`。发布失败不修改 canonical final。
 
 完成后，用户可以独立请求 Rewrite、视觉、排版、发布、保存为个人素材或以此任务创建新任务起点；这些动作都创建关联产物，不改变 canonical final。
 

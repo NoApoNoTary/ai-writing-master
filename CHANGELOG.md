@@ -10,7 +10,8 @@
 - 增加深度写作的 Researcher、Editorial Strategist、Writer、Auditor 角色卡和文件化 Context Packet 协议。
 - 增加 `sources.yaml`、`claims.yaml`、`asset-manifest.yaml` 与 `storyboard.md` 的证据/素材契约。
 - 增加 Baoyu 的 capability/material preflight，以及 Planning、Production、Publish 分阶段路由。
-- 补齐 `writing-rewrite` 的小红书/抖音平台 YAML，以及多平台改写和质量门槛参考文件。
+- 增加渠道适配 P0：`writing-master` 从零创作与 `writing-rewrite` 已有正文改写双入口，每次任务只接受一个 `target_id`。
+- 增加微信、X 单帖、X Thread 渠道 YAML，以及 source hash / source-analysis 复用和完整交付合同。
 - 增加 Personal Context Runtime：版本化 Profile、五类素材、隐私准入、不可变任务 Snapshot、usage 与 hash 验证。
 - 增加 `writing-master learn`：可追溯 Style Observation、显式接受/拒绝和 accepted-only Style Profile。
 - 增加 `writing-master research`：3–10 个上下文感知候选、实时 Evidence、四维评分及任务 Brief/Snapshot 绑定。
@@ -32,6 +33,8 @@
 - Baoyu 调用原则调整为“早预检、早摄入、晚生成、明确指令后发布”。
 - 对齐运行时事实：深度模式 Handoff Runtime 已通过真实宿主验收；`quick/standard` 仍没有通用任务恢复，并在 CLI 指南列出 `handoff prepare|complete|show`。
 - 主写作流程按需在文章事实研究前执行 Topic Research，并只在用户明确决定后把 accepted 风格规则用于后续任务 Snapshot。
+- Rewrite 状态收缩为单目标结构；第二个渠道使用新 Rewrite，不引入批处理 Router 或目标数组。
+- 渠道适配任务在完整成品处结束；自动发布、X Article 和渠道数据反馈留在后续阶段。
 
 ### Fixed
 

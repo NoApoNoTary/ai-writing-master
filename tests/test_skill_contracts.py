@@ -179,7 +179,7 @@ class WritingSkillContractTests(unittest.TestCase):
             acceptance,
             "在视觉、排版、Rewrite 或发布前",
             "`acceptance-report.md` 中完成内容验收",
-            "验收通过后，`final.md` 成为只读 canonical final",
+            "验收通过后，`final.md` 成为本次所选渠道的只读 canonical final",
         )
         self.assert_in_order(
             downstream,
@@ -191,7 +191,7 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assert_in_order(
             production,
             "### Level 3：Production（canonical final 验收后）",
-            "`accepted_writing_master_final`",
+            "`accepted_final`",
             "`acceptance-report.md` 内容明确验收通过",
             "图像类视觉生产约束",
         )
@@ -199,8 +199,9 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assert_in_order(
             route_summary,
             "内容验收：canonical final",
-            "图像类视觉闸门通过：Baoyu 视觉 production",
+            "当前渠道必要视觉：Baoyu 视觉 production",
             "canonical final + channel contract：Baoyu 排版 / HTML",
+            "渠道完整交付",
         )
 
     def test_deep_protocol_orders_content_acceptance_before_optional_delivery(self):
@@ -209,8 +210,8 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assert_in_order(
             orchestration,
             "Lead：标题与 canonical final 内容验收",
-            "可选视觉、HTML 或平台草稿",
-            "Lead：交付包验收与发布确认",
+            "当前渠道合同要求的完整产物",
+            "Lead：交付包验收",
         )
 
     def test_deep_personal_context_is_manifest_only_not_os_isolation(self):
@@ -312,10 +313,11 @@ class WritingSkillContractTests(unittest.TestCase):
     def test_rewrite_reads_real_platform_contracts(self):
         rewrite = read("skills/writing-rewrite/SKILL.md")
 
-        self.assertIn("references/multiplatform-rewrite.md", rewrite)
+        self.assertIn("references/single-target-rewrite.md", rewrite)
         self.assertIn("references/quality-gates.md", rewrite)
-        self.assertIn("platforms/xiaohongshu.yaml", rewrite)
-        self.assertIn("platforms/douyin.yaml", rewrite)
+        self.assertIn("platforms/wechat.yaml", rewrite)
+        self.assertIn("platforms/x-post.yaml", rewrite)
+        self.assertIn("platforms/x-thread.yaml", rewrite)
         self.assertIn("机械语言预警", rewrite)
         self.assertNotIn("姐妹们", rewrite)
         self.assertNotIn("别划走", rewrite)
@@ -323,41 +325,170 @@ class WritingSkillContractTests(unittest.TestCase):
     def test_rewrite_distinguishes_accepted_final_from_standalone_input(self):
         rewrite = read("skills/writing-rewrite/SKILL.md")
         runtime = section(rewrite, "## 运行约定")
-        inputs = section(rewrite, "## Phase 0：输入与任务目录")
+        inputs = section(rewrite, "## Phase 0：输入、单目标与任务目录")
         gates = section(
             read("skills/writing-rewrite/references/quality-gates.md"),
-            "## 0. 来源准入门槛",
+            "## 0. 来源与单目标准入门槛",
         )
 
         self.assertIn(
-            "源稿分类只能是 `accepted_writing_master_final` 或 `standalone_user_input`",
+            "`source_ref` 只能是 `accepted_final` 或 `standalone_input`",
             runtime,
         )
         self.assert_in_order(
             inputs,
-            "`accepted_writing_master_final`",
-            "已验收的 `final.md`",
-            "`acceptance-report.md` 确认内容验收通过",
-            "`standalone_user_input`",
+            "`accepted_final`",
+            "已验收 canonical package",
+            "`final.md`",
+            "`acceptance-report.md` 必须确认内容验收通过",
+            "`standalone_input`",
             "用户直接提供的文件或当前对话中的完整正文",
             "`source.md` 只读",
         )
         self.assertIn("未验收的 `draft-v1.md`、`draft-v2.md` 或 `final.md` 不得进入 Rewrite", inputs)
+        self.assertIn("`sources.yaml` 与 `claims.yaml`", inputs)
         self.assertIn("不要求 Writing Master 的验收报告", inputs)
-        self.assertIn("`standalone_user_input` 只限用户直接提供的文件或完整正文", gates)
+        self.assertIn("`standalone_input` 只限用户直接提供的文件或完整正文", gates)
         self.assertIn("不得改写 canonical source", gates)
 
     def test_rewrite_p0_has_no_fresh_context_or_multi_agent_path(self):
         rewrite = read("skills/writing-rewrite/SKILL.md")
         runtime = section(rewrite, "## 运行约定")
-        platform_rewrite = section(rewrite, "## Phase 3：独立平台改写")
+        channel_rewrite = section(rewrite, "## Phase 3：单渠道改写")
 
         self.assertIn("P0 默认并始终使用当前 Agent", runtime)
-        self.assertIn("深度或多 Agent 改写尚未定义真实平台角色与 Handoff 合同", runtime)
+        self.assertIn("深度或多 Agent 改写尚未定义真实渠道角色与 Handoff 合同", runtime)
         self.assertIn("等待用户确认标准改写或取消", runtime)
         self.assertNotIn("fresh-context", rewrite)
-        self.assertIn("当前 Agent 对每个平台都只读取", platform_rewrite)
-        self.assertIn("不把一个平台版本作为另一个平台的输入", platform_rewrite)
+        self.assertIn("本次 Rewrite 不读取任何其他渠道正文", channel_rewrite)
+        self.assertIn("不把已完成版本作为当前版本的输入", channel_rewrite)
+
+    def test_channel_p0_is_single_target_with_two_entries(self):
+        main = read("skills/writing-master/SKILL.md")
+        rewrite = read("skills/writing-rewrite/SKILL.md")
+        prd = read("docs/proposals/2026-07-29-channel-adaptation-p0-prd.md")
+
+        self.assertIn('\"entry\": \"writing\"', main)
+        self.assertIn("每个任务只选择一个 `target_id`", main)
+        self.assertIn("一次要求多个渠道", main)
+        self.assertIn("只确认本次一个 `target_id`", main)
+        self.assertIn("一个 run 只接受一个 `target_id`", rewrite)
+        self.assertIn("`target_id` 是标量", rewrite)
+        self.assertIn("第二个渠道时新建一次 Rewrite", rewrite)
+        self.assertIn("output_filename: final.md", main)
+        self.assertIn("`rewrite_output_filename` 只供 Rewrite 使用", main)
+        self.assertIn("entry: writing | rewrite", prd)
+        self.assertIn("`writing` → `writing-master`", prd)
+        self.assertIn("`rewrite` → `writing-rewrite`", prd)
+        self.assertNotRegex(prd, r"Intent\s+Selector")
+        self.assertNotRegex(prd, r"全.{0,2}生成")
+
+    def test_second_rewrite_reuses_source_analysis_by_hash(self):
+        rewrite = read("skills/writing-rewrite/SKILL.md")
+        analysis = section(rewrite, "## Phase 2：生成或复用 source analysis")
+        delivery = section(rewrite, "## Phase 8：完整交付")
+
+        self.assert_in_order(
+            analysis,
+            "`source_sha256` 与本次 `source.md` 完全一致",
+            "`rewrite-status.json.source_analysis_sha256` 一致",
+            "同一分析 hash 写入新 run",
+            "分析文件只读",
+            "任一 hash 不一致时为当前 source 重新分析",
+        )
+        self.assertIn("是否复用及其 hash", delivery)
+        self.assertIn("voice_basis:", analysis)
+        self.assertIn("supporting_artifacts:", analysis)
+        self.assertIn("冻结 Voice Snapshot", analysis)
+        self.assertIn("短渠道 final 不会丢掉已经完成的研究依据", analysis)
+        self.assertIn("不写 `target_id`、渠道结构或渠道输出决定", analysis)
+
+    def test_wechat_x_post_and_x_thread_contracts_are_complete(self):
+        expected = {
+            "wechat.yaml": ("wechat", "wechat.html", "cover.png"),
+            "x-post.yaml": ("x-post", "max_chars: 280", "single_post", "length_validator: x_composer_preview"),
+            "x-thread.yaml": ("x-thread", "max_chars_per_post: 280", "thread", "length_validator: x_composer_preview"),
+        }
+
+        for filename, tokens in expected.items():
+            contract = read(f"skills/writing-rewrite/platforms/{filename}")
+            self.assertIn(f"target_id: {tokens[0]}", contract)
+            for token in tokens[1:]:
+                self.assertIn(token, contract)
+            for field in (
+                "output_kind:",
+                "rewrite_output_filename:",
+                "min_chars:",
+                "max_chars:",
+                "needs_images:",
+                "required_derivatives:",
+                "rewrite_brief:",
+            ):
+                self.assertIn(field, contract)
+            top_level_keys = [
+                line.split(":", 1)[0]
+                for line in contract.splitlines()
+                if line and not line[0].isspace() and ":" in line
+            ]
+            self.assertEqual(len(top_level_keys), len(set(top_level_keys)))
+            self.assertNotIn("output_filename", top_level_keys)
+
+        platform_dir = ROOT / "skills/writing-rewrite/platforms"
+        self.assertEqual(
+            {path.name for path in platform_dir.glob("*.yaml")},
+            set(expected),
+        )
+
+    def test_rewrite_status_and_review_bind_one_target_to_source_hashes(self):
+        rewrite = read("skills/writing-rewrite/SKILL.md")
+        status = section(rewrite, "## Phase 0：输入、单目标与任务目录")
+        review = section(rewrite, "## Phase 4：渠道编辑审查")
+
+        for token in (
+            '\"target_id\": \"wechat | x-post | x-thread\"',
+            '\"source_ref\": \"accepted_final | standalone_input\"',
+            '\"source_sha256\": \"...\"',
+            '\"source_analysis_sha256\": null',
+            '\"output_sha256\": null',
+            '\"review_sha256\": null',
+            '\"derivatives_sha256\": {}',
+        ):
+            self.assertIn(token, status)
+        self.assertNotRegex(status, r'\"target' + r's\"')
+        for token in (
+            '\"target_id\": \"wechat | x-post | x-thread\"',
+            '\"source_sha256\": \"...\"',
+            '\"source_analysis_sha256\": \"...\"',
+            '\"output_sha256\": \"...\"',
+        ):
+            self.assertIn(token, review)
+
+        mechanical = section(rewrite, "## Phase 5：机械预警")
+        self.assertIn("不比较两个渠道成品之间的相似度", mechanical)
+        self.assertNotIn("x-post.md x-thread.md", mechanical)
+
+        delivery = section(rewrite, "## Phase 8：完整交付")
+        self.assertIn("source、analysis、output、review 与 derivative hash 全部匹配", delivery)
+
+        main_acceptance = section(
+            read("skills/writing-master/SKILL.md"),
+            "### Phase 5：标题与 canonical final 验收",
+        )
+        self.assertIn("冻结为 canonical package 的只读支持产物", main_acceptance)
+
+    def test_channel_p0_adds_no_router_adapter_or_third_entry(self):
+        skill_dirs = {
+            path.name for path in (ROOT / "skills").iterdir() if path.is_dir()
+        }
+        self.assertEqual(skill_dirs, {"writing-master", "writing-rewrite"})
+
+        runtime = ROOT / "src/writing_master"
+        python_files = {
+            path.relative_to(runtime).as_posix()
+            for path in runtime.rglob("*.py")
+        }
+        self.assertFalse(any("channel" in path or "adapter" in path for path in python_files))
+        self.assertFalse((runtime / "channels").exists())
 
     def test_voice_selection_is_part_of_the_content_contract_not_a_waiting_gate(self):
         main = read("skills/writing-master/SKILL.md")

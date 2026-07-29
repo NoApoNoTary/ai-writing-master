@@ -1,0 +1,22 @@
+target_id: x-post
+label: X 单帖
+output_kind: single_post
+rewrite_output_filename: x-post.md
+min_chars: 40
+max_chars: 280
+length_unit: x_weighted_characters
+length_validator: x_composer_preview
+needs_images: false
+needs_html: false
+needs_cover: false
+tag_count: [0, 2]
+required_derivatives: []
+rewrite_brief: |
+  X 单帖，目标是在一条帖子内交付一个可独立成立的判断。
+  - 只输出一条帖子，不拆成 Thread，也不使用长帖权限替代单帖合同。
+  - 第一行直接给出判断、反差或具体发现；后文补足最必要的证据与边界。
+  - 删除背景枝节，但不得把有限结论改写成普遍结论。
+  - 结尾可提出一个与正文直接相关的问题或行动，不使用通用互动口号。
+  - 交付前以 X composer 的 weighted length 结果校验 280 上限；链接和 CJK
+    字符按平台计数规则处理。
+  - 标签只在帮助检索时使用，最多两个。
