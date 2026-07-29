@@ -103,8 +103,8 @@ Writing Master 在 Phase 0 把所选合同的共享字段复制为任务内 `cha
 | `target_id` | 完整交付 |
 |---|---|
 | `wechat` | 渠道正文、`formatted.md`、`wechat.html`、`cover.png` |
-| `x-post` | 一条通过长度、事实和渠道审查的帖子 |
-| `x-thread` | 每条均通过长度、事实和渠道审查的完整 Thread |
+| `x-post` | 一条通过事实、渠道审查及实际 composer 预览的帖子 |
+| `x-thread` | 每条均通过事实、渠道审查及实际 composer 预览的完整 Thread |
 
 微信排版、HTML 和封面继续组合现有 Baoyu Skills。发布是交付后的独立用户动作。
 
@@ -129,6 +129,8 @@ Writing Master 在 Phase 0 把所选合同的共享字段复制为任务内 `cha
 
 `completed` 必须绑定当前 source、analysis、渠道正文、Review 和必要派生产物的 hash。当前 Rewrite 失败时保留 source、分析、正文草稿和审查记录，结束当前 run。它不修改来源 canonical final，也不改变之前完成的 Rewrite。
 
+X 的 280 weighted length 不由仓库内字符估算冒充。`x-post` 和 `x-thread` 必须在 Review 中记录实际 composer 预览或用户提供的同文预览证据；能力或证据缺失时保存草稿并以 `failed` 结束。
+
 ## 7. P0 边界
 
 P0 不包含：
@@ -144,6 +146,6 @@ P0 不包含：
 2. 单次任务只有一个标量 `target_id`。
 3. 第二次 Rewrite 在 source hash 一致时复用 `source-analysis.md`。
 4. Rewrite 不修改来源 canonical final，也不重新选择 Voice。
-5. `wechat`、`x-post`、`x-thread` 分别满足自己的 YAML 合同。
+5. `wechat` 满足自己的 YAML 合同；`x-post`、`x-thread` 还必须具有有效的 composer 预览证据。
 6. 当前渠道失败不影响原稿或之前完成的 Rewrite。
 7. 既有核心合同测试和完整测试集通过。

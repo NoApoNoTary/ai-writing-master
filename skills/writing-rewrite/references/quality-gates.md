@@ -28,7 +28,7 @@
 - 开头、段落节奏、互动方式适应该渠道。
 - 渠道元素服务于正文，不是固定 emoji、口号和标签的堆叠。
 - 内容在该渠道仍给读者明确价值或判断。
-- X 单帖只有一条；X Thread 每条都按合同的 `length_validator` 独立校验；微信正文保留完整论证。
+- X 单帖只有一条；X Thread 每条都按合同的 `manual_x_composer_preview` 独立取得实际预览或用户提供的同文预览证据；微信正文保留完整论证。
 
 该门槛由渠道 Reviewer 完成。
 
@@ -52,6 +52,7 @@ writing-master similarity source.md <rewrite_output_filename> --json
 - YAML `required_derivatives` 中的每个产物均已生成并记录路径。
 - status 的 `derivatives_sha256` 覆盖每个必要派生产物并匹配当前文件。
 - `wechat` 交付包含格式化 Markdown、公众号 HTML 和封面；`x-post` 与 `x-thread` 交付各自完整正文。
+- `x-post` 与 `x-thread` 的 Review 记录有效的 composer 预览证据；缺少证据时保留草稿并标记 `failed`，不把字符估算写成通过。
 - Rewrite、视觉和格式只写渠道产物，不覆盖 `source.md` 或来源任务的 canonical `final.md`。
 - 必要派生产物失败时，当前 Rewrite 结束为 `failed`，保留已完成文件和重试入口；原稿与之前完成的 Rewrite 保持不变。
 

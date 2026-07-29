@@ -90,6 +90,8 @@ rewrite-status.json
 
 平台 YAML 是长度、输出类型、图片、HTML、封面、标签、必要派生产物和 `rewrite_brief` 的真实来源。不要同时加载其他目标合同，也不要使用未写入 YAML 的固定模板。
 
+`x-post` 与 `x-thread` 的 `manual_x_composer_preview` 是显式外部验收能力：开始正文前先确认当前宿主能取得实际 composer 预览，或用户会提供同一正文的预览证据。两者都没有时仍可保存草稿，但本次 Rewrite 必须以 `failed` 结束，不得声称通过 280 weighted length 校验。
+
 ## Phase 2：生成或复用 source analysis
 
 首次处理该 source hash 时生成 `source-analysis.md`：
@@ -162,6 +164,11 @@ optional_details:
   "source_sha256": "...",
   "source_analysis_sha256": "...",
   "output_sha256": "...",
+  "length_validation": {
+    "validator": "manual_x_composer_preview | not_applicable",
+    "status": "pass | unavailable | not_applicable",
+    "evidence": ["预览时间、截图路径或用户确认；Thread 每条各一项，不适用时为空"]
+  },
   "editorial_decision": "pass | revise",
   "fact_issues": [],
   "channel_issues": [],
@@ -171,6 +178,8 @@ optional_details:
 ```
 
 生成审查文件前先计算当前渠道正文的 `output_sha256`。Review 中的 source、analysis 与 output hash 必须指向本次当前文件。正文发生变化时，原审查结论失效，必须重新审查并更新 `output_sha256`；此阶段 `review_sha256` 保持为 null，直到机械结果附加完成。
+
+X 渠道的 `length_validation.status` 只有在实际 composer 预览或用户提供的同文预览证据确认通过后才能写为 `pass`。字符数估算、编辑器字数或模型自行判断都不能替代该证据；正文变化会使原长度证据失效。微信使用 `not_applicable`。
 
 ## Phase 5：机械预警
 
@@ -208,8 +217,8 @@ writing-master similarity source.md <rewrite_output_filename> --json
 正文通过渠道审查后，读取 YAML 的 `required_derivatives`：
 
 - `wechat`：组合 `baoyu-format-markdown`、`baoyu-markdown-to-html` 与 `baoyu-cover-image`，生成 `formatted.md`、`wechat.html` 和 `cover.png`；
-- `x-post`：交付一条通过长度与渠道审查的 `x-post.md`；
-- `x-thread`：交付逐条通过长度与渠道审查的 `x-thread.md`。
+- `x-post`：在 `manual_x_composer_preview` 证据通过后交付 `x-post.md`；
+- `x-thread`：每条都取得 `manual_x_composer_preview` 证据后交付 `x-thread.md`。
 
 每个必要派生产物完成后计算 SHA-256，写入 `rewrite-status.json.derivatives_sha256`。必要能力或派生产物失败时，当前 Rewrite 标记为 `failed`，并记录已保留正文、失败步骤和重试入口；不汇总其他任务的成功或失败。视觉和格式只写派生产物，不覆盖渠道正文、`source.md` 或来源任务的 canonical `final.md`。
 
@@ -228,7 +237,7 @@ writing-master similarity source.md <rewrite_output_filename> --json
 - YAML 要求的派生产物；
 - 已知剩余问题。
 
-只有渠道正文、渠道审查和必要派生产物都完成，且 status 中的 source、analysis、output、review 与 derivative hash 全部匹配当前文件时，`rewrite-status.json.status` 才写为 `completed`。
+只有渠道正文、渠道审查和必要派生产物都完成，X 渠道长度证据为 `pass`，且 status 中的 source、analysis、output、review 与 derivative hash 全部匹配当前文件时，`rewrite-status.json.status` 才写为 `completed`。
 
 ## 参考文件
 

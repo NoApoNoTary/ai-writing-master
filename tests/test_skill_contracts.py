@@ -492,8 +492,8 @@ class WritingSkillContractTests(unittest.TestCase):
     def test_wechat_x_post_and_x_thread_contracts_are_complete(self):
         expected = {
             "wechat.yaml": ("wechat", "wechat.html", "cover.png"),
-            "x-post.yaml": ("x-post", "max_chars: 280", "single_post", "length_validator: x_composer_preview"),
-            "x-thread.yaml": ("x-thread", "max_chars_per_post: 280", "thread", "length_validator: x_composer_preview"),
+            "x-post.yaml": ("x-post", "max_chars: 280", "single_post", "length_validator: manual_x_composer_preview"),
+            "x-thread.yaml": ("x-thread", "max_chars_per_post: 280", "thread", "length_validator: manual_x_composer_preview"),
         }
 
         for filename, tokens in expected.items():
@@ -546,8 +546,14 @@ class WritingSkillContractTests(unittest.TestCase):
             '\"source_sha256\": \"...\"',
             '\"source_analysis_sha256\": \"...\"',
             '\"output_sha256\": \"...\"',
+            '\"validator\": \"manual_x_composer_preview | not_applicable\"',
+            '\"status\": \"pass | unavailable | not_applicable\"',
         ):
             self.assertIn(token, review)
+
+        self.assertIn("实际 composer 预览或用户提供的同文预览证据", rewrite)
+        self.assertIn("字符数估算、编辑器字数或模型自行判断都不能替代", rewrite)
+        self.assertIn("Thread 每条各一项", review)
 
         mechanical = section(rewrite, "## Phase 5：机械预警")
         self.assertIn("不比较两个渠道成品之间的相似度", mechanical)
@@ -555,6 +561,7 @@ class WritingSkillContractTests(unittest.TestCase):
 
         delivery = section(rewrite, "## Phase 8：完整交付")
         self.assertIn("source、analysis、output、review 与 derivative hash 全部匹配", delivery)
+        self.assertIn("X 渠道长度证据为 `pass`", delivery)
 
         main_acceptance = section(
             read("skills/writing-master/SKILL.md"),
