@@ -59,6 +59,116 @@ class HandoffTests(unittest.TestCase):
         handoff.complete(self.run)
         return prepared
 
+    def handoff_cli(self, *args):
+        result = subprocess.run(
+            [os.sys.executable, "-m", "writing_master", "handoff", *map(str, args)],
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
+    def handoff_cli_fails(self, *args):
+        result = subprocess.run(
+            [os.sys.executable, "-m", "writing_master", "handoff", *map(str, args)],
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        return result.stderr
+
+    def prepare_via_cli(self):
+        manifest_path = Path(self.handoff_cli(
+            "prepare", self.run,
+            "--to-role", "researcher",
+            "--phase", "research",
+            "--objective", "objective",
+            "--decision-to-inform", "decision",
+            "--input", "brief.md",
+            "--write", "output.md",
+            "--done-criterion", "done",
+        ))
+        return {
+            "attempt_dir": manifest_path.parent,
+            "manifest": json.loads(manifest_path.read_text(encoding="utf-8")),
+        }
+
+    def test_public_cli_prepare_start_complete_show_cycle(self):
+        prepared = self.prepare_via_cli()
+        self.assertEqual(
+            self.handoff_cli("start", self.run, "--agent-ref", "codex-research-01"),
+            "running",
+        )
+        self.finish(prepared, actual_paths=True)
+        self.assertEqual(self.handoff_cli("complete", self.run), "completed")
+
+        shown = json.loads(self.handoff_cli("show", self.run, "--json"))
+        self.assertEqual(shown["effective_status"], "completed")
+        self.assertEqual(shown["agent_ref"], "codex-research-01")
+        self.assertEqual((self.run / "output.md").read_text(encoding="utf-8"), "output.md content")
+
+    def test_public_cli_recover_lost_creates_attempt_02(self):
+        first = self.prepare_via_cli()
+        self.handoff_cli("start", self.run, "--agent-ref", "lost-codex-agent")
+        retry_manifest = Path(self.handoff_cli(
+            "recover-lost", self.run, "--agent-ref", "lost-codex-agent",
+        ))
+
+        first_state = json.loads((first["attempt_dir"] / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(first_state["status"], "failed")
+        self.assertEqual(first_state["reason"], "host_failure")
+        self.assertEqual(retry_manifest.parent.name, "attempt-02")
+        self.assertEqual(json.loads(retry_manifest.read_text(encoding="utf-8"))["attempt"], 2)
+        self.assertEqual(json.loads(self.handoff_cli("show", self.run, "--json"))["effective_status"], "prepared")
+
+    def test_public_cli_start_fails_when_inputs_became_stale(self):
+        self.prepare_via_cli()
+        (self.run / "brief.md").write_text("changed", encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                os.sys.executable,
+                "-m",
+                "writing_master",
+                "handoff",
+                "start",
+                str(self.run),
+                "--agent-ref",
+                "must-not-spawn",
+            ],
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("input hash changed: brief.md", result.stderr)
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["effective_status"], "stale")
+        self.assertIsNone(shown["agent_ref"])
+
+    def test_public_cli_lifecycle_rejects_symlinked_run_directory(self):
+        self.prepare_via_cli()
+        alias = self.run.with_name(f"{self.run.name}-alias")
+        alias.symlink_to(self.run, target_is_directory=True)
+
+        for command in (
+            (
+                "prepare", alias,
+                "--to-role", "researcher", "--phase", "retry", "--objective", "objective",
+                "--decision-to-inform", "decision", "--input", "brief.md", "--write", "output.md",
+                "--done-criterion", "done",
+            ),
+            ("start", alias, "--agent-ref", "agent"),
+            ("recover-lost", alias, "--agent-ref", "agent"),
+            ("complete", alias),
+            ("show", alias, "--json"),
+        ):
+            self.assertIn("run directory contains a symlink", self.handoff_cli_fails(*command))
+
+        self.assertEqual(handoff.show(self.run)["handoff"]["status"], "prepared")
+
     def test_fake_host_full_chain_and_new_process_resume(self):
         research = self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml", "sources.yaml"])
         strategy = self.complete_stage("editorial_strategist", "strategy", ["claims.yaml", "sources.yaml"], ["outline.md"])
@@ -464,6 +574,22 @@ class HandoffTests(unittest.TestCase):
             handoff.recover_lost_running(self.run, "other-agent")
         second = handoff.recover_lost_running(self.run, "replacement-agent")
         self.assertEqual(second["prepared"]["manifest"]["attempt"], 3)
+
+    def test_recover_lost_can_resume_after_interrupted_retry_creation(self):
+        first = self.prepare()
+        handoff.mark_running(self.run, "lost-agent")
+
+        with patch("writing_master.handoff.prepare", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                handoff.recover_lost_running(self.run, "lost-agent")
+
+        first_state = json.loads((first["attempt_dir"] / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(first_state["status"], "failed")
+        self.assertEqual(first_state["reason"], "host_failure")
+        self.assertEqual(first_state["agent_ref"], "lost-agent")
+
+        recovered = handoff.recover_lost_running(self.run, "lost-agent")
+        self.assertEqual(recovered["prepared"]["manifest"]["attempt"], 2)
 
     def test_damaged_completed_stage_blocks_downstream_and_allows_same_stage_retry(self):
         research = self.complete_stage("researcher", "research", ["brief.md"], ["claims.yaml"])

@@ -7,15 +7,14 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from writing_master.handoff import HandoffError, _lock_fd
+from writing_master._runfs import RunFsError, run_directory, run_lock
 from writing_master.personal_context import (
     ContextError,
-    _publish_json_once_at,
     atomic_write_json_at,
     canonical_sha256,
+    publish_json_once_at,
     read_json_at,
 )
-from writing_master.research_brief import _run_directory_fd
 
 
 SCHEMA_VERSION = 1
@@ -394,8 +393,8 @@ class VoicePresetStore:
             isinstance(selector, str) and selector.strip().casefold() in {DEFAULT_VOICE_ID, "自然默认"}
         )
         try:
-            with _run_directory_fd(run_dir) as run_fd:
-                with _lock_fd(run_fd):
+            with run_directory(run_dir) as (run_fd, _):
+                with run_lock(run_fd):
                     task_id = self._task_id_at(run_fd)
                     status = read_json_at(run_fd, "status.json")
                     existing = self._read_snapshot_at(run_fd)
@@ -475,7 +474,7 @@ class VoicePresetStore:
                     snapshot["snapshot_sha256"] = canonical_sha256(snapshot)
                     validate_snapshot(snapshot)
                     try:
-                        published = _publish_json_once_at(run_fd, SNAPSHOT_FILE, snapshot)
+                        published = publish_json_once_at(run_fd, SNAPSHOT_FILE, snapshot)
                     except ContextError as error:
                         raise VoiceError(error.code, str(error)) from error
                     if not published:
@@ -485,29 +484,29 @@ class VoicePresetStore:
                         snapshot = winner
                     self._write_status_at(run_fd, status, snapshot, "ready")
                     return snapshot
-        except HandoffError as error:
-            raise VoiceError("path_escape", str(error)) from error
+        except RunFsError as error:
+            raise VoiceError(error.code, str(error)) from error
         except ContextError as error:
             raise VoiceError(error.code, str(error)) from error
 
     def verify_run(self, run_dir: Path | str) -> dict:
         try:
-            with _run_directory_fd(run_dir) as run_fd:
-                with _lock_fd(run_fd):
+            with run_directory(run_dir) as (run_fd, _):
+                with run_lock(run_fd):
                     result, _ = self._verify_at(run_fd)
                     return result
-        except HandoffError as error:
-            raise VoiceError("path_escape", str(error)) from error
+        except RunFsError as error:
+            raise VoiceError(error.code, str(error)) from error
         except ContextError as error:
             raise VoiceError(error.code, str(error)) from error
 
     def read_task_profile(self, run_dir: Path | str) -> dict | None:
         try:
-            with _run_directory_fd(run_dir) as run_fd:
-                with _lock_fd(run_fd):
+            with run_directory(run_dir) as (run_fd, _):
+                with run_lock(run_fd):
                     verified, snapshot = self._verify_at(run_fd)
-        except HandoffError as error:
-            raise VoiceError("path_escape", str(error)) from error
+        except RunFsError as error:
+            raise VoiceError(error.code, str(error)) from error
         except ContextError as error:
             raise VoiceError(error.code, str(error)) from error
         if verified["voice_snapshot"] != "ready":

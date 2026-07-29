@@ -5,14 +5,25 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg)](pyproject.toml)
 
+## 文档入口
+
+**普通用户唯一上手入口：** [用户上手指南](docs/quick-start.md)，覆盖第一次写作、补充素材和修改结果。
+
+技术资料按需阅读：
+
+- 从 Shell 调用或编写自动化：[CLI 工具指南](docs/cli-guide.md)；
+- 维护仓库或核对实现边界：[项目现状与迁移核对](PROJECT_SUMMARY.md)。
+
+本 README 只提供项目定位、安装和能力概览；普通用户的连续操作步骤只在用户上手指南维护。`docs/goals/`、`docs/plans/` 和 `docs/proposals/` 属于工程记录，不进入普通用户主路径。
+
 ## 项目定位
 
 这个仓库目前提供两个可安装的 Skill：
 
 | Skill | 用途 |
 |---|---|
-| `writing-master` | 从零创作完整文章；包含三种模式、证据与素材双轨、审校和 Baoyu 路由 |
-| `writing-rewrite` | 对已有文章进行内容重构；内置小红书和抖音平台合同 |
+| `writing-master` | 从零创作一个渠道成品；包含三种模式、证据与素材双轨、审校和 Baoyu 路由 |
+| `writing-rewrite` | 对已有正文进行单渠道重构；P0 内置微信、X 单帖和 X Thread 合同 |
 
 它不是十几个独立 Skill 的集合。选题、调研、结构、标题、审校和素材规划目前都是 `writing-master` 内部模块，不应路由到并不存在的 `writing-topic`、`writing-review` 等名称。
 
@@ -28,9 +39,9 @@
 | 标准写作 | 当前 Agent | 常规长文和可发布文章；默认推荐 |
 | 深度写作 | 宿主具备真实子代理能力时由 Lead + 专项角色执行 | 重要长文，需要隔离研究、写作和审计上下文 |
 
-**多 Agent 不是默认入口。** 对新建完整文章，只有用户选择深度写作时才进入角色协议；实际创建子代理还取决于宿主能力。用户已经在当前请求中说出“快速”“标准”“深度”或“多 Agent 写作”等明确模式时，直接采用，不重复询问，也不根据题目难度隐式代选。
+**多 Agent 不是默认入口。** 对新建完整文章，只有用户选择深度写作时才进入角色协议；实际创建子代理还取决于宿主能力。用户已经在当前请求中说出“快速”“标准”“深度”或“多 Agent 写作”等明确模式时，直接采用，不重复询问，也不根据题目难度隐式代选。所选模式未就绪时，任务在素材提取、调研和写作前停止，不自动切换到其他模式。
 
-洗稿、平台改写和只做标题、审校、选题等单一模块请求不触发这道完整文章模式闸门。`writing-rewrite` 在 P0 始终由当前 Agent 单独执行；每个平台从同一个只读源稿独立生成。深度或多 Agent 改写不属于当前 P0。
+已有正文改写和只做标题、审校、选题等单一模块请求不触发这道完整文章模式闸门。`writing-rewrite` 在 P0 始终由当前 Agent 单独执行；每次只生成一个 `target_id`。需要第二个渠道时创建新的 Rewrite，并复用相同 source hash、canonical package 支持产物与 `source-analysis.md`。深度或多 Agent 改写不属于当前 P0。
 
 ## 工作流
 
@@ -38,15 +49,16 @@
 
 ```text
 模式选择
-  → 内容契约（含写作声音）+ 能力/素材预检
+  → 所选模式就绪检查
+  → 单一 target_id + 内容契约（含写作声音）+ 能力/素材预检
   → 事实轨 + 素材轨调研
   → 角度、读者决策、大纲和 storyboard
   → 初稿
   → 证据层、编辑层、声音层审校
-  → 标题与内容验收（形成 canonical final）
-  → 按需视觉、HTML 或平台草稿
+  → 渠道审校与内容验收（形成该渠道 canonical final）
+  → 当前渠道必要产物
   → 交付包验收
-  → 明确发布指令后发布
+  → 后续明确发布指令才进入独立发布动作
 ```
 
 深度写作的角色协议沿用同一条链路；宿主具备真实子代理能力时，才把高干扰环节拆给 fresh-context 角色：
@@ -57,15 +69,16 @@
 - `Auditor`：独立检查证据、编辑质量和声音偏差；
 - `Lead`：维护状态、用户确认、问题合并、Baoyu 闸门和最终验收。
 
-代理之间通过运行目录中的文件产物通信，不把父对话全文复制给所有角色。深度模式 Handoff Runtime 已通过运行时和真实宿主验收：它对已建立的 `mode=deep`、`execution=multi_agent` 运行目录校验 Manifest、Result、hash、stale 与 attempt 历史，并可从该目录复核当前 handoff。它不是通用任务管理器；`quick/standard` 仍没有通用的确定性跨会话任务恢复服务。
+代理之间通过运行目录中的文件产物通信，不把父对话全文复制给所有角色。深度模式 Handoff Runtime 已通过运行时和真实宿主验收：它对已建立的 `mode=deep`、`execution=multi_agent` 运行目录校验 Manifest、Result、hash、stale 与 attempt 历史，并可从该目录复核当前 handoff。运行目录锚定与锁定当前是 Linux staging 边界，不承诺跨平台实现。它不是通用任务管理器；`quick/standard` 仍没有通用的确定性跨会话任务恢复服务。
 
 ## P0：任务摘要、确认与交付
 
-标准写作的用户主链是：**任务状态 → 素材接收 → 内容契约确认 → 调研、写作与审校 → 内容验收 → 按需视觉/HTML/平台草稿 → 交付包验收**。每个等待用户决定的节点，Agent 应展示用户可读摘要，而不是内部 schema：
+标准写作的用户主链是：**任务状态 → 素材接收 → 单一渠道内容契约确认 → 调研、写作与审校 → 内容验收 → 渠道必要产物 → 交付包验收**。每个等待用户决定的节点，Agent 应展示用户可读摘要，而不是内部 schema：
 
 ```text
 任务：TASK_ID（已建立任务目录时显示）
 模式：标准写作
+渠道：wechat
 写作声音：自然默认
 voice_snapshot：ready
 阶段：等待内容契约确认
@@ -75,11 +88,11 @@ voice_snapshot：ready
 
 素材接收先报告已接收、已提取、等待处理、失败和待确认项；接收或提取不表示其中事实已经接受。进入正文的陈述仍关联来源和 `claim_id`，真实素材与后续生成的编辑视觉也保持不同身份。
 
-内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、平台、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消；未请求发布时只准备可审阅产物。
+内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、一个 `target_id`、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消。
 
-先完成内容验收，使 `final.md` 成为 canonical final；仅在其后生成本次要求的视觉资产、HTML 或平台草稿。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加本次明确要求的派生产物。
+先完成内容验收，使 `final.md` 成为所选渠道的 canonical final；仅在其后生成渠道 YAML 要求的必要产物。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加当前渠道必要产物。微信完整交付包含格式化 Markdown、HTML 和封面；X 单帖与 X Thread 交付各自经过逐项渠道审查的正文。
 
-任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查、目录定位，以及已建立深度运行目录的确定性交接操作：`writing-master handoff prepare|complete|show`；这不扩大为 `quick/standard` 的通用续跑功能。
+任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查、目录定位，以及已建立深度运行目录的确定性交接操作：`writing-master handoff prepare|start|recover-lost|complete|show`；这不扩大为 `quick/standard` 的通用续跑功能。
 
 ## 素材与 Baoyu 路由
 
@@ -114,6 +127,8 @@ Baoyu Skills 是独立安装的能力，本仓库不复制它们的实现。`wri
 
 详细规则见 [`baoyu-integration.md`](skills/writing-master/references/baoyu-integration.md)。
 
+单渠道双入口的产品合同见[渠道适配 P0 PRD](docs/proposals/2026-07-29-channel-adaptation-p0-prd.md)。
+
 ## 安装
 
 ### 一键安装 Skills，并尝试安装 CLI
@@ -147,37 +162,9 @@ cd ~/ai-writing-master
 export PATH="$HOME/ai-writing-master/bin:$PATH"
 ```
 
-## 快速使用
+## 开始使用
 
-### 新建文章
-
-```text
-写一篇关于本地 AI Agent 工作流的公众号文章。
-```
-
-此时先选择快速、标准或深度模式。若希望直接跳过询问，在请求中明确模式：
-
-```text
-用深度写作模式，基于下面三个链接和两个本地截图写一篇公众号长文。
-```
-
-### 改写已有文章
-
-```text
-把 article.md 内容级改写成小红书版本，保留事实和立场，重构叙事顺序。
-```
-
-此请求进入 `writing-rewrite`，不启动深度写作代理链。
-
-### 只执行一个环节
-
-```text
-只帮我审校这篇文章，重点检查证据和空话。
-```
-
-单模块任务由当前 Agent 在 `writing-master` 内执行，不伪装成不存在的独立 Skill。
-
-更多示例见[快速开始指南](docs/quick-start.md)。
+普通用户从[用户上手指南](docs/quick-start.md)开始。该文档集中维护第一次写作、补充素材、修改结果、改写已有文章和任务停止后的处理方式；这里不再复制第二套操作教程。
 
 ## CLI：机械检查，不是编辑裁判
 
@@ -191,7 +178,11 @@ writing-master similarity source.md rewritten.md --json
 # 显示运行数据目录
 writing-master home
 
-# 检查已建立的深度模式 handoff
+# 深度模式 handoff 生命周期：prepare → start → recover-lost（宿主确认 Agent 丢失时）→ complete → show
+writing-master handoff prepare RUN_DIR --to-role researcher --phase research --objective OBJECTIVE --decision-to-inform DECISION --input brief.md --write output.md --done-criterion DONE
+writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF
+writing-master handoff complete RUN_DIR
 writing-master handoff show RUN_DIR --json
 
 # 显式管理个人上下文
@@ -286,8 +277,8 @@ ai-writing-master/
 │   │   └── references/             # 模式、证据、审校与 Baoyu 契约
 │   └── writing-rewrite/
 │       ├── SKILL.md
-│       ├── platforms/              # 小红书、抖音输出合同
-│       └── references/             # 多平台改写与质量门槛
+│       ├── platforms/              # 微信、X 单帖、X Thread 输出合同
+│       └── references/             # 单目标改写与质量门槛
 ├── src/writing_master/             # CLI 实现
 ├── bin/writing-master              # 无需安装的 CLI 启动脚本
 ├── docs/
@@ -299,14 +290,14 @@ ai-writing-master/
 
 ## 当前能力边界
 
-- 已交付：两个 Skill、三种新写作模式、深度模式角色协议、证据/素材契约、Baoyu 分阶段路由、小红书/抖音改写合同、机械文本检查和相似度命令，以及显式的个人上下文 Profile/Knowledge/Snapshot Runtime。
+- 已交付：两个 Skill、三种新写作模式、深度模式角色协议、证据/素材契约、Baoyu 分阶段路由、微信/X 单帖/X Thread 单目标合同、机械文本检查和相似度命令，以及显式的个人上下文 Profile/Knowledge/Snapshot Runtime。
 - Baoyu Skills 需要独立安装；仓库只负责能力发现和路由。
 - 仓库当前没有 Web UI、数据面板、内置发布实现、十个独立写作模块、示例工程或模板目录。
-- `writing-rewrite` 当前内置的平台合同只有小红书和抖音；其他平台需要先补对应合同再宣称支持。
+- 渠道适配 P0 只接受 `wechat`、`x-post`、`x-thread`；X Article、自动发布和渠道数据反馈不属于本阶段。
 - CLI 是确定性辅助工具；文章事实和编辑质量仍由研究与审校流程处理。
 - 深度模式 Handoff Runtime 已验收，覆盖已建立 deep/multi-agent 运行目录的交接、hash、stale、attempt 与真实宿主链路；`quick/standard` 的通用任务恢复仍未实现。
 
-项目现状和迁移核对见 [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)。
+维护者需要核对实现边界时再阅读 [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)；它不是普通用户教程。
 
 ## 来源与致谢
 

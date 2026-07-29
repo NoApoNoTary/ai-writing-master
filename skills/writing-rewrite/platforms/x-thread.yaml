@@ -1,0 +1,25 @@
+target_id: x-thread
+label: X Thread
+output_kind: thread
+rewrite_output_filename: x-thread.md
+min_chars: 320
+max_chars: 2800
+length_unit: x_weighted_characters_total
+length_validator: manual_x_composer_preview
+min_posts: 4
+max_posts: 10
+max_chars_per_post: 280
+needs_images: false
+needs_html: false
+needs_cover: false
+tag_count: [0, 2]
+required_derivatives: []
+rewrite_brief: |
+  X Thread，目标是用连续帖子展开一个完整判断，而不是把长文按字符切块。
+  - 第一条必须独立成立，明确冲突、发现或价值承诺。
+  - 每条只推进一个观点，并与前后条形成清晰因果、递进或对照关系。
+  - 事实、案例和限制条件分配到最相关的帖子，不在结尾统一补免责声明。
+  - 最后一条总结判断，并可加入一个与主题直接相关的 CTA 或讨论问题。
+  - 每条交付前必须取得 X composer 实际预览或用户提供的预览证据，校验 280
+    weighted length 上限；任一条缺少证据时只保留草稿，不标记完整交付。
+  - 输出使用清晰的帖子边界和顺序编号，便于逐条审查与发布。

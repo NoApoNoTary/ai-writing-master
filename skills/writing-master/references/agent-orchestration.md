@@ -2,6 +2,14 @@
 
 本文件只在 `mode=deep` 时读取。quick 和 standard 均由当前 Agent 完成。
 
+## 失败即停
+
+深度任务在首次素材提取、调研、生成或角色派发前，必须已经通过 `mode-selection.md` 的所选模式就绪闸门。就绪检查失败时使用 `WM-CAP-001` 结束任务；不创建 Handoff，不进入下面的执行图，也不切换为 quick 或 standard。
+
+运行途中，只有不改变深度模式隔离、独立研究和独立审计承诺的同模式恢复才可继续，例如 Runtime 能按既有 attempt 合同重试且输入、角色边界和验收标准保持不变。若异常已影响这些承诺，立即停止后续派发，保留已完成产物和 attempt 历史，使用 `WM-RUN-001`；不得由 Lead 或当前 Agent 补做缺失角色，也不得改走其他模式。
+
+用户正文只说明任务停在哪个用户阶段、没有切换模式、已有内容已保留，以及诊断编号。Runtime、Handoff、Agent、failure type 和内部异常栈只进入诊断详情。只提醒用户提交 Issue，不自动创建或生成 Issue 草稿。
+
 ## 拆分原则
 
 按长期稳定的编辑责任拆分角色，不采用“一步一个 Agent”。默认使用四类专项角色：
@@ -18,7 +26,7 @@ Lead Agent 负责模式、Brief、文件状态、用户确认、问题合并、B
 ## 执行图
 
 ```text
-Lead：模式 + 内容契约 + Baoyu preflight
+Lead：模式 + 单一 target_id + 内容契约 + Baoyu preflight
   ↓
 可选 Researcher：topic research brief（宽主题/近期选题）
   ↓ 用户确认候选方向
@@ -34,9 +42,9 @@ Writer：draft-v2/final + revision report
   ↓
 Lead：标题与 canonical final 内容验收
   ↓
-可选视觉、HTML 或平台草稿
+当前渠道合同要求的完整产物
   ↓
-Lead：交付包验收与发布确认
+Lead：交付包验收
 ```
 
 ## Handoff Manifest（唯一实际输入合同）
@@ -75,8 +83,8 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 - 只读取 `allowed_inputs`；角色卡中的“读取”是该角色通常需要的文件类型，不是绕过 Manifest 的额外权限。
 - 只写入 Manifest `output_root` 内、属于 `write_scope` 的文件；把 Result 写入 Manifest `result_path`。
 - 不修改 `status.json`、`state.json`、Manifest 或其他 attempt。Result 不包含隐藏推理过程。
-- Lead 在宿主创建专项 Agent 后调用运行时内部 `mark_running(run_dir, agent_ref)`，并把这个精确 `agent_ref` 交给专项 Agent 写入 Result；专项 Agent 返回后由 Lead 调用 `handoff complete` 校验 Result、提升输出并更新状态。
-- 会话恢复时，Host 先按精确 `agent_ref` 查询宿主 liveness：仍存在则继续等待；已丢失则调用内部 `recover_lost_running(run_dir, agent_ref)`。该 hook 只接受当前 `running` 的同一 `agent_ref`，把旧 attempt 记录为 `failed` / `host_failure`，再用同一 Manifest 合同创建下一 attempt；没有对应 CLI 操作。
+- Lead 先生成本次唯一的 `task_name`，把它原样作为 `agent_ref`；执行 `writing-master handoff start RUN_DIR --agent-ref AGENT_REF` 成功后，才创建专项 Agent。专项 Agent 把这个精确 `agent_ref` 写入 Result；返回后由 Lead 调用 `handoff complete` 校验 Result、提升输出并更新状态。
+- 会话恢复时，Host 先按精确 `agent_ref` 查询宿主 liveness：仍存在则继续等待；已丢失则执行 `writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF`。该宿主命令只接受当前 `running` 的同一 `agent_ref`，把旧 attempt 记录为 `failed` / `host_failure`，再用同一 Manifest 合同创建下一 attempt。
 - Manifest 创建后不可修改；输入 hash 变化使 prepared/running attempt 过期，重试创建新 attempt。每次 `show` 也会复核 completed attempt 的 canonical Result、暂存输出和已提升输出；历史状态保留 `completed`，但损坏会显示为 `effective_status: stale` 并阻断下游，直到最早受影响阶段重试。
 
 `Result` 是 JSON，必须包含 `schema_version: 1`、Manifest 的 `handoff_id` 和 `attempt`、`agent_ref`、`status`、`outputs`、`blocking_issues`、`summary`、`completed_at`。完成时每项 output 使用 `{"logical_name":"final.md","path":"outputs/final.md","sha256":"..."}`（也可使用完整的 Manifest `output_root/final.md`）；失败时额外使用 `failure_type: input_error | host_failure | role_failure | output_validation | cancelled`。
@@ -88,6 +96,21 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 - Writer 只读取接受后的 Brief、claims、style、editorial brief、outline、素材选择，以及 Manifest 列出的 Voice Snapshot。
 - 代理只写自己的 attempt 产物；Lead/Runtime 维护 `status.json`。
 - 输入变化后由 Runtime 校验 hash；只重跑受影响节点。
+
+### Codex host adapter
+
+Codex 对每个 attempt 固定执行以下顺序；`start` 必须在 `spawn_agent` 前完成，避免 Agent 已创建而 `agent_ref` 尚未持久化的中断窗口：
+
+```text
+writing-master handoff prepare RUN_DIR ...
+→ 生成唯一 task_name，并令 agent_ref = task_name
+→ writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+→ spawn_agent(fork_turns="none", task_name=AGENT_REF)
+→ Agent 只写 Manifest output_root 和 Result
+→ writing-master handoff complete RUN_DIR
+```
+
+Lead 将角色卡、Manifest 和 Manifest 列出的输入内容写进 `spawn_agent.message`；`fork_turns` 固定为 `"none"`，不把父对话隐式传给专项 Agent。`task_name` 在当前 Codex 线程树内唯一，重试使用新的名称；旧 `agent_ref` 只用于 `recover-lost` 校验。上述调用是 Codex 编排协议，不属于 Handoff 或 Voice Runtime。
 
 ### Personal context
 
@@ -134,8 +157,9 @@ Writer 只在 Phase 3 使用该 Snapshot 调整表达；Auditor 用同一 Snapsh
 适合并行：
 
 - Researcher 内部的事实检索与素材检索；
-- 证据审计与声音审计（需要拆分 Auditor 时）；
-- 已确定 canonical final 后的多个平台适配。
+- 证据审计与声音审计（需要拆分 Auditor 时）。
+
+渠道适配不在同一任务内并行：当前任务只处理一个 `target_id`；另一个渠道由后续 Rewrite 独立执行。
 
 保持串行：
 
@@ -180,4 +204,4 @@ host adapter（Task / 原生协作接口）
 Result 写入 Manifest result_path
 ```
 
-角色卡不直接调用另一个角色，也不读取宿主的全局对话。宿主没有可用的子代理接口时，深度模式在 capability preflight 阶段报告缺少能力，保留当前产物，不把单 Agent 结果伪装成深度模式结果。
+角色卡不直接调用另一个角色，也不读取宿主的全局对话。宿主没有可用的子代理接口时，深度模式在所选模式就绪闸门使用 `WM-CAP-001` 结束任务；不开始素材提取、调研或生成，不把单 Agent 结果伪装成深度模式结果。

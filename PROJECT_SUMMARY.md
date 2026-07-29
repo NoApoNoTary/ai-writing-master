@@ -1,6 +1,6 @@
 # AI Writing Master：项目现状与迁移核对
 
-**核对日期：2026-07-28**
+**核对日期：2026-07-29**
 
 **仓库：** `NoApoNoTary/ai-writing-master`
 
@@ -12,8 +12,8 @@
 
 | 路径 | 当前职责 |
 |---|---|
-| `skills/writing-master/` | 新建完整文章；模式选择、证据与素材、写作、审校、Baoyu 路由和验收 |
-| `skills/writing-rewrite/` | 对已有文章进行内容重构；带小红书/抖音 YAML 合同及改写、质量门槛参考 |
+| `skills/writing-master/` | 从零创作一个渠道成品；模式选择、证据与素材、写作、审校、Baoyu 路由和验收 |
+| `skills/writing-rewrite/` | 对已有正文进行单渠道重构；带微信、X 单帖、X Thread YAML 合同及质量门槛参考 |
 
 仓库里没有 `writing-topic`、`writing-research`、`writing-review`、`writing-visual`、`writing-publish` 等独立 Skill。相关能力属于 `writing-master` 内部模块，或由已安装的 Baoyu Skills 提供。
 
@@ -25,7 +25,7 @@
 | 标准写作 | 当前 Agent | 完整事实/素材双轨、三层审校和验收 |
 | 深度写作 | Lead + 专项子代理 | 已验收的 Handoff Runtime 处理已建立 deep/multi-agent 运行目录；本次仍需宿主实际具备子代理能力 |
 
-新建完整文章必须由用户选择模式。主写作流程的多 Agent 只属于深度写作，不作为默认路由；改写流程也保持单 Agent 默认值，仅响应用户明确提出的深度或多 Agent 改写。
+新建完整内容必须由用户选择模式和一个 `target_id`。主写作流程的多 Agent 只属于深度写作，不作为默认路由；改写流程保持单 Agent，且每个 Rewrite 只处理一个渠道。
 
 ### CLI
 
@@ -34,7 +34,7 @@
 | `writing-master quality` | 五项机械文本特征检查；保留 `quality_score` 兼容字段 |
 | `writing-master similarity` | 字符 n-gram Jaccard 表面相似度 |
 | `writing-master home` | 输出运行数据目录 |
-| `writing-master handoff` | 已建立 deep/multi-agent 运行目录的 `prepare`、`complete`、`show` 交接操作 |
+| `writing-master handoff` | 已建立 deep/multi-agent 运行目录的 `prepare`、`start`、`recover-lost`、`complete`、`show` 交接操作 |
 | `writing-master context` | 显式管理 Profile、五类素材、privacy approval、不可变 Snapshot 与 usage/run 验证 |
 | `writing-master learn` | 提交、接受或拒绝可追溯 Style Observation，并显示 accepted-only Style Profile |
 | `writing-master research` | 将 Agent 选题 draft 绑定到任务 Brief/Snapshot，并保存或验证 canonical Research Brief |
@@ -49,8 +49,8 @@ Baoyu 不随本仓库分发。当前集成层负责：
 1. 模式选择后发现当前运行时已有的 Baoyu 能力；
 2. 提取 URL、YouTube、Markdown 和本地素材；
 3. 维护 `asset-manifest.yaml` 与 `storyboard.md`；
-4. 标题与正文内容验收形成 canonical final 后，按需生成视觉或 HTML；
-5. 交付包验收通过且用户明确发布后，才调用发布 Skill。
+4. 标题与正文内容验收形成所选渠道 canonical final 后，生成渠道 YAML 要求的视觉或 HTML；
+5. 渠道交付完成后，只有用户另行明确发布才调用发布 Skill。
 
 ## 来源项目的迁移情况
 
@@ -75,7 +75,7 @@ Baoyu 不随本仓库分发。当前集成层负责：
 
 - Skill 入口与模块化组织思路；
 - 内容级改写入口；
-- 小红书和抖音的平台输出合同；
+- 渠道输出 YAML 的组织方式；
 - 机械文本检查与相似度工具的工程思路。
 
 当前仓库并未完整迁移原项目的全部模块、模板、其他平台定义、主题、发布实现或数据系统。README 只列出实际存在的文件，不再把参考项目的能力写成本仓库已交付能力。
@@ -91,6 +91,7 @@ Baoyu 不随本仓库分发。当前集成层负责：
 - `personal_context` 深模块：revisioned Author Profile、五类 Knowledge Item、visibility/approval、任务内 Snapshot、usage、确认式 Style Observation 与 accepted-only Style Profile。
 - `research_brief` 深模块：3–10 个上下文感知候选、实时 Evidence、四维评分、任务输入绑定和 write-once 验证。
 - `voice_presets` 深模块：四个静态表达 Profile、任务级 write-once Snapshot、Registry-independent resume 与 Deep Manifest 角色边界。
+- `channel_adaptation` P0：`writing` / `rewrite` 双入口、单一 `target_id`、source-analysis 复用及微信/X 完整交付合同。
 
 Personal Context Foundation、确认式风格学习、Context-aware Research Brief 和 Voice Preset Runtime 已交付。Voice 只解决任务级表达快照；`quick/standard` 的通用确定性跨会话 Task Runtime 仍未交付。
 
@@ -115,14 +116,16 @@ Personal Context Foundation、确认式风格学习、Context-aware Research Bri
 ```text
 skills/writing-master/
 skills/writing-rewrite/
-skills/writing-rewrite/platforms/xiaohongshu.yaml
-skills/writing-rewrite/platforms/douyin.yaml
-skills/writing-rewrite/references/multiplatform-rewrite.md
+skills/writing-rewrite/platforms/wechat.yaml
+skills/writing-rewrite/platforms/x-post.yaml
+skills/writing-rewrite/platforms/x-thread.yaml
+skills/writing-rewrite/references/single-target-rewrite.md
 skills/writing-rewrite/references/quality-gates.md
 src/writing_master/
 bin/writing-master
 docs/quick-start.md
 docs/cli-guide.md
+docs/proposals/2026-07-29-channel-adaptation-p0-prd.md
 install.sh
 pyproject.toml
 ```

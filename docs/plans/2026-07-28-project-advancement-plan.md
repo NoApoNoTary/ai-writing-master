@@ -40,7 +40,7 @@
 | 来源、主张和素材合同 | 已有 `sources.yaml`、`claims.yaml`、`asset-manifest.yaml` | 复用并增加个人素材身份 |
 | Canonical final | 已有内容验收和只读语义 | 作为学习前的 baseline |
 | 深度模式 Handoff Runtime | Manifest、Result、hash、attempt、stale、恢复均已实现 | 只增加个人快照这一种允许输入 |
-| Rewrite | 已有小红书、抖音合同 | 冻结平台范围 |
+| Rewrite | 已有单目标改写合同；当前 P0 支持微信、X 单帖、X Thread | 每个 run 只处理一个 `target_id` |
 | 视觉、排版、发布 | 通过 Baoyu 外部能力路由 | 不自建发布系统 |
 | CLI 机械工具 | `quality`、`similarity`、`handoff`、`home` | 保持兼容 |
 
