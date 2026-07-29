@@ -77,6 +77,10 @@ class WritingSkillContractTests(unittest.TestCase):
         interrupted = section(main, "### 用户正文：运行途中停止")
 
         self.assertIn("诊断编号：WM-CAP-001", unavailable)
+        self.assertIn("所选的{模式显示名}当前未就绪", unavailable)
+        self.assertIn("快速草稿", diagnostics := section(main, "### 诊断详情"))
+        self.assertIn("标准写作", diagnostics)
+        self.assertIn("深度写作", diagnostics)
         self.assertIn("版本：VERSION", unavailable)
         self.assertIn("诊断编号：WM-RUN-001", interrupted)
         self.assertIn("已有内容已保留", interrupted)
@@ -85,7 +89,6 @@ class WritingSkillContractTests(unittest.TestCase):
             for internal in ("Runtime", "Handoff", "Agent", "multi-agent", "异常栈"):
                 self.assertNotIn(internal, body)
 
-        diagnostics = section(main, "### 诊断详情")
         self.assertIn("内部异常栈", diagnostics)
         self.assertIn("不自动创建 Issue", diagnostics)
         self.assertIn("不生成 Issue 草稿", diagnostics)
@@ -104,6 +107,18 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("不由当前 Agent 补做深度角色工作", main)
         self.assertIn("不得由 Lead 或当前 Agent 补做缺失角色", orchestration)
         self.assertIn("不改变最终交付标准", main)
+
+    def test_readiness_diagnostic_is_written_before_phase_zero_content(self):
+        main = section(read("skills/writing-master/SKILL.md"), "### 所选模式就绪闸门")
+        mode = section(
+            read("skills/writing-master/references/mode-selection.md"),
+            "## 所选模式就绪闸门",
+        )
+
+        for contract in (main, mode):
+            self.assertIn("最小运行目录", contract)
+            self.assertIn("capability-preflight.md", contract)
+            self.assertIn("不创建 Brief、素材副本或其他写作产物", contract)
 
     def test_mode_selection_requires_an_explicit_resume_target(self):
         entry_rules = section(

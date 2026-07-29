@@ -55,6 +55,8 @@ allowed-tools:
 
 用户选择模式后，立即读取 `references/mode-selection.md` 的“所选模式就绪闸门”并执行轻量检查。该检查必须早于运行目录中的内容工作，以及任何素材提取、实时检索、正文生成、视觉生成、角色派发或其他高 Token 操作。
 
+模式确定后只创建最小运行目录，并先写入 `capability-preflight.md` 的 `selected_mode`、`mode_readiness`、`diagnostic_id` 与版本。此时不创建 Brief、素材副本或其他写作产物；就绪后 Phase 0 在同一文件追加能力与素材结果，未就绪时保留该诊断记录后结束。
+
 - `mode_readiness=ready`：保持现有入口、状态摘要和 Phase 0–6 流程不变。
 - `mode_readiness=unavailable`：使用 `WM-CAP-001` 用户正文，立即结束当前任务。调研和生成调用次数为 0，不切换到 quick、standard 或其他模式，不询问用户是否改用其他模式。
 
@@ -346,7 +348,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 ### 用户正文：所选模式未就绪
 
 ```text
-所选的深度写作模式当前未就绪，任务已停止，尚未进入调研或写作。
+所选的{模式显示名}当前未就绪，任务已停止，尚未进入调研或写作。
 
 如需反馈，请提交 Issue，并附上：
 诊断编号：WM-CAP-001
@@ -362,7 +364,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### 诊断详情
 
-普通错误正文只描述用户结果。所选模式、内部阶段、Runtime/Handoff/Agent 状态、异常类型和内部异常栈放入单独的诊断详情；默认不展开。发送 `WM-CAP-001` 时用当前安装版本替换 `VERSION`，无法确定时写 `unknown`。两类失败都只提醒用户提交 Issue，不自动创建 Issue，不调用 Issue 工具，也不生成 Issue 草稿。
+普通错误正文只描述用户结果。发送时把 `{模式显示名}` 替换为“快速草稿”“标准写作”或“深度写作”，不得固定写成某一种模式。所选模式、内部阶段、Runtime/Handoff/Agent 状态、异常类型和内部异常栈放入单独的诊断详情；默认不展开。发送 `WM-CAP-001` 时用当前安装版本替换 `VERSION`，无法确定时写 `unknown`。两类失败都只提醒用户提交 Issue，不自动创建 Issue，不调用 Issue 工具，也不生成 Issue 草稿。
 
 Voice 恢复只读取任务 Snapshot：旧任务缺少该文件时摘要显示 `voice: 自然默认`、`voice_snapshot: legacy`，内部按 `legacy-natural` 保持原行为；已冻结任务不受 Registry 缺失或升级影响。Snapshot 校验失败不降级，停止后续生成、审校、验收和发布。
 

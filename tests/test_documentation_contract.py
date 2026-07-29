@@ -83,6 +83,9 @@ class DocumentationContractTests(unittest.TestCase):
         quick_start = read("docs/quick-start.md")
 
         self.assertIn("尚未进入调研或写作", quick_start)
+        self.assertIn("所选的{模式显示名}当前未就绪", quick_start)
+        for label in ("快速草稿", "标准写作", "深度写作"):
+            self.assertIn(label, quick_start)
         self.assertIn("诊断编号：WM-CAP-001", quick_start)
         self.assertIn("未切换到其他写作模式", quick_start)
         self.assertIn("已有内容已保留", quick_start)
@@ -90,6 +93,7 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertIn("提交 Issue", quick_start)
         self.assertIn("不会自动提交", quick_start)
         self.assertIn("不会替你生成 Issue 草稿", quick_start)
+        self.assertIn("只有当前任务具备输入依赖校验时", quick_start)
 
     def test_release_docs_publish_context_learning_and_research_without_overclaiming(self):
         readme = read("README.md")

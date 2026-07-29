@@ -30,7 +30,7 @@
 
 模式确定后，先执行一次轻量就绪检查，再进入内容契约、素材提取或任何高 Token 步骤。检查必须早于网页/视频提取、实时检索、正文生成、视觉生成和角色派发。
 
-在 `capability-preflight.md` 中记录：
+模式确定后只创建最小运行目录，并在 `capability-preflight.md` 中先记录：
 
 ```yaml
 selected_mode: quick | standard | deep
@@ -38,6 +38,8 @@ mode_readiness: ready | unavailable
 diagnostic_id: null | WM-CAP-001
 handoff_runtime: available | unavailable  # 仅 deep 使用
 ```
+
+该文件是就绪诊断记录，不代表已经进入 Phase 0。此时不创建 Brief、素材副本或其他写作产物；`ready` 后由 Phase 0 在同一文件追加外部能力与素材结果，`unavailable` 时保留该文件后结束。
 
 - `quick` / `standard`：确认当前会话能按所选模式完成核心写作流程并保存任务产物。
 - `deep`：只有当前宿主的真实 Handoff Runtime 能执行本次角色交接时才记录 `ready`。角色卡、协议文档、命令名称或配置片段都不是可用性的证据。
@@ -47,14 +49,14 @@ handoff_runtime: available | unavailable  # 仅 deep 使用
 `unavailable` 时向用户显示：
 
 ```text
-所选的深度写作模式当前未就绪，任务已停止，尚未进入调研或写作。
+所选的{模式显示名}当前未就绪，任务已停止，尚未进入调研或写作。
 
 如需反馈，请提交 Issue，并附上：
 诊断编号：WM-CAP-001
 版本：VERSION
 ```
 
-发送时用当前安装版本替换 `VERSION`；无法确定时写 `unknown`。普通错误正文只包含用户结果、诊断编号和版本。Handoff Runtime、宿主能力、异常类型和内部异常栈只写入诊断详情。只提醒用户提交 Issue，不自动创建 Issue，也不生成 Issue 草稿。
+发送时把 `{模式显示名}` 替换为“快速草稿”“标准写作”或“深度写作”，并用当前安装版本替换 `VERSION`；无法确定时写 `unknown`。普通错误正文只包含用户结果、诊断编号和版本。Handoff Runtime、宿主能力、异常类型和内部异常栈只写入诊断详情。只提醒用户提交 Issue，不自动创建 Issue，也不生成 Issue 草稿。
 
 ## 模式合同
 
