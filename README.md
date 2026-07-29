@@ -57,7 +57,7 @@
 - `Auditor`：独立检查证据、编辑质量和声音偏差；
 - `Lead`：维护状态、用户确认、问题合并、Baoyu 闸门和最终验收。
 
-代理之间通过运行目录中的文件产物通信，不把父对话全文复制给所有角色。深度模式 Handoff Runtime 已通过运行时和真实宿主验收：它对已建立的 `mode=deep`、`execution=multi_agent` 运行目录校验 Manifest、Result、hash、stale 与 attempt 历史，并可从该目录复核当前 handoff。它不是通用任务管理器；`quick/standard` 仍没有通用的确定性跨会话任务恢复服务。
+代理之间通过运行目录中的文件产物通信，不把父对话全文复制给所有角色。深度模式 Handoff Runtime 已通过运行时和真实宿主验收：它对已建立的 `mode=deep`、`execution=multi_agent` 运行目录校验 Manifest、Result、hash、stale 与 attempt 历史，并可从该目录复核当前 handoff。运行目录锚定与锁定当前是 Linux staging 边界，不承诺跨平台实现。它不是通用任务管理器；`quick/standard` 仍没有通用的确定性跨会话任务恢复服务。
 
 ## P0：任务摘要、确认与交付
 
@@ -79,7 +79,7 @@ voice_snapshot：ready
 
 先完成内容验收，使 `final.md` 成为 canonical final；仅在其后生成本次要求的视觉资产、HTML 或平台草稿。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加本次明确要求的派生产物。
 
-任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查、目录定位，以及已建立深度运行目录的确定性交接操作：`writing-master handoff prepare|complete|show`；这不扩大为 `quick/standard` 的通用续跑功能。
+任务状态摘要是写作流程的用户交互合同，不是 CLI 任务管理器。当前 CLI 提供机械检查、目录定位，以及已建立深度运行目录的确定性交接操作：`writing-master handoff prepare|start|recover-lost|complete|show`；这不扩大为 `quick/standard` 的通用续跑功能。
 
 ## 素材与 Baoyu 路由
 
@@ -191,7 +191,11 @@ writing-master similarity source.md rewritten.md --json
 # 显示运行数据目录
 writing-master home
 
-# 检查已建立的深度模式 handoff
+# 深度模式 handoff 生命周期：prepare → start → recover-lost（宿主确认 Agent 丢失时）→ complete → show
+writing-master handoff prepare RUN_DIR --to-role researcher --phase research --objective OBJECTIVE --decision-to-inform DECISION --input brief.md --write output.md --done-criterion DONE
+writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF
+writing-master handoff complete RUN_DIR
 writing-master handoff show RUN_DIR --json
 
 # 显式管理个人上下文

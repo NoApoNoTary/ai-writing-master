@@ -12,8 +12,6 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
-import fcntl
-
 from writing_master._runfs import RunFsError, resolved_run_directory, run_directory, run_lock
 from writing_master.personal_context import ContextError, read_json_at
 from writing_master.voice_presets import VoiceError, validate_snapshot
@@ -228,17 +226,6 @@ def _new_attempt_directory(run_fd: int, run_dir: Path, phase: str, to_role: str)
 
 
 @contextmanager
-def _lock(run_dir: Path):
-    run_dir.mkdir(parents=True, exist_ok=True)
-    with (run_dir / ".handoff.lock").open("a+") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
-
-
-@contextmanager
 def _lock_fd(run_fd: int):
     try:
         with run_lock(run_fd):
@@ -395,8 +382,11 @@ def _status(run_dir: Path) -> dict:
     return status
 
 
-def _write_status(run_dir: Path, status: dict) -> None:
-    atomic_write_json(run_dir / "status.json", status)
+def _write_status(run_dir: Path, status: dict, *, directory_fd: int | None = None) -> None:
+    if directory_fd is None:
+        atomic_write_json(run_dir / "status.json", status)
+    else:
+        _atomic_write_json_at(directory_fd, "status.json", status)
 
 
 def _voice_scoped_inputs(status: dict, to_role: str, inputs: list[str]) -> list[str]:
@@ -507,7 +497,7 @@ def _reference(manifest: dict, state: dict, attempt_dir: Path, run_dir: Path) ->
         "to_role": manifest["to_role"],
         "attempt": manifest["attempt"],
         "status": state["status"],
-        "path": attempt_dir.relative_to(run_dir).as_posix(),
+        "path": attempt_dir.resolve().relative_to(run_dir.resolve()).as_posix(),
         "manifest_sha256": state["manifest_sha256"],
     }
 
@@ -658,19 +648,19 @@ def _latest_completed_stale(run_dir: Path) -> list[dict]:
 
 def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
     """Persist the host Agent reference before that Agent is spawned."""
-    if not agent_ref:
+    if not isinstance(agent_ref, str) or not agent_ref:
         raise HandoffError("agent_ref is required")
-    run_dir = Path(run_dir).resolve()
-    with _lock(run_dir):
-        attempt_dir, manifest, state = _current_attempt(run_dir)
-        fresh, errors = _input_fresh(manifest, run_dir)
-        if not fresh:
-            state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
-        else:
-            state = _set_state(attempt_dir, state, "running", agent_ref=agent_ref)
-        status = _status(run_dir)
-        status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
-        _write_status(run_dir, status)
+    with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
+        with _lock_fd(run_fd):
+            attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
+            fresh, errors = _input_fresh(manifest, anchored_run_dir)
+            if not fresh:
+                state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
+            else:
+                state = _set_state(attempt_dir, state, "running", agent_ref=agent_ref)
+            status = _status(anchored_run_dir)
+            status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
+            _write_status(anchored_run_dir, status, directory_fd=run_fd)
     return state
 
 
@@ -678,19 +668,23 @@ def recover_lost_running(run_dir: Path | str, agent_ref: str) -> dict:
     """Replace a running attempt after the host confirms its Agent is gone."""
     if not isinstance(agent_ref, str) or not agent_ref:
         raise HandoffError("agent_ref is required")
-    run_dir = Path(run_dir).resolve()
-    with _lock(run_dir):
-        attempt_dir, manifest, state = _current_attempt(run_dir)
-        if state["status"] != "running":
-            raise HandoffError("only a running handoff can be recovered")
-        if state.get("agent_ref") != agent_ref:
-            raise HandoffError("agent_ref does not match running handoff")
-        failed = _set_state(attempt_dir, state, "failed", reason="host_failure")
-        status = _status(run_dir)
-        status["current_handoff"] = _reference(manifest, failed, attempt_dir, run_dir)
-        _write_status(run_dir, status)
+    with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
+        with _lock_fd(run_fd):
+            attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
+            if state.get("agent_ref") != agent_ref:
+                raise HandoffError("agent_ref does not match running handoff")
+            if state["status"] == "running":
+                failed = _set_state(attempt_dir, state, "failed", reason="host_failure")
+                status = _status(anchored_run_dir)
+                status["current_handoff"] = _reference(manifest, failed, attempt_dir, anchored_run_dir)
+                _write_status(anchored_run_dir, status, directory_fd=run_fd)
+            elif state["status"] == "failed" and state.get("reason") == "host_failure":
+                failed = state
+            else:
+                raise HandoffError("only a running handoff can be recovered")
+            stable_run_dir = resolved_run_directory(run_fd)
     prepared = prepare(
-        run_dir,
+        stable_run_dir,
         to_role=manifest["to_role"],
         phase=manifest["phase"],
         objective=manifest["objective"],
@@ -784,77 +778,80 @@ def _completed_integrity(manifest: dict, state: dict, run_dir: Path) -> tuple[bo
 
 
 def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict:
-    run_dir = Path(run_dir).resolve()
-    with _lock(run_dir):
-        attempt_dir, manifest, state = _current_attempt(run_dir)
-        if state["status"] != "running":
-            raise HandoffError("only a running handoff can complete")
-        fresh, errors = _input_fresh(manifest, run_dir)
-        if not fresh:
-            state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
-            status = _status(run_dir)
-            status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
-            _write_status(run_dir, status)
-            raise HandoffError("input changed; handoff is stale")
-        result = None
-        try:
-            canonical_result = safe_path(run_dir, manifest["result_path"])
-            if result_path is None:
-                result_file = safe_path(run_dir, manifest["result_path"], must_exist=True)
-            else:
-                result_file = safe_path(run_dir, _relative_path(str(result_path)), must_exist=True)
-            result = _read_json(result_file)
-            validate_result(result, manifest)
-            if result["agent_ref"] != state.get("agent_ref"):
-                raise HandoffError("result agent_ref does not match running handoff")
-            if result_file != canonical_result:
-                _atomic_copy(result_file, canonical_result)
-            if result["status"] == "completed":
-                outputs = _validated_staged_outputs(result, manifest, run_dir)
-                output_root = safe_path(run_dir, manifest["output_root"], must_exist=True)
-                for output in outputs:
-                    _atomic_copy(safe_path(output_root, output["path"], must_exist=True), safe_path(run_dir, output["path"]))
-                state = _set_state(attempt_dir, state, "completed")
-            else:
-                state = _set_state(attempt_dir, state, "failed", reason=result["failure_type"])
-        except HandoffError as error:
-            state = _set_state(attempt_dir, state, "failed", reason=f"output_validation: {error}")
-            status = _status(run_dir)
-            status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
-            _write_status(run_dir, status)
-            raise
-        status = _status(run_dir)
-        reference = _reference(manifest, state, attempt_dir, run_dir)
-        status["current_handoff"] = reference
-        if state["status"] == "completed":
-            status["last_completed_handoff"] = reference
-        _write_status(run_dir, status)
+    with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
+        with _lock_fd(run_fd):
+            attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
+            if state["status"] != "running":
+                raise HandoffError("only a running handoff can complete")
+            fresh, errors = _input_fresh(manifest, anchored_run_dir)
+            if not fresh:
+                state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
+                status = _status(anchored_run_dir)
+                status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
+                _write_status(anchored_run_dir, status, directory_fd=run_fd)
+                raise HandoffError("input changed; handoff is stale")
+            result = None
+            try:
+                canonical_result = safe_path(anchored_run_dir, manifest["result_path"])
+                if result_path is None:
+                    result_file = safe_path(anchored_run_dir, manifest["result_path"], must_exist=True)
+                else:
+                    result_file = safe_path(anchored_run_dir, _relative_path(str(result_path)), must_exist=True)
+                result = _read_json(result_file)
+                validate_result(result, manifest)
+                if result["agent_ref"] != state.get("agent_ref"):
+                    raise HandoffError("result agent_ref does not match running handoff")
+                if result_file != canonical_result:
+                    _atomic_copy(result_file, canonical_result)
+                if result["status"] == "completed":
+                    outputs = _validated_staged_outputs(result, manifest, anchored_run_dir)
+                    output_root = safe_path(anchored_run_dir, manifest["output_root"], must_exist=True)
+                    for output in outputs:
+                        _atomic_copy(
+                            safe_path(output_root, output["path"], must_exist=True),
+                            safe_path(anchored_run_dir, output["path"]),
+                        )
+                    state = _set_state(attempt_dir, state, "completed")
+                else:
+                    state = _set_state(attempt_dir, state, "failed", reason=result["failure_type"])
+            except HandoffError as error:
+                state = _set_state(attempt_dir, state, "failed", reason=f"output_validation: {error}")
+                status = _status(anchored_run_dir)
+                status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
+                _write_status(anchored_run_dir, status, directory_fd=run_fd)
+                raise
+            status = _status(anchored_run_dir)
+            reference = _reference(manifest, state, attempt_dir, anchored_run_dir)
+            status["current_handoff"] = reference
+            if state["status"] == "completed":
+                status["last_completed_handoff"] = reference
+            _write_status(anchored_run_dir, status, directory_fd=run_fd)
     return {"manifest": manifest, "state": state, "result": result}
 
 
 def show(run_dir: Path | str) -> dict:
-    run_dir = Path(run_dir).resolve()
-    with _lock(run_dir):
-        attempt_dir, manifest, state = _current_attempt(run_dir)
-        fresh, errors = _input_fresh(manifest, run_dir)
-        if not fresh and state["status"] in {"prepared", "running"}:
-            state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
-            status = _status(run_dir)
-            status["current_handoff"] = _reference(manifest, state, attempt_dir, run_dir)
-            _write_status(run_dir, status)
-        stale_stages = _latest_completed_stale(run_dir)
-        historical_reasons = [
-            f"stale {item['handoff']['phase']}/{item['handoff']['to_role']}: {reason}"
-            for item in stale_stages for reason in item["blocking_reasons"]
-        ]
-        effective = "stale" if stale_stages or not fresh else state["status"]
-        current_reasons = errors + ([state["reason"]] if state.get("reason") else [])
-        return {
-            "handoff": _reference(manifest, state, attempt_dir, run_dir),
-            "input_fresh": fresh,
-            "effective_status": effective,
-            "agent_ref": state.get("agent_ref"),
-            "state_reason": state.get("reason"),
-            "blocking_reasons": current_reasons + historical_reasons,
-            "stale_handoffs": stale_stages,
-        }
+    with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
+        with _lock_fd(run_fd):
+            attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
+            fresh, errors = _input_fresh(manifest, anchored_run_dir)
+            if not fresh and state["status"] in {"prepared", "running"}:
+                state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
+                status = _status(anchored_run_dir)
+                status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
+                _write_status(anchored_run_dir, status, directory_fd=run_fd)
+            stale_stages = _latest_completed_stale(anchored_run_dir)
+            historical_reasons = [
+                f"stale {item['handoff']['phase']}/{item['handoff']['to_role']}: {reason}"
+                for item in stale_stages for reason in item["blocking_reasons"]
+            ]
+            effective = "stale" if stale_stages or not fresh else state["status"]
+            current_reasons = errors + ([state["reason"]] if state.get("reason") else [])
+            return {
+                "handoff": _reference(manifest, state, attempt_dir, anchored_run_dir),
+                "input_fresh": fresh,
+                "effective_status": effective,
+                "agent_ref": state.get("agent_ref"),
+                "state_reason": state.get("reason"),
+                "blocking_reasons": current_reasons + historical_reasons,
+                "stale_handoffs": stale_stages,
+            }
