@@ -28,7 +28,7 @@ allowed-tools:
 - Baoyu 在开题阶段进入能力与素材预检，视觉生产放在证据、角度和文章结构明确之后。
 - 重要方向由用户确认；公开发布只响应清晰的发布指令。
 - 对用户展示结论、选项、状态和产物，不输出隐藏推理过程。
-- 运行时没有确认支持时，不把跨会话恢复、版本回退或深度多 Agent 执行描述为已完成能力；明确展示缺失能力、影响和当前可继续的动作。
+- 所选模式未就绪时，在素材提取、调研、生成或其他高 Token 操作前结束任务；运行途中若所选模式的质量承诺已受影响，保留已有产物并停止，不切换到其他模式。
 
 ## 入口路由
 
@@ -50,6 +50,15 @@ allowed-tools:
 
 读取 `references/mode-selection.md` 中的 Canonical prompt，原样展示后等待用户回复。
 在用户回复前，不创建运行目录、不开始调研，也不执行 Baoyu。
+
+### 所选模式就绪闸门
+
+用户选择模式后，立即读取 `references/mode-selection.md` 的“所选模式就绪闸门”并执行轻量检查。该检查必须早于运行目录中的内容工作，以及任何素材提取、实时检索、正文生成、视觉生成、角色派发或其他高 Token 操作。
+
+- `mode_readiness=ready`：保持现有入口、状态摘要和 Phase 0–6 流程不变。
+- `mode_readiness=unavailable`：使用 `WM-CAP-001` 用户正文，立即结束当前任务。调研和生成调用次数为 0，不切换到 quick、standard 或其他模式，不询问用户是否改用其他模式。
+
+只允许把技术原因写入诊断详情；普通错误正文不得出现 Runtime、Handoff、Agent、multi-agent 或内部异常栈。只提醒用户提交 Issue，不调用 Issue 工具，也不生成 Issue 草稿。
 
 ## 运行约定与技术边界
 
@@ -87,7 +96,7 @@ allowed-tools:
 }
 ```
 
-快速、标准模式设置 `execution=single_agent`；深度模式仅在当前宿主证实可执行真实 Handoff 时设置 `execution=multi_agent` 并读取 `references/agent-orchestration.md`。缺少该能力时，说明深度模式受影响，保持等待用户选择或结束任务，不模拟多 Agent 结果。
+快速、标准模式设置 `execution=single_agent`；深度模式仅在就绪闸门通过后设置 `execution=multi_agent` 并读取 `references/agent-orchestration.md`。缺少该能力时使用 `WM-CAP-001` 结束任务，不创建写作产物、不切换模式，也不模拟多 Agent 结果。
 
 ## 用户可见任务合同
 
@@ -146,6 +155,8 @@ voice_snapshot: {ready | legacy | unavailable}
 
 ### Phase 0：内容契约、能力预检与素材接收
 
+仅在所选模式就绪闸门通过后进入本阶段；模式未就绪的失败分支不得执行下面任何一步。
+
 1. 收集主题、目标读者、平台、时效、字数、文章目的、已有素材、是否需要视觉/排版/发布。
 2. 读取 `references/reader-value.md`；仅对解释、判断、解决问题和行动指导类内容定义读者价值。
 3. 读取 `references/baoyu-integration.md`，按 Skill 名称检查本次任务需要的能力。
@@ -164,7 +175,7 @@ voice_snapshot: {ready | legacy | unavailable}
 - `capability-preflight.md`
 - `status.json`
 
-`capability-preflight.md` 同时记录外部能力、`handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。
+`capability-preflight.md` 先记录 `selected_mode`、`mode_readiness` 和诊断编号，再记录外部能力、deep 所需的 `handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。
 
 `channel-contract.yaml` 至少记录：
 
@@ -330,7 +341,28 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 当前运行时未提供上述能力时，明确显示：恢复依赖确定性任务状态存储、运行目录发现、输入 hash 与原子状态更新；这些是 Product–Technical Gap。保留已知产物路径，要求用户指定可用运行目录或继续当前对话任务，不猜测“最近任务”。
 
-阶段失败时，任务摘要必须说明失败动作、影响范围、已保留产物和可执行下一步。重试、回退和取消只作用于受影响阶段；没有运行时的 attempt 历史时，不承诺不可变回退。
+普通子步骤异常只有在能自动恢复、保持所选模式且不改变最终交付标准时，才沿用既有重试或局部处理。若异常已经影响所选模式承诺，立即停止当前任务：不派发后续工作、不由当前 Agent 补做深度角色工作、不切换到其他写作模式；保留所有已完成产物和失败前的版本。
+
+### 用户正文：所选模式未就绪
+
+```text
+所选的深度写作模式当前未就绪，任务已停止，尚未进入调研或写作。
+
+如需反馈，请提交 Issue，并附上：
+诊断编号：WM-CAP-001
+版本：VERSION
+```
+
+### 用户正文：运行途中停止
+
+```text
+任务在{用户可理解的阶段}阶段停止，未切换到其他写作模式。
+已有内容已保留。如需反馈，请提交 Issue 并附诊断编号：WM-RUN-001。
+```
+
+### 诊断详情
+
+普通错误正文只描述用户结果。所选模式、内部阶段、Runtime/Handoff/Agent 状态、异常类型和内部异常栈放入单独的诊断详情；默认不展开。发送 `WM-CAP-001` 时用当前安装版本替换 `VERSION`，无法确定时写 `unknown`。两类失败都只提醒用户提交 Issue，不自动创建 Issue，不调用 Issue 工具，也不生成 Issue 草稿。
 
 Voice 恢复只读取任务 Snapshot：旧任务缺少该文件时摘要显示 `voice: 自然默认`、`voice_snapshot: legacy`，内部按 `legacy-natural` 保持原行为；已冻结任务不受 Registry 缺失或升级影响。Snapshot 校验失败不降级，停止后续生成、审校、验收和发布。
 

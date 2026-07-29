@@ -21,6 +21,8 @@
 
 ### Changed
 
+- 将 `docs/quick-start.md` 收敛为普通用户唯一上手入口，CLI 与工程资料按受众分层导航。
+- 所选模式未就绪时在素材提取、调研和生成前停止；运行途中影响模式承诺时保留产物并停止，统一使用 `WM-CAP-001` / `WM-RUN-001`，不切换模式或自动创建 Issue。
 - 主写作流程仅在用户选择深度写作时启用多 Agent；快速和标准模式保持单 Agent。
 - `writing-master quality` 改为五维机械文本检查；新增 `mechanical_score` 与 `score_type`，保留 `quality_score` 兼容字段。
 - `quality` 对短标题、提纲和过短输入返回 `insufficient_data`，避免中性占位值被误读为通过。

@@ -1,5 +1,7 @@
 # CLI 工具指南
 
+本文面向需要从 Shell 调用、编写自动化脚本或排查工程状态的用户。普通写作不以 CLI 为入口，请从[用户上手指南](quick-start.md)开始。
+
 AI Writing Master 的 CLI 提供八项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验和任务级 Voice Snapshot。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
@@ -384,6 +386,6 @@ test -r article.md && echo readable
 ## 相关文件
 
 - [README](../README.md)
-- [快速开始](quick-start.md)
+- [用户上手指南](quick-start.md)
 - [`quality.py`](../src/writing_master/commands/quality.py)
 - [`similarity.py`](../src/writing_master/commands/similarity.py)
