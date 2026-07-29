@@ -14,6 +14,10 @@ from pathlib import Path, PurePosixPath
 
 import fcntl
 
+from writing_master._runfs import RunFsError, resolved_run_directory, run_directory, run_lock
+from writing_master.personal_context import ContextError, read_json_at
+from writing_master.voice_presets import VoiceError, validate_snapshot
+
 
 SCHEMA_VERSION = 1
 ROLES = {"lead", "researcher", "editorial_strategist", "writer", "auditor"}
@@ -185,33 +189,11 @@ def _directory_at(parent_fd: int, name: str, *, create: bool = False):
 
 @contextmanager
 def _anchored_run_directory(run_dir: Path | str):
-    """Open every run path component without following symlinks."""
-    if not isinstance(run_dir, (str, os.PathLike)) or not os.fspath(run_dir):
-        raise HandoffError("run directory is required")
     try:
-        path = Path(run_dir).expanduser()
-    except (OSError, RuntimeError, ValueError) as error:
-        raise HandoffError("run directory is unsafe") from error
-    parts = path.parts[1:] if path.is_absolute() else path.parts
-    if any(part in {".", ".."} for part in parts):
-        raise HandoffError("run directory contains an unsafe path component")
-    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
-    start = path.anchor if path.is_absolute() else "."
-    try:
-        descriptor = os.open(start, flags)
-    except OSError as error:
-        raise HandoffError("run directory is unsafe") from error
-    try:
-        for part in parts:
-            try:
-                next_descriptor = os.open(part, flags, dir_fd=descriptor)
-            except OSError as error:
-                raise HandoffError("run directory is unsafe") from error
-            os.close(descriptor)
-            descriptor = next_descriptor
-        yield descriptor, Path(f"/proc/self/fd/{descriptor}")
-    finally:
-        os.close(descriptor)
+        with run_directory(run_dir) as anchored:
+            yield anchored
+    except RunFsError as error:
+        raise HandoffError(str(error)) from error
 
 
 @contextmanager
@@ -258,22 +240,11 @@ def _lock(run_dir: Path):
 
 @contextmanager
 def _lock_fd(run_fd: int):
-    """Serialize one anchored run without reopening its path."""
-    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
     try:
-        descriptor = os.open(".handoff.lock", flags, 0o600, dir_fd=run_fd)
-    except OSError as error:
-        raise HandoffError("handoff lock is unsafe") from error
-    try:
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            raise HandoffError("handoff lock must be a regular file")
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
-        try:
+        with run_lock(run_fd):
             yield
-        finally:
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
-    finally:
-        os.close(descriptor)
+    except RunFsError as error:
+        raise HandoffError(str(error)) from error
 
 
 def _relative_path(value: str) -> str:
@@ -449,10 +420,6 @@ def _voice_scoped_inputs(status: dict, to_role: str, inputs: list[str]) -> list[
 
 def _validate_ready_voice_snapshot(run_fd: int, status: dict) -> None:
     """Validate the frozen Voice contract without consulting the mutable registry."""
-    # Local imports avoid a module cycle: voice_presets anchors runs through this module.
-    from writing_master.personal_context import ContextError, read_json_at
-    from writing_master.voice_presets import VoiceError, validate_snapshot
-
     try:
         snapshot = read_json_at(run_fd, VOICE_SNAPSHOT_FILE)
         validate_snapshot(snapshot)
@@ -631,9 +598,9 @@ def prepare(
             status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
             _atomic_write_json_at(run_fd, "status.json", status)
             try:
-                stable_run_dir = Path(os.readlink(f"/proc/self/fd/{run_fd}"))
-            except OSError as error:
-                raise HandoffError("cannot resolve anchored run directory") from error
+                stable_run_dir = resolved_run_directory(run_fd)
+            except RunFsError as error:
+                raise HandoffError(str(error)) from error
     return {
         "manifest": manifest,
         "state": state,
@@ -690,7 +657,7 @@ def _latest_completed_stale(run_dir: Path) -> list[dict]:
 
 
 def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
-    """Internal host hook; the CLI deliberately has no equivalent operation."""
+    """Persist the host Agent reference before that Agent is spawned."""
     if not agent_ref:
         raise HandoffError("agent_ref is required")
     run_dir = Path(run_dir).resolve()
@@ -708,7 +675,7 @@ def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
 
 
 def recover_lost_running(run_dir: Path | str, agent_ref: str) -> dict:
-    """Internal host hook for replacing one lost running agent attempt."""
+    """Replace a running attempt after the host confirms its Agent is gone."""
     if not isinstance(agent_ref, str) or not agent_ref:
         raise HandoffError("agent_ref is required")
     run_dir = Path(run_dir).resolve()
