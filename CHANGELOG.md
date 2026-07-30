@@ -16,6 +16,7 @@
 - 增加 `writing-master learn`：可追溯 Style Observation、显式接受/拒绝和 accepted-only Style Profile。
 - 增加 `writing-master research`：3–10 个上下文感知候选、实时 Evidence、四维评分及任务 Brief/Snapshot 绑定。
 - 增加 `writing-master voice`：四个内置表达 Profile、任务级不可变 Snapshot、状态/hash 校验及 legacy/default 降级语义。
+- 增加 `writing-master persona`：原样冻结外部 Persona `SKILL.md`、保存自由格式任务 Brief，并让 Editorial Strategist、Writer、Auditor 共享同一份 hash 输入；Researcher 保持中立。
 - 在内容契约、Phase 3、Voice Audit 与 Deep Handoff 中接入任务 Voice Snapshot；仅 Writer/Auditor 读取。
 - 将内置 Voice Registry JSON 作为实际 package data 打入 wheel，保持零第三方运行依赖。
 - 增加最小 GitHub Actions，执行全量单元测试、compileall、CLI smoke、安装脚本语法检查和包构建。

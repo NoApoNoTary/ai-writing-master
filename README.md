@@ -1,6 +1,6 @@
 # AI Writing Master
 
-面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定任务级写作声音，完成事实与素材调研、写作、审校和交付。
+面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定外部作者人格（可选）与任务级写作声音，完成事实与素材调研、写作、审校和交付。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg)](pyproject.toml)
@@ -50,7 +50,7 @@
 ```text
 模式选择
   → 所选模式就绪检查
-  → 单一 target_id + 内容契约（含写作声音）+ 能力/素材预检
+  → 单一 target_id + 内容契约（含外部人格与写作声音）+ 能力/素材预检
   → 事实轨 + 素材轨调研
   → 角度、读者决策、大纲和 storyboard
   → 初稿
@@ -89,6 +89,8 @@ voice_snapshot：ready
 素材接收先报告已接收、已提取、等待处理、失败和待确认项；接收或提取不表示其中事实已经接受。进入正文的陈述仍关联来源和 `claim_id`，真实素材与后续生成的编辑视觉也保持不同身份。
 
 内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、一个 `target_id`、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消。
+
+内容契约每次也会询问是否使用外部作者人格：不使用、让这个人格来写，或参考这个人格写。启用时由用户给出 Nuwa 等 Persona Skill 的名称或路径，原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责背景、观察和判断方式；现有 Voice Preset 继续独立负责表层表达，两者可以组合。
 
 先完成内容验收，使 `final.md` 成为所选渠道的 canonical final；仅在其后生成渠道 YAML 要求的必要产物。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加当前渠道必要产物。微信完整交付包含格式化 Markdown、HTML 和封面；X 单帖与 X Thread 交付各自经过逐项渠道审查的正文。
 
@@ -200,6 +202,10 @@ writing-master research verify RUN_DIR --json
 writing-master voice list --json
 writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
 writing-master voice verify-run RUN_DIR --json
+
+# 冻结外部 Persona Skill 与本次任务 Brief
+writing-master persona snapshot RUN_DIR /path/to/SKILL.md persona-brief-draft.md --mode author --content-type analysis --background project --json
+writing-master persona verify-run RUN_DIR --json
 ```
 
 `quality` 这个命令名为兼容现有调用保留。它只检查套话、句长变化、段落节奏、副词密度和字符 bigram 多样性，并输出机械预警分数。它不验证事实、证据、原创性、论证质量或作者风格，也不产生“AI 味百分比”。
@@ -210,9 +216,13 @@ writing-master voice verify-run RUN_DIR --json
 
 ## Voice Preset：任务级写作声音
 
-Voice Preset 只控制词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比，不改变事实、证据边界、核心判断、作者立场或真实经历。首版内置“自然默认”“清晰分析”“对话观察”“锐利评论”四项；内容契约确认后写入不可变的 `voice-profile-snapshot.json`，后续恢复只读任务快照，不回读已变化的 Registry。
+Voice Preset 只控制词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比，不改变事实、证据边界、核心判断、作者立场或真实经历。内置声音继续作为独立表层表达选项；内容契约确认后写入不可变的 `voice-profile-snapshot.json`，后续恢复只读任务快照，不回读已变化的 Registry。
 
 Quick / Standard 只在初稿和 Voice Audit 读取该 Snapshot。Deep 模式仅 Writer 与 Auditor 的 Manifest 可列出它；Researcher 与 Editorial Strategist 不读取。非默认 Voice 任务默认不作为长期 Style Observation 的 baseline/evidence，平台 Rewrite 继续从已验收 canonical final 开始，不重新选择 Voice。
+
+## 外部作者人格：直接复用 Persona Skill
+
+Nuwa 等工具产出的作者人格直接以原始 `SKILL.md` 接入，不转换成固定 Voice JSON。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时继续使用该版本及 hash，不受外部 Skill 后续变化影响。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
 
 ## Personal Context：显式、可追溯的个人上下文
 

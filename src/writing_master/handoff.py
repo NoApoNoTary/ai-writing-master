@@ -14,6 +14,13 @@ from pathlib import Path, PurePosixPath
 
 from writing_master._runfs import RunFsError, resolved_run_directory, run_directory, run_lock
 from writing_master.personal_context import ContextError, read_json_at
+from writing_master.persona import (
+    MODES as PERSONA_MODES,
+    PERSONA_BRIEF_FILE,
+    PERSONA_SKILL_FILE,
+    PersonaError,
+    verify_task_files_at,
+)
 from writing_master.voice_presets import VoiceError, validate_snapshot
 
 
@@ -23,6 +30,8 @@ FAILURE_TYPES = {"input_error", "host_failure", "role_failure", "output_validati
 VOICE_SNAPSHOT_FILE = "voice-profile-snapshot.json"
 VOICE_ROLES = {"writer", "auditor"}
 VOICE_FREE_ROLES = {"researcher", "editorial_strategist"}
+PERSONA_ROLES = {"editorial_strategist", "writer", "auditor"}
+PERSONA_FREE_ROLES = {"researcher"}
 TRANSITIONS = {
     "prepared": {"running", "stale"},
     "running": {"completed", "failed", "stale"},
@@ -425,7 +434,64 @@ def _validate_ready_voice_snapshot(run_fd: int, status: dict) -> None:
         raise HandoffError("status.json does not match Voice Snapshot")
 
 
-def _input_fresh(manifest: dict, run_dir: Path) -> tuple[bool, list[str]]:
+def _persona_state(status: dict) -> tuple[object, object]:
+    state = status.get("persona_snapshot")
+    mode = status.get("persona_mode")
+    if state not in {None, "none", "pending", "ready", "unavailable"}:
+        raise HandoffError("status.json has an invalid Persona Snapshot state")
+    if state in {"pending", "ready", "unavailable"} and mode not in PERSONA_MODES:
+        raise HandoffError("status.json has an invalid Persona mode/state combination")
+    if state in {None, "none"} and mode not in PERSONA_MODES | {None, "none"}:
+        raise HandoffError("status.json has an invalid Persona mode/state combination")
+    return mode, state
+
+
+def _persona_scoped_inputs(status: dict, to_role: str, inputs: list[str]) -> list[str]:
+    """Give one frozen Persona Brief to editorial/writing roles, never Researcher."""
+    scoped = list(inputs)
+    persona_inputs = {PERSONA_SKILL_FILE, PERSONA_BRIEF_FILE}
+    mode, state = _persona_state(status)
+    if PERSONA_SKILL_FILE in scoped:
+        raise HandoffError("raw Persona Skill is not a role input")
+    if to_role in PERSONA_FREE_ROLES and persona_inputs.intersection(scoped):
+        raise HandoffError(f"{to_role} must not receive Persona inputs")
+    if state != "ready" and mode in PERSONA_MODES and to_role in PERSONA_ROLES:
+        raise HandoffError("Persona Snapshot must be ready before Persona-scoped handoff")
+    if state != "ready":
+        if persona_inputs.intersection(scoped):
+            raise HandoffError("Persona inputs require persona_snapshot=ready")
+        return scoped
+    if to_role in PERSONA_ROLES and PERSONA_BRIEF_FILE not in scoped:
+        scoped.append(PERSONA_BRIEF_FILE)
+    return scoped
+
+
+def _validate_ready_persona_snapshot(run_fd: int, status: dict) -> None:
+    try:
+        verify_task_files_at(run_fd, status)
+    except (ContextError, PersonaError) as error:
+        raise HandoffError(f"invalid Persona Snapshot: {error}") from error
+
+
+def _persona_dependency_errors(manifest: dict, run_fd: int) -> list[str]:
+    if manifest["to_role"] not in PERSONA_ROLES:
+        return []
+    try:
+        status = read_json_at(run_fd, "status.json")
+        mode, state = _persona_state(status)
+        has_brief = any(item["path"] == PERSONA_BRIEF_FILE for item in manifest["allowed_inputs"])
+        if has_brief:
+            if state != "ready" or mode not in PERSONA_MODES:
+                raise PersonaError("snapshot_missing", "Persona selection changed after handoff prepare")
+            verify_task_files_at(run_fd, status)
+        elif mode in PERSONA_MODES or state in {"pending", "ready", "unavailable"}:
+            raise PersonaError("snapshot_missing", "Persona selection changed after handoff prepare")
+    except (ContextError, HandoffError, PersonaError) as error:
+        return [f"invalid Persona Snapshot: {error}"]
+    return []
+
+
+def _input_fresh(manifest: dict, run_dir: Path, run_fd: int) -> tuple[bool, list[str]]:
     errors = []
     for item in manifest["allowed_inputs"]:
         try:
@@ -437,6 +503,7 @@ def _input_fresh(manifest: dict, run_dir: Path) -> tuple[bool, list[str]]:
             errors.append(f"input is not a file: {item['path']}")
         elif sha256_file(path) != item["sha256"]:
             errors.append(f"input hash changed: {item['path']}")
+    errors.extend(_persona_dependency_errors(manifest, run_fd))
     return not errors, errors
 
 
@@ -525,7 +592,7 @@ def prepare(
                 if current_state["status"] in {"prepared", "running"}:
                     raise HandoffError("current handoff must finish or become stale before preparing another")
             retry = (phase, to_role)
-            stale_stages = _latest_completed_stale(anchored_run_dir)
+            stale_stages = _latest_completed_stale(anchored_run_dir, run_fd)
             if stale_stages:
                 earliest = stale_stages[0]["handoff"]
                 if retry != (earliest["phase"], earliest["to_role"]):
@@ -534,8 +601,11 @@ def prepare(
                 if retry != (current_manifest["phase"], current_manifest["to_role"]):
                     raise HandoffError("retry the current failed or stale handoff before downstream work")
             scoped_inputs = _voice_scoped_inputs(status, to_role, inputs)
+            scoped_inputs = _persona_scoped_inputs(status, to_role, scoped_inputs)
             if status.get("voice_snapshot") == "ready" and to_role in VOICE_ROLES:
                 _validate_ready_voice_snapshot(run_fd, status)
+            if status.get("persona_snapshot") == "ready" and to_role in PERSONA_ROLES:
+                _validate_ready_persona_snapshot(run_fd, status)
             for raw in scoped_inputs:
                 relative = _relative_path(raw)
                 input_records.append({
@@ -608,7 +678,7 @@ def _current_attempt(run_dir: Path) -> tuple[Path, dict, dict]:
     return attempt_dir, manifest, state
 
 
-def _latest_completed_stale(run_dir: Path) -> list[dict]:
+def _latest_completed_stale(run_dir: Path, run_fd: int) -> list[dict]:
     """Find stale latest completed attempts without introducing workflow edges."""
     stale = []
     handoffs = run_dir / "handoffs"
@@ -635,7 +705,7 @@ def _latest_completed_stale(run_dir: Path) -> list[dict]:
         if completed is None:
             continue
         attempt_dir, manifest, state = completed
-        fresh, reasons = _input_fresh(manifest, run_dir)
+        fresh, reasons = _input_fresh(manifest, run_dir, run_fd)
         intact, integrity_reasons = _completed_integrity(manifest, state, run_dir)
         if not fresh or not intact:
             stale.append({
@@ -653,7 +723,7 @@ def mark_running(run_dir: Path | str, agent_ref: str) -> dict:
     with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
         with _lock_fd(run_fd):
             attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
-            fresh, errors = _input_fresh(manifest, anchored_run_dir)
+            fresh, errors = _input_fresh(manifest, anchored_run_dir, run_fd)
             if not fresh:
                 state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
             else:
@@ -783,7 +853,7 @@ def complete(run_dir: Path | str, result_path: Path | str | None = None) -> dict
             attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
             if state["status"] != "running":
                 raise HandoffError("only a running handoff can complete")
-            fresh, errors = _input_fresh(manifest, anchored_run_dir)
+            fresh, errors = _input_fresh(manifest, anchored_run_dir, run_fd)
             if not fresh:
                 state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
                 status = _status(anchored_run_dir)
@@ -833,13 +903,13 @@ def show(run_dir: Path | str) -> dict:
     with _anchored_run_directory(run_dir) as (run_fd, anchored_run_dir):
         with _lock_fd(run_fd):
             attempt_dir, manifest, state = _current_attempt(anchored_run_dir)
-            fresh, errors = _input_fresh(manifest, anchored_run_dir)
+            fresh, errors = _input_fresh(manifest, anchored_run_dir, run_fd)
             if not fresh and state["status"] in {"prepared", "running"}:
                 state = _set_state(attempt_dir, state, "stale", reason="; ".join(errors))
                 status = _status(anchored_run_dir)
                 status["current_handoff"] = _reference(manifest, state, attempt_dir, anchored_run_dir)
                 _write_status(anchored_run_dir, status, directory_fd=run_fd)
-            stale_stages = _latest_completed_stale(anchored_run_dir)
+            stale_stages = _latest_completed_stale(anchored_run_dir, run_fd)
             historical_reasons = [
                 f"stale {item['handoff']['phase']}/{item['handoff']['to_role']}: {reason}"
                 for item in stale_stages for reason in item["blocking_reasons"]

@@ -14,10 +14,13 @@
 - `sources.yaml`
 - `asset-manifest.yaml`
 - 已存在的用户风格档案
+- 选择外部 Persona 时，任务内 `persona-brief.md` 与其 `sha256`
 - `references/reader-value.md`
 - 需要时读取 `references/creative-drainage.md`
 
 不得读取 `voice-profile-snapshot.json`、Voice Snapshot hash、全局 Voice Registry 或等价 Profile 内容。Voice 不影响核心判断、角度取舍、论证结构或 storyboard。
+
+只按任务 `persona-brief.md` 中当前文章类型的角色侧重使用 Persona，不回读外部 Skill，也不把其中主题事实当作已核验依据。
 
 ## 产出
 
@@ -40,3 +43,4 @@
 - 不生成图片。
 - 完整正文由 Writer 负责。
 - 不修改 `status.json`、`state.json` 或 Manifest。
+- 不改写 `persona-brief.md`，不让 Persona 覆盖 accepted claims 或用户已确认的核心要求。

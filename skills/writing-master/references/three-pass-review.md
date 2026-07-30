@@ -13,6 +13,7 @@
 - `draft-v1.md`
 - 用户风格档案与少量代表性正反例
 - 当前任务的 `voice-profile-snapshot.json`（仅 Voice Audit；不得用全局 Registry 替代）
+- 选择外部 Persona 时，当前任务的 `persona-brief.md`（Editorial、Writer、Auditor 共用同一份）
 
 如文章包含视觉规划，同时读取 `asset-manifest.yaml` 与 `storyboard.md`。
 
@@ -20,10 +21,11 @@
 
 1. 每个问题必须指出位置、证据和修订边界。
 2. 事实、推断、意见和用户经历使用不同身份，不相互伪装。
-3. 第一人称事件、人物、对话、时间、地点、测试结果和感官细节必须来自本次任务登记的用户素材。
+3. 当前作者的第一人称事件、人物、对话、时间、地点、测试结果和感官细节必须来自本次任务登记的用户素材；`author` Persona 模式可使用 `persona-brief.md` 明确标注的构造性第一人称背景，但不得冒充当前作者的现实经历。
 4. 审校不通过随机增加情绪词、短句、口头禅或固定平台话术制造“人感”。
 5. `writing-master quality` 只提供套话、句长、段落、副词和词汇等机械预警，不验证事实、论证、原创性或作者声音。
 6. 对用户报告结论、问题和已完成修改，不展示隐藏推理过程。
+7. `author` Persona 模式允许 Brief 明确采用的构造性第一人称背景；`reference` 模式保持当前作者身份。两种模式下的外部主题事实仍要求 accepted claim。
 
 ## 用户动作与阻断问题
 

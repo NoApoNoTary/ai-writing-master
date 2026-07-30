@@ -10,6 +10,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import secrets
+import stat
 from typing import Iterator
 import unicodedata
 
@@ -514,17 +515,30 @@ def read_json_at(directory_fd: int, name: str) -> dict:
 def read_bytes_at(directory_fd: int, name: str) -> bytes:
     """Read one local managed file through an already-anchored directory FD."""
     name = _managed_name(name)
+    descriptor = None
     try:
-        descriptor = os.open(name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=directory_fd)
+        descriptor = os.open(
+            name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0),
+            dir_fd=directory_fd,
+        )
     except FileNotFoundError as error:
         raise ContextError("not_initialized", f"missing managed file: {name}") from error
     except OSError as error:
         raise ContextError("path_escape", f"unsafe managed file: {name}") from error
     try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ContextError("path_escape", f"managed file must be regular: {name}")
         with os.fdopen(descriptor, "rb") as handle:
+            descriptor = None
             return handle.read()
+    except ContextError:
+        raise
     except OSError as error:
         raise ContextError("hash_mismatch", f"cannot read managed file: {name}") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def read_relative_bytes_at(root_fd: int, relative: str) -> bytes:

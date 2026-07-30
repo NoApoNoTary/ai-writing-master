@@ -2,6 +2,8 @@
 
 Voice Preset 是任务级“写作声音”，只控制表达层；它不是身份模仿、人格、作者立场或长期 Style Profile。用户侧称“写作声音”，内部字段为 `voice_id` 与 `voice_profile`。
 
+外部 Persona Skill 与 Voice Preset 是两条独立输入：Persona 决定任务采用的身份、背景、观察和判断方式，Voice 继续只控制表层表达。两者可组合，互不转换、互不写入对方 Snapshot；详见 `persona-skills.md`。
+
 ## 内容契约中的选择
 
 Voice 选择属于内容契约，不增加独立等待点。新任务默认：

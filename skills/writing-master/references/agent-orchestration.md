@@ -21,6 +21,8 @@
 
 Lead Agent 负责模式、Brief、文件状态、用户确认、问题合并、Baoyu 闸门和最终验收。Lead 不与专项代理竞争同一份正文。
 
+选择外部 Persona 时，Lead 还负责保存原始 `persona-skill.md`、生成一次 `persona-brief.md` 并冻结其来源 hash。Researcher 保持中立；Editorial Strategist、Writer 与 Auditor 使用同一份 Persona Brief。
+
 任务较短时可由一个 Auditor 完成三层审计；只有文章重要且并行收益明确时，再拆成 Evidence Auditor 与 Editorial/Voice Auditor。Agent 数量服务于上下文隔离，不追求数量。
 
 ## 执行图
@@ -133,11 +135,26 @@ allowed_inputs:
 
 Writer 只在 Phase 3 使用该 Snapshot 调整表达；Auditor 用同一 Snapshot 进行 Voice Audit。Snapshot 输入 hash 变化或校验失败会使相关 handoff stale，并阻断生成、审校、验收和发布；不得改读当前 Registry 或回退为另一 Voice。`natural-default` 的 Snapshot 不可用时由 Lead 记录 `voice_snapshot: unavailable` 并走既有自然写作；显式非默认 Voice 的创建失败保持在内容契约确认，不能派发 Writer。
 
+### External Persona Skill
+
+外部 Persona 的选择和任务 Brief 见 `persona-skills.md`。Lead 只解析用户明确提供的名称或路径，把原始 `SKILL.md` 原样保存为任务内 `persona-skill.md`，再创建自由格式 `persona-brief.md`；不把 Persona 转成 Voice Profile。
+
+Researcher 的 Manifest `allowed_inputs` **不得**列出 `persona-skill.md`、`persona-brief.md` 或其等价内容。Editorial Strategist、Writer 与 Auditor 在 Persona 启用时都列出同一份 Persona Brief 及精确 hash：
+
+```yaml
+allowed_inputs:
+  - path: persona-brief.md
+    sha256: "..."
+    required: true
+```
+
+上述三个角色不回读外部路径，也不把原始 `persona-skill.md` 作为角色输入；它只作为 Lead 的冻结副本和恢复校验依据。恢复时继续使用冻结文件，不采用外部 Skill 的当前版本。
+
 ### Topic Research
 
 用户明确只要选题、内容契约仍是宽主题，或要求近期热点时，Host 先检查实时检索能力。能力可用后，Lead 才创建 `phase=topic_research`、`to_role=researcher` 的 Handoff：
 
-- `allowed_inputs` 只列出 `brief.md`、`personal-context-snapshot.json`、所选任务内材料副本和 `references/research-brief.md`。
+- `allowed_inputs` 只列出 Persona-neutral 的 `brief.md`、`personal-context-snapshot.json`、所选任务内材料副本和 `references/research-brief.md`；该 Brief 不含 Persona 原文、背景、拟采用部分或角色侧重。
 - 唯一 expected output 是 `research-brief-draft.json`；Researcher 提出 3–10 个候选但不选择最终方向。
 - Runtime 提升 draft 后，Lead 运行 `writing-master research save/verify`，再让用户选择 candidate。
 - 缺少实时检索时在 Handoff 创建前记录 capability response；不创建 Handoff、draft 或 canonical Brief。

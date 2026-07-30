@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "src/writing_master"
-DOMAIN_MODULES = {"handoff", "personal_context", "research_brief", "voice_presets"}
+DOMAIN_MODULES = {"handoff", "persona", "personal_context", "research_brief", "voice_presets"}
 PLATFORM_PRIMITIVE_ALLOWLIST = {
     "_runfs.py",
     "handoff.py",

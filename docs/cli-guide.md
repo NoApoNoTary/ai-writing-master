@@ -2,7 +2,7 @@
 
 本文面向需要从 Shell 调用、编写自动化脚本或排查工程状态的用户。普通写作不以 CLI 为入口，请从[用户上手指南](quick-start.md)开始。
 
-AI Writing Master 的 CLI 提供八项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验和任务级 Voice Snapshot。它们不替代事实研究或编辑审查。
+AI Writing Master 的 CLI 提供九项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验、任务级 Voice Snapshot 和外部 Persona Skill 冻结。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
 
@@ -72,6 +72,8 @@ writing-master research verify RUN_DIR [--json]
 writing-master voice list [--json]
 writing-master voice snapshot RUN_DIR [VOICE] [--source default|request|content-contract] [--json]
 writing-master voice verify-run RUN_DIR [--json]
+writing-master persona snapshot RUN_DIR SKILL.md PERSONA_BRIEF.md --mode author|reference --content-type TYPE --background default|project|none [--source-version VERSION] [--json]
+writing-master persona verify-run RUN_DIR [--json]
 ```
 
 ## `quality`：机械文本检查
@@ -276,6 +278,18 @@ writing-master voice verify-run RUN_DIR --json
 任务 Snapshot 保存任务 ID、选择来源、Profile ID/版本、Profile hash、完整 Profile 与 Snapshot hash，并同步更新 `status.json` 的 `voice_id`、`voice_profile_version`、`voice_snapshot` 和 `voice_snapshot_sha256`。新任务在调用 `snapshot` 前由工作流写入 `voice_snapshot: pending`；缺少全部 Voice 字段的旧任务会标记为 `legacy-natural`，不回填新 Profile。`verify-run` 只读任务文件校验完整性，不依赖当前 Registry。显式非默认 Voice 加载失败会阻止进入初稿；自然默认 Registry 异常会标记 `unavailable` 并保留既有自然写作行为。
 
 当前内置五项：`natural-default`、`clear-analytical`、`conversational-observer`、`sharp-commentary`、`magazine-dialogue-editor`。Profile 只约束表达维度，不得改变事实、证据边界、核心判断、作者立场或真实经历。
+
+## `persona`：任务级外部作者人格
+
+```bash
+writing-master persona snapshot RUN_DIR /path/to/PERSONA/SKILL.md persona-brief-draft.md \
+  --mode author --content-type analysis --background project --json
+writing-master persona verify-run RUN_DIR --json
+```
+
+`snapshot` 原样保存外部 `SKILL.md` 为任务内 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。无论版本来自哪里，状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
+
+同一任务、同一来源输入与 Brief 重试幂等；外部文件之后变化不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`。`verify-run` 只校验任务内两份文件和 `status.json`，不回读外部路径、不扫描 Skill 目录。
 
 ## `research`：上下文感知选题 Brief
 
