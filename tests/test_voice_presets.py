@@ -33,11 +33,19 @@ class VoicePresetTests(unittest.TestCase):
         self.assertEqual(listed["default_id"], DEFAULT_VOICE_ID)
         self.assertEqual(
             [profile["id"] for profile in listed["profiles"]],
-            ["natural-default", "clear-analytical", "conversational-observer", "sharp-commentary"],
+            [
+                "natural-default",
+                "clear-analytical",
+                "conversational-observer",
+                "sharp-commentary",
+                "magazine-dialogue-editor",
+            ],
         )
         self.assertEqual(store.resolve(None)["id"], DEFAULT_VOICE_ID)
         self.assertEqual(store.resolve("2")["id"], "clear-analytical")
         self.assertEqual(store.resolve("清晰分析")["id"], "clear-analytical")
+        self.assertEqual(store.resolve("5")["id"], "magazine-dialogue-editor")
+        self.assertEqual(store.resolve("杂志对谈")["id"], "magazine-dialogue-editor")
         with self.assertRaises(VoiceError) as captured:
             store.resolve("missing")
         self.assertEqual(captured.exception.code, "unknown_voice")

@@ -44,6 +44,7 @@ class VoiceWorkflowContractTests(unittest.TestCase):
             ("clear-analytical", "清晰分析"),
             ("conversational-observer", "对话观察"),
             ("sharp-commentary", "锐利评论"),
+            ("magazine-dialogue-editor", "杂志对谈"),
         ):
             self.assertIn(voice_id, self.voice)
             self.assertIn(label, self.voice)

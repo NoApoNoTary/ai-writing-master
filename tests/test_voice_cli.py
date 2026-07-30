@@ -53,7 +53,8 @@ class VoiceCliTests(unittest.TestCase):
         self.assertEqual((code, error), (1, ""))
         failure = json.loads(output)["error"]
         self.assertEqual(failure["code"], "unknown_voice")
-        self.assertEqual(len(failure["available"]), 4)
+        self.assertEqual(len(failure["available"]), 5)
+        self.assertIn("magazine-dialogue-editor", [item["id"] for item in failure["available"]])
 
 
 if __name__ == "__main__":

@@ -275,7 +275,7 @@ writing-master voice verify-run RUN_DIR --json
 
 任务 Snapshot 保存任务 ID、选择来源、Profile ID/版本、Profile hash、完整 Profile 与 Snapshot hash，并同步更新 `status.json` 的 `voice_id`、`voice_profile_version`、`voice_snapshot` 和 `voice_snapshot_sha256`。新任务在调用 `snapshot` 前由工作流写入 `voice_snapshot: pending`；缺少全部 Voice 字段的旧任务会标记为 `legacy-natural`，不回填新 Profile。`verify-run` 只读任务文件校验完整性，不依赖当前 Registry。显式非默认 Voice 加载失败会阻止进入初稿；自然默认 Registry 异常会标记 `unavailable` 并保留既有自然写作行为。
 
-首版内置四项：`natural-default`、`clear-analytical`、`conversational-observer`、`sharp-commentary`。Profile 只约束表达维度，不得改变事实、证据边界、核心判断、作者立场或真实经历。
+当前内置五项：`natural-default`、`clear-analytical`、`conversational-observer`、`sharp-commentary`、`magazine-dialogue-editor`。Profile 只约束表达维度，不得改变事实、证据边界、核心判断、作者立场或真实经历。
 
 ## `research`：上下文感知选题 Brief
 

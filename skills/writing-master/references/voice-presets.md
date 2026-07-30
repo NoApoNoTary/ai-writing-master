@@ -20,6 +20,7 @@ voice_selection_source: default | request | content_contract
 | 2 | `clear-analytical` | 清晰分析 | 分析、教程；信息密度高、克制、结构清楚。 |
 | 3 | `conversational-observer` | 对话观察 | 观察与解释；自然口语、具体观察、柔和转折。 |
 | 4 | `sharp-commentary` | 锐利评论 | 评论与观点；判断先行、短句节奏、受控幽默。 |
+| 5 | `magazine-dialogue-editor` | 杂志对谈 | 杂志特稿；克制的讲述与追问双声部，不伪装真实采访。 |
 
 未知或不可用的 `voice_id`：展示可用列表并留在“等待契约确认”，不得静默替换为默认项或进入初稿。Registry 在发布前拒绝重复 ID 或显示名称。
 
