@@ -187,6 +187,28 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("Level 3：Production", routing)
         self.assertIn("早预检、早摄入、晚生成、后发布", routing)
 
+    def test_wechat_draft_completion_recommends_timing_without_auto_publish(self):
+        publish = section(
+            read("skills/writing-master/references/baoyu-integration.md"),
+            "### Level 4：Publish（验收之后）",
+        )
+
+        for token in (
+            "微信公众号草稿创建或更新成功后",
+            "YYYY-MM-DD HH:MM–HH:MM",
+            "Asia/Shanghai / UTC+08:00",
+            "一句简短理由",
+            "数据依据",
+            "账号时区",
+            "优先使用该账号后台历史数据",
+            "历史数据不可用时",
+            "通用经验估计",
+            "明确标注",
+            "停在草稿状态",
+            "不自动执行正式发布",
+        ):
+            self.assertIn(token, publish)
+
     def test_main_skill_has_user_visible_status_and_waiting_contract(self):
         main = read("skills/writing-master/SKILL.md")
 
