@@ -209,6 +209,29 @@ class WritingSkillContractTests(unittest.TestCase):
         ):
             self.assertIn(token, publish)
 
+    def test_wechat_timing_completion_is_structured_and_blocking(self):
+        routing = read("skills/writing-master/references/baoyu-integration.md")
+        main = read("skills/writing-master/SKILL.md")
+        for token in ("basis_type", "basis_detail", "confidence", "backup_window", "wechat-draft-report.json"):
+            self.assertIn(token, routing)
+            self.assertIn(token, main)
+        self.assertIn("字段缺失或格式错误时任务不得标记为完整完成", routing)
+        self.assertIn("publish_intent=draft_only", routing)
+
+    def test_cover_generation_has_fail_fast_acceptance_gate(self):
+        cover = read("skills/writing-master/SKILL.md")
+        for token in (
+            "planned",
+            "prompt_ready",
+            "generated_raw",
+            "visual_qa_passed",
+            "accepted",
+            "blocked_waiting_user",
+            "输出 SHA-256",
+            "HTML、SVG、Canvas、浏览器截图、Pillow/ImageMagick",
+        ):
+            self.assertIn(token, cover)
+
     def test_main_skill_has_user_visible_status_and_waiting_contract(self):
         main = read("skills/writing-master/SKILL.md")
 

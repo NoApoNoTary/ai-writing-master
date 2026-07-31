@@ -18,6 +18,7 @@ _COMMANDS = {
     "research": ("writing_master.commands.research", "保存并校验选题 Research Brief"),
     "voice": ("writing_master.commands.voice", "选择并冻结任务级写作声音"),
     "persona": ("writing_master.commands.persona", "冻结并校验任务级外部作者人格"),
+    "wechat-timing": ("writing_master.commands.wechat_timing", "生成或校验公众号发布时间建议"),
     "home": (None, "输出状态目录路径"),
 }
 

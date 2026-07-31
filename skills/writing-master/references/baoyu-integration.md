@@ -132,7 +132,23 @@ Markdown 格式化和 HTML 转换不属于图像类视觉生产：它们在 cano
 4. 用户发出清晰发布指令后调用对应 Skill；
 5. 回写 draft/post ID、时间和结果到运行目录，敏感凭据留在仓库外配置。
 
-微信公众号草稿创建或更新成功后，用户正文追加发布时机建议：按账号时区给出具体日期与时间窗口（`YYYY-MM-DD HH:MM–HH:MM`），并同时写出时区名称或 UTC 偏移（如 `Asia/Shanghai / UTC+08:00`）、一句简短理由和数据依据。优先使用该账号后台历史数据；历史数据不可用时，按文章时效、目标读者和内容长度给出通用经验估计，并明确标注。用户未明确请求正式发布或群发时，只给建议并停在草稿状态，不自动执行正式发布。
+微信公众号草稿创建或更新成功后，必须先运行确定性的发布时间推荐函数（固定 `now`、账号/任务时区、内容类型、时效性和篇幅作为输入），再写入 `wechat-draft-report.json` 并把同一对象展示给用户。`recommended_publish_time` 必须完整包含：
+
+```json
+{
+  "window": "YYYY-MM-DD HH:MM–HH:MM",
+  "timezone": "Asia/Shanghai / UTC+08:00",
+  "reason": "一句简短理由（可核验）",
+  "basis_type": "account_history | configured_window | generic_heuristic",
+  "basis_detail": "使用了哪些数据；或为什么使用通用估计",
+  "confidence": "high | medium | low",
+  "backup_window": "YYYY-MM-DD HH:MM–HH:MM"
+}
+```
+
+Writing Master 收尾必须校验该对象；字段缺失或格式错误时任务不得标记为完整完成。账号历史数据属于后续增强；当前没有可用历史数据时固定使用 `basis_type=generic_heuristic`，在 `basis_detail` 中明确标注回退原因。`publish_intent=draft_only` 或 `prepare` 仍生成建议，但用户未明确请求正式发布或群发时只停在草稿状态，不调用正式发布接口。
+
+用户可见完成报告同步展示账号时区、具体窗口、一句简短理由和数据依据。账号历史接入后优先使用该账号后台历史数据；历史数据不可用时回退到通用经验估计；在当前 P0 中不拉取历史数据。未明确发布指令时不自动执行正式发布。
 
 “继续”“下一步”“看起来不错”只推进到下一份可审阅产物，不等同于公开发布指令。
 

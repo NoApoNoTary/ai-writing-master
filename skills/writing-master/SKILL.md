@@ -333,6 +333,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 只在核心交付包和当前渠道必要产物都有效时标记完成。当前渠道失败只影响本任务，不修改其输入材料或之前完成的 Rewrite；第二个渠道始终作为新的 Rewrite 处理。
 
+微信公众号草稿 `add` 或 `update` 成功后，收尾必须生成并校验 `recommended_publish_time`：运行 `writing-master wechat-timing recommend` 或等价函数，写入 `wechat-draft-report.json`，并在用户可见报告中展示 `window`、`timezone`、`reason`、`basis_type`、`basis_detail`、`confidence` 和 `backup_window`。缺少任一字段时，收尾校验失败，任务不得标记为完整完成。`publish_intent: draft_only` 和 `prepare` 仍生成建议，但不得调用正式发布或群发接口；账号历史数据未接入时固定使用 `generic_heuristic` 并明确记录回退原因。
+
 标准写作实际使用 Snapshot 素材时，在 `final.md` 与 `acceptance-report.md` 已存在后，用 Personal Context Runtime 写入 `context-usage.json`，记录精确 `item_id`、purpose、section/claim 和两个 artifact。交付前运行 `writing-master context verify-run {run_dir}`；校验失败时保留既有产物并报告失败，不把任务标为已完成。
 
 图像类视觉闸门同时满足以下条件后，才执行 Baoyu production：
@@ -343,7 +345,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `storyboard.md` 已定义每张图的职责；
 - 用户本次请求包含视觉生产、用户在方案阶段确认执行，或当前渠道合同把对应视觉列为必要派生产物。
 
-闸门通过后，按 `references/baoyu-integration.md` 路由配图、封面、信息图或单图生成。Markdown 格式化和公众号 HTML 只要求已验收的 canonical final 与适用的 `channel-contract.yaml`，不要求 storyboard、`asset-manifest.yaml` 或图像类视觉意图。`wechat` 合同声明的格式化、HTML 和封面属于本次渠道必要产物；其他未请求视觉不构成交付包缺失项。
+闸门通过后，按 `references/baoyu-integration.md` 路由配图、封面、信息图或单图生成。图像生产必须经过 `planned → prompt_ready → generating → generated_raw → visual_qa_passed → accepted`；失败或验收不通过只允许进入 `retrying`（最多一次）或 `blocked_waiting_user`。只有 `accepted` 才能替换 canonical `cover.png`、标记素材 `produced`、上传永久素材或更新草稿；失败报告保留 provider/model、prompt/reference 路径、响应状态、尝试次数和输出 SHA-256；不得用 HTML、SVG、Canvas、浏览器截图、Pillow/ImageMagick 或程序化文字覆盖伪装成生图结果。Markdown 格式化和公众号 HTML 只要求已验收的 canonical final 与适用的 `channel-contract.yaml`，不要求 storyboard、`asset-manifest.yaml` 或图像类视觉意图。`wechat` 合同声明的格式化、HTML 和封面属于本次渠道必要产物；其他未请求视觉不构成交付包缺失项。
 
 准备发布和实际发布是两个状态。渠道适配 P0 在完整成品处结束，不自动发布；只有用户之后明确发出发布指令时，才把它作为独立动作路由 `baoyu-post-to-wechat` 或 `baoyu-post-to-x`。发布失败不修改 canonical final。
 
