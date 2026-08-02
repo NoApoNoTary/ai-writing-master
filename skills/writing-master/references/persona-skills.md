@@ -77,6 +77,8 @@
 
 `status.json` 记录 `persona_mode`、`persona_snapshot: none | pending | ready | unavailable`、来源路径、可见版本、原始 Skill SHA-256 和 Persona Brief SHA-256。恢复任务只校验并复用任务内 `persona-skill.md` 与 `persona-brief.md`，不采用外部 Skill 的当前版本；即使外部路径内容已更新，也继续使用原任务版本。不同 Persona、模式、背景选项或项目背景属于内容契约变化，不覆盖既有 Brief。
 
+`content_type` 随内容契约和 Persona Snapshot 在当前 run 内冻结。选题后的推荐组合只调整应用深度；另一文章类型可作为备选建议，采用时新建 Writing run，因此不会改写已冻结的 `persona-brief.md`。
+
 旧任务缺少 Persona 字段时按 `none` 处理。Persona 文件缺失或 hash 不一致时停止依赖 Persona 的策划、写作和审校，不从外部路径重建一个看似相同的版本。
 
 首版不包含固定 Persona Schema、自动学习、Registry 导入、目录扫描、推荐引擎或 Marketplace。

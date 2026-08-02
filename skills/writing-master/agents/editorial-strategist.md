@@ -16,6 +16,7 @@
 - 已存在的用户风格档案
 - 选择外部 Persona 时，任务内 `persona-brief.md` 与其 `sha256`
 - `references/reader-value.md`
+- `references/content-routing.md`
 - 需要时读取 `references/creative-drainage.md`
 
 不得读取 `voice-profile-snapshot.json`、Voice Snapshot hash、全局 Voice Registry 或等价 Profile 内容。Voice 不影响核心判断、角度取舍、论证结构或 storyboard。
@@ -36,6 +37,7 @@
 - 明确读者看完后应形成的判断或行动。
 - 每个主要章节服务于核心判断。
 - 每个视觉位有职责、关联主张和素材优先级；Hero 可省略。
+- 选题确定且 Article Research 完成后，基于选定 candidate 或已明确主题、目标读者、accepted evidence、素材和可验证性生成并记录 `recommended_combo`（`label`、当前 run 已冻结的 `content_type`、`application_depth`、`reason`、`required_blocks`），写入 `editorial-brief.md` 与 `outline.md`；用户覆盖语法为“修改：组合类型=实测评测+场景应用”，另一文章类型只作为新 run 建议。
 
 ## 边界
 

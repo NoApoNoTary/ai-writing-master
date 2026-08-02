@@ -156,7 +156,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 | 等待点 | 必须展示的问题 | 继续方式 |
 |---|---|---|
 | 内容契约 | `请确认内容契约：{摘要}`（包含外部人格使用方式） | 回复“确认”，或用“修改：字段=值”更新，或回复“取消” |
-| 方向 | `请选择方向：1/2/3，或说明你要修改的取舍。` | 选择、修改或取消 |
+| 方向 | `请选择方向：1/2/3；同时确认推荐组合类型，或说明你要修改的取舍。` | 选择、修改或取消 |
 | 审校问题 | `审校发现 {blocking} 个阻断、{major} 个主要问题。需要你决定：{方向性问题}` | 接受建议、忽略非阻断项、修改原始要求、补充证据，或要求重写受影响部分 |
 | 风格候选 | `是否接受这条可追溯风格规则：{规则、范围、证据摘要}？` | 接受、拒绝或暂不决定 |
 | 发布 | `最终产物已验收。是否发布到 {平台}？` | 只有“发布到 {平台}”这类明确指令才产生外部副作用 |
@@ -168,6 +168,8 @@ persona_snapshot: {none | pending | ready | unavailable}
 ## 核心工作流
 
 ### Phase 0：内容契约、能力预检与素材接收
+
+先读取 `references/content-routing.md`。根据初始主题确认本次 `content_type`，形成暂定 `application_depth`（`none | scenario | actionable | reproducible`），并将 `application_depth_source: user | ai` 写入 `channel-contract.yaml`；内容契约确认后 `content_type` 在本次 run 内保持冻结，选题确定后重新推荐应用深度与组合标签。
 
 仅在所选模式就绪闸门通过后进入本阶段；模式未就绪的失败分支不得执行下面任何一步。
 
@@ -202,6 +204,8 @@ entry: writing
 target_id: wechat | x-post | x-thread
 output_filename: final.md
 content_type: release | analysis | review | opinion | tutorial | story
+application_depth: none | scenario | actionable | reproducible
+application_depth_source: user | ai
 evidence_level: light | standard | strict
 source_display: inline | footnote | endnotes | none
 asset_policy: source_first | mixed | text_only
@@ -221,7 +225,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - quick/standard 由当前 Agent 基于任务 `brief.md`、Snapshot、任务内材料副本和实时来源生成 `research-brief-draft.json`。
 - deep 由 Lead 创建 `topic_research -> researcher` Handoff，只传 Manifest 明确列出的任务内输入；Handoff 完成后使用已提升的 draft。
 - 运行 `writing-master research save {run_dir} {draft}` 和 `writing-master research verify {run_dir}`，再向用户展示 3–10 个候选及取舍并等待方向选择。
-- 用户或 Lead 选定 candidate 后，才进入下面的 Article Research；Research Brief Evidence 不自动成为 `claims.yaml` 中的 accepted claim。
+- 用户或 Lead 选定 candidate 后，才进入下面的 Article Research；Research Brief Evidence 不自动成为 `claims.yaml` 中的 accepted claim。组合类型在 Article Research 完成后由 Phase 2 基于 accepted evidence 最终推荐。
 
 **事实轨**：为正文中的关键主张记录来源、日期、证据等级和表述边界。
 
@@ -242,11 +246,13 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 本阶段不得读取 `voice-profile-snapshot.json` 或全局 Voice Registry。存在外部 Persona 时，Editorial Strategist 只读取任务内 `persona-brief.md`，使用其中的角色侧重和观察方式，不回读外部 Skill；Persona 不替代证据和编辑判断。
 
-1. 若存在已验证的 `research-brief.json`，只从用户或 Lead 选定的 candidate 继续；否则按 `references/mode-selection.md` 中当前模式的用户确认规则，给出一个建议角度或多个候选角度及其取舍。
-2. 明确一句“读者看完后应形成的判断或行动”。
-3. 需要时读取 `references/creative-drainage.md`，排除可替换主题名仍成立的套话角度。
-4. 形成文章结构，并为每个视觉位定义职责：Cover、Hero（可省略）、Evidence、Explanation 或 Decorative。
-5. 需要确认时等待用户确认核心方向；用户已经明确角度，或 quick 模式没有明显分叉时，只做简短复述并继续。
+1. 若存在已验证的 `research-brief.json`，只从用户或 Lead 选定的 candidate 继续；否则按 `references/mode-selection.md` 中当前模式的用户确认规则，从用户已明确的主题继续或给出一个建议角度及其取舍。
+2. 读取 `references/content-routing.md`，基于已选 candidate 或已明确主题、目标读者、accepted evidence、素材和可验证性生成 `recommended_combo`（含 `label`、冻结的 `content_type`、`application_depth`、`reason`、`required_blocks`；低确定性可带 `alternative`）。当前 run 的推荐 `content_type` 必须与已确认的 `channel-contract.yaml` 一致；不同文章类型只作为新 run 的备选建议。
+3. 明确一句“读者看完后应形成的判断或行动”。
+4. 需要时读取 `references/creative-drainage.md`，排除可替换主题名仍成立的套话角度。
+5. 形成文章结构，并为每个视觉位定义职责：Cover、Hero（可省略）、Evidence、Explanation 或 Decorative。
+6. 需要确认时把推荐组合与核心方向同屏展示；用户已经明确角度，或 quick 模式没有明显分叉时，只做简短复述并继续，不创建独立的组合类型等待点。
+7. 将 `recommended_combo` 写入 `editorial-brief.md` 与 `outline.md`。支持“修改：组合类型=实测评测+场景应用”；用户已明确路线时仍展示建议但保留用户选择，否则采用推荐。Phase 3 前只把最终生效的 `application_depth` 与 `application_depth_source` 对齐到 `channel-contract.yaml`，保持已确认的 `content_type`。覆盖请求若改变文章类型，则以该类型新建 Writing run；若推荐深度超出现有证据或测试能力，先补充受影响的调研/验证，或采用证据能够支持的较低深度。
 
 标准写作只把 Snapshot 中冻结的身份、风格和已选素材作为个人上下文；不得用全局 Profile/Knowledge 覆盖任务内版本。
 
@@ -306,6 +312,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - 标题与正文结论一致；
 - 关键主张均有来源或明确标为观点；
 - 所有 blocking 审校问题已经关闭；
+- `application_check` 已记录 `depth`、`required_blocks` 与 `status: pass | partial | blocked`；只有 `pass` 可通过内容验收。`partial` 先修订或显式降低深度并重新验收，`blocked` 先解决缺失证据或输入；缺少真实测试证据时不得声称 `reproducible`。
 - `final.md`、来源、主张、素材和审校产物彼此对应。
 - `final.md` 已满足当前 `target_id` 的正文、结构和长度合同。
 
@@ -414,6 +421,7 @@ Persona 恢复只读取任务内 `persona-skill.md` 与 `persona-brief.md` 并�
 - `references/evidence-and-assets.md`：来源、主张、素材与 storyboard 契约
 - `references/baoyu-integration.md`：Baoyu 预检、规划、生产和发布路由
 - `references/reader-value.md`：读者价值定义
+- `references/content-routing.md`：文章类型、应用深度与选题后组合推荐
 - `references/creative-drainage.md`：创意排水方法
 - `references/three-pass-review.md`：三层审校检查项来源
 

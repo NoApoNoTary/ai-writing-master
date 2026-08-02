@@ -29,6 +29,7 @@
 2. Editorial：观点、结构、段落作用、反例、读者决策和冗余。
 3. Voice：用户风格偏差、模板句、虚假口语、节奏和平台适配。
 4. Persona：采用部分、作者身份、背景使用、角色侧重和模式边界是否与 `persona-brief.md` 一致。
+5. Application：正文是否满足 `editorial-brief.md` 中 `recommended_combo.required_blocks`，并为所选 `application_depth` 给出 `pass | partial | blocked`。
 
 ## 产出
 
@@ -46,6 +47,10 @@ issues:
       excerpt: "正文原句"
     required_change: "修订边界"
 verdict: pass | revise
+application_check:
+  depth: none | scenario | actionable | reproducible
+  required_blocks: []
+  status: pass | partial | blocked
 ```
 
 将 `review-report.yaml` 写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。

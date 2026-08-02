@@ -45,6 +45,7 @@
 - 全文服务于一个编辑判断。
 - 修订报告逐项对应 accepted issue。
 - Voice 只调整词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比；事实、证据边界、核心判断、作者立场和真实经历保持不变。
+- 按 `editorial-brief.md` 中的 `recommended_combo.required_blocks` 交付；`scenario` 必须有具体场景、明确输入和可观察结果，合成示例明确标注；`actionable` 还需前置条件、步骤、示例输入、预期输出、失败信号和适用边界，`reproducible` 还需实际验证环境或版本、验证方法、回滚与已知限制。
 - `author` Persona 模式可采用 Brief 明确列出的背景、判断、表达和构造性第一人称背景与叙事；`reference` 模式只借用观察方式、判断习惯和写作方式，正文仍保持当前作者身份。
 
 ## 边界

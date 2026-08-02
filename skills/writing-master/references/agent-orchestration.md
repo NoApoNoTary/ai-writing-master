@@ -160,6 +160,10 @@ allowed_inputs:
 - 缺少实时检索时在 Handoff 创建前记录 capability response；不创建 Handoff、draft 或 canonical Brief。
 - 选定 candidate 后才创建普通 `phase=research` Handoff；Research Brief Evidence 不自动进入文章 claims。
 
+### Content Routing
+
+进入 Phase 2 时，quick/standard 由当前 Agent 读取 `references/content-routing.md`。Deep 模式的 Editorial Strategist Manifest 将该文件作为带精确 SHA-256 的 `allowed_inputs`；Article Research 已形成 accepted evidence 后，Editorial Strategist 才生成 `recommended_combo` 并写入 `editorial-brief.md` 与 `outline.md`。推荐沿用当前 run 已冻结的 `content_type`，另一文章类型只进入新 run 建议。Writer 和 Auditor 只消费任务内已保存的组合及其 `required_blocks`，不额外读取路由参考文件。
+
 ## 角色卡
 
 创建代理前读取对应文件：

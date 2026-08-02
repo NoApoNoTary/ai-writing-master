@@ -14,6 +14,7 @@
 - 用户风格档案与少量代表性正反例
 - 当前任务的 `voice-profile-snapshot.json`（仅 Voice Audit；不得用全局 Registry 替代）
 - 选择外部 Persona 时，当前任务的 `persona-brief.md`（Editorial、Writer、Auditor 共用同一份）
+- `editorial-brief.md` 中的 `recommended_combo`
 
 如文章包含视觉规划，同时读取 `asset-manifest.yaml` 与 `storyboard.md`。
 
@@ -26,6 +27,7 @@
 5. `writing-master quality` 只提供套话、句长、段落、副词和词汇等机械预警，不验证事实、论证、原创性或作者声音。
 6. 对用户报告结论、问题和已完成修改，不展示隐藏推理过程。
 7. `author` Persona 模式允许 Brief 明确采用的构造性第一人称背景；`reference` 模式保持当前作者身份。两种模式下的外部主题事实仍要求 accepted claim。
+8. Auditor 按 `application_depth` 检查：`scenario` 要有具体场景、明确输入和可观察结果，合成示例必须标注；`actionable` 要有前置条件、步骤、示例输入、预期输出、失败信号、适用边界；`reproducible` 还要有实际验证环境/版本、验证方法、回滚和已知限制。没有真实测试证据时标为 `partial` 或 `blocked`，不声称 reproducible。
 
 ## 用户动作与阻断问题
 
@@ -55,7 +57,13 @@ issues:
     evidence: "来源、原句、任务合同或风格对照"
     required_change: "必须怎样修，哪些内容保持不动"
 verdict: pass | revise | needs_input
+application_check:
+  depth: none | scenario | actionable | reproducible
+  required_blocks: []
+  status: pass | partial | blocked
 ```
+
+`application_check.status` 只有 `pass` 可进入内容验收通过。`partial` 需要修订或显式降低深度后重审；`blocked` 作为阻断问题处理。
 
 严重程度：
 

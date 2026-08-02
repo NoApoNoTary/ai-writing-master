@@ -27,6 +27,41 @@ class WritingSkillContractTests(unittest.TestCase):
             self.assertNotEqual(found, -1, f"Expected {token!r} after {position}")
             position = found + len(token)
 
+    def test_content_routing_contract(self):
+        main = read("skills/writing-master/SKILL.md")
+        routing = read("skills/writing-master/references/content-routing.md")
+        editorial = read("skills/writing-master/agents/editorial-strategist.md")
+        writer = read("skills/writing-master/agents/writer.md")
+        auditor = read("skills/writing-master/agents/auditor.md")
+        review = read("skills/writing-master/references/three-pass-review.md")
+        persona = read("skills/writing-master/references/persona-skills.md")
+        orchestration = read("skills/writing-master/references/agent-orchestration.md")
+        waiting = section(main, "## 用户等待与继续方式")
+        phase2 = section(main, "### Phase 2：角度、读者决策与 Storyboard")
+        self.assertIn("references/content-routing.md", main)
+        for depth in ("none", "scenario", "actionable", "reproducible"):
+            self.assertIn(depth, routing)
+        self.assert_in_order(main, "Phase 0", "Article Research 完成后由 Phase 2", "recommended_combo")
+        self.assertIn("已选 candidate 或已明确主题", phase2)
+        for field in ("label", "content_type", "application_depth", "reason", "required_blocks"):
+            self.assertIn(field, routing)
+        self.assertIn("修改：组合类型=实测评测+场景应用", main)
+        self.assertIn("不创建独立的组合类型等待点", phase2)
+        self.assertNotIn("| 组合类型 |", waiting)
+        self.assertIn("用户已明确路线时仍展示建议但保留用户选择", phase2)
+        self.assertIn("`content_type` 随内容契约和 Persona Snapshot 在当前 run 内冻结", persona)
+        self.assertIn("采用它时新建 Writing run", routing)
+        self.assertIn("保持已确认的 `content_type`", phase2)
+        self.assertIn("合成示例需要明确标注", routing)
+        self.assertIn("Content Routing", orchestration)
+        self.assertIn("精确 SHA-256", orchestration)
+        self.assertNotIn("references/content-routing.md", writer)
+        for doc in (editorial, writer, auditor, review):
+            self.assertIn("recommended_combo", doc)
+        self.assertIn("application_check", auditor)
+        self.assertIn("application_check", review)
+        self.assertIn("只有 `pass` 状态可使内容验收通过", routing)
+
     def test_complete_writing_requires_explicit_mode_selection(self):
         main = read("skills/writing-master/SKILL.md")
 
