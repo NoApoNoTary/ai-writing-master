@@ -1,6 +1,12 @@
-# 外部作者人格 Skill 合同
+# 作者人格 Skill 合同
 
-外部作者人格是用户提供的、可保存和复用的原始 `SKILL.md`。Nuwa 产物直接使用该载体；Writing Master 不把它转换为 Voice JSON，也不建立第二套固定 Persona Schema。
+作者人格可以来自用户提供的外部 `SKILL.md`，也可以来自项目内置的 Persona 模板。两者都以原始 `SKILL.md` 保存和复用；Writing Master 不把它转换为 Voice JSON，也不建立第二套固定 Persona Schema。
+
+当前内置模板：
+
+- `khazix-writer` / 卡兹克科技观察（实验）：从 Article-only 实验 Profile 提炼的科技观察与判断方法；不注入真实作者身份、经历或第一人称事实。
+
+用 `writing-master persona list --json` 查看内置模板。内置模板只通过明确 ID 解析，不扫描目录、不联网、不导入外部 Registry。
 
 ## 内容契约中的选择
 
@@ -17,7 +23,7 @@
 - `author` / 让这个人格来写：可采用人格的背景、判断、表达和第一人称叙事。
 - `reference` / 参考这个人格写：只借用观察方式、判断习惯和写作方式；正文仍以当前作者身份表达。
 
-选择 `author` 或 `reference` 后，读取用户明确提供的 Skill 名称或路径。名称必须能由当前宿主精确解析为一个 `SKILL.md`；路径可以指向该文件或只包含一个 `SKILL.md` 的目录。不要扫描用户目录、猜测最近使用项、导入 Registry、调用推荐引擎或联网寻找同名人格。
+选择 `author` 或 `reference` 后，读取用户明确提供的内置模板 ID、Skill 名称或路径。内置模板 ID 必须来自项目的静态目录；外部路径可以指向该文件或只包含一个 `SKILL.md` 的目录。不要扫描用户目录、猜测最近使用项、导入外部 Registry、调用推荐引擎或联网寻找同名人格。
 
 同一内容契约还选择本次背景：
 
@@ -81,4 +87,4 @@
 
 旧任务缺少 Persona 字段时按 `none` 处理。Persona 文件缺失或 hash 不一致时停止依赖 Persona 的策划、写作和审校，不从外部路径重建一个看似相同的版本。
 
-首版不包含固定 Persona Schema、自动学习、Registry 导入、目录扫描、推荐引擎或 Marketplace。
+首版不包含固定 Persona Schema、自动学习、外部 Registry 导入、目录扫描、推荐引擎或 Marketplace；内置模板仍是显式打包的 `SKILL.md`，不形成第二套 Persona Schema。

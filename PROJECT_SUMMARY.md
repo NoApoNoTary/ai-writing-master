@@ -25,7 +25,7 @@
 | 标准写作 | 当前 Agent | 完整事实/素材双轨、三层审校和验收 |
 | 深度写作 | Lead + 专项子代理 | 已验收的 Handoff Runtime 处理已建立 deep/multi-agent 运行目录；本次仍需宿主实际具备子代理能力 |
 
-新建完整内容必须由用户选择模式和一个 `target_id`，并在内容契约中明确是否使用外部 Persona Skill。主写作流程的多 Agent 只属于深度写作，不作为默认路由；改写流程保持单 Agent，且每个 Rewrite 只处理一个渠道。
+新建完整内容必须由用户选择模式和一个 `target_id`，并在内容契约中明确是否使用内置模板或外部 Persona Skill。主写作流程的多 Agent 只属于深度写作，不作为默认路由；改写流程保持单 Agent，且每个 Rewrite 只处理一个渠道。
 
 ### CLI
 
@@ -39,7 +39,7 @@
 | `writing-master learn` | 提交、接受或拒绝可追溯 Style Observation，并显示 accepted-only Style Profile |
 | `writing-master research` | 将 Agent 选题 draft 绑定到任务 Brief/Snapshot，并保存或验证 canonical Research Brief |
 | `writing-master voice` | 列出内置 Voice Preset，创建不可变任务 Snapshot，并校验 status/hash/legacy 状态 |
-| `writing-master persona` | 原样冻结外部 Persona Skill 与自由格式任务 Brief，并从任务内 hash 校验恢复版本 |
+| `writing-master persona` | 列出内置人格模板、原样冻结内置/外部 Persona Skill 与自由格式任务 Brief，并从任务内 hash 校验恢复版本 |
 
 机械检查不负责事实核验、证据强度、原创性、论证质量或作者声音判断。
 
@@ -92,7 +92,7 @@ Baoyu 不随本仓库分发。当前集成层负责：
 - `personal_context` 深模块：revisioned Author Profile、五类 Knowledge Item、visibility/approval、任务内 Snapshot、usage、确认式 Style Observation 与 accepted-only Style Profile。
 - `research_brief` 深模块：3–10 个上下文感知候选、实时 Evidence、四维评分、任务输入绑定和 write-once 验证。
 - `voice_presets` 深模块：四个静态表达 Profile、任务级 write-once Snapshot、Registry-independent resume 与 Deep Manifest 角色边界。
-- 外部 Persona Skill：原始 `SKILL.md` 任务内保存、自由格式 `persona-brief.md`、按文章类型生成角色侧重，以及 Editorial/Writer/Auditor 共用 Brief、Researcher 中立的角色边界。
+- Persona 模板与外部 Skill：内置 `khazix-writer` 模板，外部 `SKILL.md` 任务内保存、自由格式 `persona-brief.md`、按文章类型生成角色侧重，以及 Editorial/Writer/Auditor 共用 Brief、Researcher 中立的角色边界。
 - `channel_adaptation` P0：`writing` / `rewrite` 双入口、单一 `target_id`、source-analysis 复用及微信/X 完整交付合同。
 
 Personal Context Foundation、确认式风格学习、Context-aware Research Brief 和 Voice Preset Runtime 已交付。Voice 只解决任务级表达快照；`quick/standard` 的通用确定性跨会话 Task Runtime 仍未交付。

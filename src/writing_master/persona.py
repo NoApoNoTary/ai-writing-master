@@ -1,4 +1,4 @@
-"""Task-local snapshots for user-selected external Persona Skills."""
+"""Task-local snapshots for selected Persona Skills."""
 from __future__ import annotations
 
 import hashlib
@@ -16,6 +16,7 @@ from writing_master.personal_context import (
     read_bytes_at,
     read_json_at,
 )
+from writing_master.persona_templates import resolve_source
 
 
 PERSONA_SKILL_FILE = "persona-skill.md"
@@ -93,7 +94,7 @@ def _read_regular_utf8(path: Path, *, label: str) -> bytes:
 
 def _load_source(source: Path | str) -> tuple[str, str, bytes]:
     source_input = _source_input(source)
-    path = Path(source_input).expanduser()
+    path = resolve_source(source_input)
     try:
         if path.is_dir():
             path = path / "SKILL.md"

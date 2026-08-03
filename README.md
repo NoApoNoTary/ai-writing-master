@@ -1,6 +1,6 @@
 # AI Writing Master
 
-面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定外部作者人格（可选）与任务级写作声音，完成事实与素材调研、写作、审校和交付。
+面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定作者人格（可选）与任务级写作声音，完成事实与素材调研、写作、审校和交付。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg)](pyproject.toml)
@@ -90,7 +90,7 @@ voice_snapshot：ready
 
 内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、一个 `target_id`、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消。
 
-内容契约每次也会询问是否使用外部作者人格：不使用、让这个人格来写，或参考这个人格写。启用时由用户给出 Nuwa 等 Persona Skill 的名称或路径，原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责背景、观察和判断方式；现有 Voice Preset 继续独立负责表层表达，两者可以组合。
+内容契约每次也会询问是否使用作者人格：不使用、让这个人格来写，或参考这个人格写。人格来源可以是内置的 `khazix-writer` 模板，也可以是用户给出的 Nuwa 等 Persona Skill 名称或路径。原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责背景、观察和判断方式；现有 Voice Preset 继续独立负责表层表达，两者可以组合。
 
 先完成内容验收，使 `final.md` 成为所选渠道的 canonical final；仅在其后生成渠道 YAML 要求的必要产物。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加当前渠道必要产物。微信完整交付包含格式化 Markdown、HTML 和封面；X 单帖与 X Thread 交付各自经过逐项渠道审查的正文。
 
@@ -203,7 +203,10 @@ writing-master voice list --json
 writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
 writing-master voice verify-run RUN_DIR --json
 
-# 冻结外部 Persona Skill 与本次任务 Brief
+# 列出并冻结人格模板
+writing-master persona list --json
+writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md --mode reference --content-type analysis --background project --json
+# 也可以冻结外部 Persona Skill
 writing-master persona snapshot RUN_DIR /path/to/SKILL.md persona-brief-draft.md --mode author --content-type analysis --background project --json
 writing-master persona verify-run RUN_DIR --json
 ```
@@ -220,9 +223,9 @@ Voice Preset 只控制词汇、句式、节奏、段落、开场、转折、确�
 
 Quick / Standard 只在初稿和 Voice Audit 读取该 Snapshot。Deep 模式仅 Writer 与 Auditor 的 Manifest 可列出它；Researcher 与 Editorial Strategist 不读取。非默认 Voice 任务默认不作为长期 Style Observation 的 baseline/evidence，平台 Rewrite 继续从已验收 canonical final 开始，不重新选择 Voice。
 
-## 外部作者人格：直接复用 Persona Skill
+## 作者人格：内置模板或直接复用 Persona Skill
 
-Nuwa 等工具产出的作者人格直接以原始 `SKILL.md` 接入，不转换成固定 Voice JSON。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时继续使用该版本及 hash，不受外部 Skill 后续变化影响。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
+项目内置 `khazix-writer` / 卡兹克科技观察（实验）模板；Nuwa 等工具产出的作者人格也可以直接以原始 `SKILL.md` 接入，不转换成固定 Voice JSON。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时继续使用该版本及 hash，不受外部 Skill 后续变化影响。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
 
 ## Personal Context：显式、可追溯的个人上下文
 

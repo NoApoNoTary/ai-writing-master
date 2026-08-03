@@ -48,6 +48,31 @@ class PersonaCliTests(unittest.TestCase):
         self.assertEqual((code, error), (0, ""))
         self.assertTrue(json.loads(output)["verified"])
 
+    def test_list_exposes_builtin_templates(self) -> None:
+        code, output, error = self.invoke(["list", "--json"])
+
+        self.assertEqual((code, error), (0, ""))
+        templates = json.loads(output)["templates"]
+        self.assertEqual(templates[0]["id"], "khazix-writer")
+        self.assertEqual(templates[0]["label"], "卡兹克科技观察（实验）")
+
+    def test_snapshot_accepts_builtin_template_id(self) -> None:
+        code, output, error = self.invoke([
+            "snapshot",
+            str(self.run),
+            "khazix-writer",
+            str(self.brief),
+            "--mode", "reference",
+            "--content-type", "analysis",
+            "--background", "none",
+            "--json",
+        ])
+
+        self.assertEqual((code, error), (0, ""))
+        result = json.loads(output)
+        self.assertEqual(result["source_input"], "khazix-writer")
+        self.assertIn("卡兹克科技观察", (self.run / "persona-skill.md").read_text(encoding="utf-8"))
+
     def test_parser_errors_and_root_registration(self) -> None:
         code, output, error = self.invoke(["snapshot", "--json"])
         self.assertEqual((code, error), (1, ""))

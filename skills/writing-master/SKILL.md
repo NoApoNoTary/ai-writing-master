@@ -1,7 +1,7 @@
 ---
 name: writing-master
 description: |
-  AI Writing Master 的端到端从零创作入口。新建完整内容时先让用户明确选择快速草稿、标准写作或深度写作，并为本次任务选择一个 target_id；快速与标准模式由当前 Agent 单独完成，只有具备真实 Handoff Runtime 的深度模式启用多 Agent。流程覆盖内容契约、外部作者人格、个人上下文、上下文感知选题、事实与素材双轨调研、写作、渠道审校、确认式风格学习和 Baoyu 视觉/排版路由。适用于“写文章、写公众号、从零创作、写 X 单帖或 Thread”等请求；已有正文改写转 writing-rewrite。
+  AI Writing Master 的端到端从零创作入口。新建完整内容时先让用户明确选择快速草稿、标准写作或深度写作，并为本次任务选择一个 target_id；快速与标准模式由当前 Agent 单独完成，只有具备真实 Handoff Runtime 的深度模式启用多 Agent。流程覆盖内容契约、外部或内置作者人格、个人上下文、上下文感知选题、事实与素材双轨调研、写作、渠道审校、确认式风格学习和 Baoyu 视觉/排版路由。适用于“写文章、写公众号、从零创作、写 X 单帖或 Thread”等请求；已有正文改写转 writing-rewrite。
 allowed-tools:
   - Bash
   - Read
@@ -179,7 +179,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 4. 对用户已经给出的网页、YouTube、文件、图片或历史文章建立素材入口；需要提取时立即路由到对应读取能力。
 5. 按 `references/evidence-and-assets.md` 将每项素材与素材接收结果写入 `capability-preflight.md`，并先向用户返回：已接收、已提取、等待处理、失败、需要你确认的项目及其影响。失败项不阻塞无关素材。
 6. 只完成 capability/material preflight，不生成图片、不排版、不发布。
-7. 读取 `references/persona-skills.md`，每次询问外部人格使用方式：不使用、让这个人格来写、参考这个人格写。选择后读取用户明确提供的 Skill 名称或路径；不扫描目录、不导入 Registry、不联网。用户同时选择人格背景：使用人格默认背景、补充项目背景，或本次不生成背景。
+7. 读取 `references/persona-skills.md`，每次询问人格使用方式：不使用、让这个人格来写、参考这个人格写。选择后读取用户明确提供的内置模板 ID、Skill 名称或路径；不扫描目录、不导入外部 Registry、不联网。用户同时选择人格背景：使用人格默认背景、补充项目背景，或本次不生成背景。
 8. 根据 `content_type` 生成当前任务的人格角色侧重，并在用户可见内容契约摘要中展示 Persona 选择与背景选项。研究用 `brief.md` 只保留主题、读者、渠道、内容目的和证据要求，不写入 Persona Skill 原文、拟采用部分、人格背景或角色侧重；这些细节在确认后只进入 `persona-brief.md`。项目背景只影响当前任务，不回写 Persona Skill。
 9. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，展示当前选择与可用写作声音。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
 10. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。用户回复“确认”同时确认当前 `persona_mode` 与 `voice_id`；可用“修改：人格=参考它写”“修改：写作声音=清晰分析”更新选择。
@@ -415,7 +415,7 @@ Persona 恢复只读取任务内 `persona-skill.md` 与 `persona-brief.md` 并�
 - `references/mode-selection.md`：入口问法与三种模式边界
 - `references/agent-orchestration.md`：仅供深度模式使用的多 Agent 协议
 - `references/personal-context.md`：任务 Snapshot、素材准入、usage 与确认式风格学习
-- `references/persona-skills.md`：外部 Persona Skill 选择、任务 Brief、角色读取边界与恢复语义
+- `references/persona-skills.md`：内置/外部 Persona Skill 选择、任务 Brief、角色读取边界与恢复语义
 - `references/voice-presets.md`：内容契约 Voice 选择、任务 Snapshot、读取边界、审校与失败语义
 - `references/research-brief.md`：上下文感知 Topic Research 的 draft、Evidence、评分与作者匹配合同
 - `references/evidence-and-assets.md`：来源、主张、素材与 storyboard 契约

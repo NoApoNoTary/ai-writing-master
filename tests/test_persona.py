@@ -278,6 +278,30 @@ class PersonaStoreTests(unittest.TestCase):
             ),
         )
 
+    def test_builtin_khazix_template_resolves_by_id_and_freezes_verbatim(self) -> None:
+        result = self.store.create_snapshot(
+            self.run,
+            "khazix-writer",
+            self.brief,
+            mode="reference",
+            content_type="analysis",
+            background_mode="none",
+        )
+
+        self.assertEqual(result["source_input"], "khazix-writer")
+        self.assertTrue(result["source_path"].endswith("persona_templates/khazix-writer/SKILL.md"))
+        self.assertEqual(
+            (self.run / "persona-skill.md").read_bytes(),
+            Path(result["source_path"]).read_bytes(),
+        )
+        content = (self.run / "persona-skill.md").read_text(encoding="utf-8")
+        self.assertIn("卡兹克科技观察", content)
+        for rule_id in (
+            *(f"R{number:02d}" for number in range(1, 26)),
+            *(f"A{number:02d}" for number in range(1, 10)),
+        ):
+            self.assertIn(rule_id, content)
+
 
 class PersonaHandoffTests(unittest.TestCase):
     def setUp(self) -> None:

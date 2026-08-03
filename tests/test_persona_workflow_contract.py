@@ -39,6 +39,15 @@ class PersonaWorkflowContractTests(unittest.TestCase):
         for mode in ("none", "author", "reference"):
             self.assertIn(mode, self.contract)
 
+    def test_builtin_khazix_template_is_explicit_and_identity_safe(self):
+        for token in (
+            "`khazix-writer`",
+            "卡兹克科技观察（实验）",
+            "不注入真实作者身份、经历或第一人称事实",
+            "writing-master persona list --json",
+        ):
+            self.assertIn(token, self.contract)
+
     def test_skill_is_saved_verbatim_and_brief_is_free_form(self):
         for token in (
             "原始 `SKILL.md` 的字节原样保存",

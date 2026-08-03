@@ -2,7 +2,7 @@
 
 本文面向需要从 Shell 调用、编写自动化脚本或排查工程状态的用户。普通写作不以 CLI 为入口，请从[用户上手指南](quick-start.md)开始。
 
-AI Writing Master 的 CLI 提供九项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验、任务级 Voice Snapshot 和外部 Persona Skill 冻结。它们不替代事实研究或编辑审查。
+AI Writing Master 的 CLI 提供九项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验、任务级 Voice Snapshot 和内置/外部 Persona Skill 冻结。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
 
@@ -72,7 +72,8 @@ writing-master research verify RUN_DIR [--json]
 writing-master voice list [--json]
 writing-master voice snapshot RUN_DIR [VOICE] [--source default|request|content-contract] [--json]
 writing-master voice verify-run RUN_DIR [--json]
-writing-master persona snapshot RUN_DIR SKILL.md PERSONA_BRIEF.md --mode author|reference --content-type TYPE --background default|project|none [--source-version VERSION] [--json]
+writing-master persona list [--json]
+writing-master persona snapshot RUN_DIR TEMPLATE_OR_SKILL PERSONA_BRIEF.md --mode author|reference --content-type TYPE --background default|project|none [--source-version VERSION] [--json]
 writing-master persona verify-run RUN_DIR [--json]
 ```
 
@@ -279,15 +280,18 @@ writing-master voice verify-run RUN_DIR --json
 
 当前内置五项：`natural-default`、`clear-analytical`、`conversational-observer`、`sharp-commentary`、`magazine-dialogue-editor`。Profile 只约束表达维度，不得改变事实、证据边界、核心判断、作者立场或真实经历。
 
-## `persona`：任务级外部作者人格
+## `persona`：任务级人格模板与外部作者人格
 
 ```bash
+writing-master persona list --json
+writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md \
+  --mode reference --content-type analysis --background project --json
 writing-master persona snapshot RUN_DIR /path/to/PERSONA/SKILL.md persona-brief-draft.md \
   --mode author --content-type analysis --background project --json
 writing-master persona verify-run RUN_DIR --json
 ```
 
-`snapshot` 原样保存外部 `SKILL.md` 为任务内 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。无论版本来自哪里，状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
+`list` 返回显式打包的内置 Persona 模板；当前包含 `khazix-writer` / 卡兹克科技观察（实验）。`snapshot` 的 `SKILL.md` 参数可以是内置模板 ID，也可以是外部文件或只包含一个 `SKILL.md` 的目录。无论来源如何，Runtime 都原样保存 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
 
 同一任务、同一来源输入与 Brief 重试幂等；外部文件之后变化不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`。`verify-run` 只校验任务内两份文件和 `status.json`，不回读外部路径、不扫描 Skill 目录。
 
