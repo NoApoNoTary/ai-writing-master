@@ -62,6 +62,25 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("application_check", review)
         self.assertIn("只有 `pass` 状态可使内容验收通过", routing)
 
+    def test_p1_spec_failure_cases_and_endnotes_contract(self):
+        main = read("skills/writing-master/SKILL.md")
+        spec = read("skills/writing-master/references/run-spec.md")
+        failures = read("skills/writing-master/references/failure-cases.md")
+        writer = read("skills/writing-master/agents/writer.md")
+        auditor = read("skills/writing-master/agents/auditor.md")
+
+        for token in ("`spec.md`", "failure-case-snapshot.md", "references/run-spec.md", "references/failure-cases.md"):
+            self.assertIn(token, main)
+        for token in ("读者目标", "内部执行约束", "冻结", "SHA-256", "brief.md"):
+            self.assertIn(token, spec)
+        for token in ("proposed", "active", "superseded", "FC-20260803-001", "原子替换"):
+            self.assertIn(token, failures)
+        for card in (writer, auditor):
+            self.assertIn("failure-case-snapshot.md", card)
+            self.assertIn("source_display=endnotes", card)
+            self.assertIn("官方来源", card)
+            self.assertIn("独立来源", card)
+
     def test_complete_writing_requires_explicit_mode_selection(self):
         main = read("skills/writing-master/SKILL.md")
 

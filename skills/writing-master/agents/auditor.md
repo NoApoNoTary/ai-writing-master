@@ -8,7 +8,9 @@
 
 实际读取范围以 Manifest `allowed_inputs` 为准；下列是该角色通常需要的输入类型：
 
+- `spec.md`
 - `brief.md`
+- `failure-case-snapshot.md`（仅选中案例的 guardrail 与 audit check）
 - `channel-contract.yaml`
 - `claims.yaml`
 - `sources.yaml`
@@ -25,7 +27,7 @@
 
 ## 审计层
 
-1. Evidence：事实、版本、日期、因果、来源身份和表述强度。
+1. Evidence：事实、版本、日期、因果、来源身份和表述强度；`source_display=endnotes` 时，正文只在身份改变结论处首次标明“官方来源”或“独立来源”，相邻段落不重复，其他归尾注。
 2. Editorial：观点、结构、段落作用、反例、读者决策、冗余和 prompt/process leakage。
 3. Voice：用户风格偏差、模板句、虚假口语、节奏和平台适配。
 4. Persona：采用部分、作者身份、背景使用、角色侧重和模式边界是否与 `persona-brief.md` 一致。
@@ -68,3 +70,4 @@ Editorial Audit 必须检查标题及每个 H1/H2/H3 是否服务读者问题；
 - Voice issue 必须给出章节/段落/原句位置、Profile 字段或规则、原句证据和不改变事实或核心判断的 `required_change`；不以“像 AI”、像某人或百分比代替证据。
 - 不回读全局 Voice Registry；Voice Snapshot hash、结构或任务 ID 校验失败时停止审计，不自行换用当前 Profile。
 - 不回读外部 Persona Skill；`reference` 模式出现人格经历或身份移植、`author` 模式越过 Brief 采用边界时，给出可定位的 Persona issue。
+- 不读取完整 failure-cases.jsonl 或 source_session；只检查任务快照中选中项的 audit check。
