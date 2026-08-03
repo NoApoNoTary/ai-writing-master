@@ -49,13 +49,18 @@ MIN_PARAGRAPH_COUNT = 3
 
 # 高置信编辑元语言与内部产物名。它们是独立候选，不参与机械分数。
 PROCESS_LEAKAGE_RULES = (
-    ("PROCESS-META-001", re.compile(r"(?:要不要|是否应该)(?:介绍|写|加入|提及|展开)")),
+    (
+        "PROCESS-META-001",
+        re.compile(r"(?:要不要|是否要|是否应该|应不应该|需不需要)(?:介绍|写|加入|提及|展开)"),
+    ),
     ("PROCESS-META-002", re.compile(r"(?:别|不要)写成(?:广告|软文|宣传稿|营销文)")),
     (
         "PROCESS-META-003",
         re.compile(
-            r"(?:根据用户(?:的)?要求|用户(?:的)?要求|按(?:用户|你)(?:的)?(?:要求|指示))"
-            r"|用户(?:让我|希望)(?:我|我们|本文|文章)?(?:介绍|写|加入|提及|展开|删除|修改)"
+            r"(?:(?:根据用户(?:的)?要求|用户(?:的)?要求|按(?:用户|你)(?:的)?(?:要求|指示))"
+            r"[，,:：]?(?=[^。！？；\n]{0,20}(?:我|我们|本文|文章|标题|正文|本节|这一节|这部分|这里))"
+            r"[^。！？；\n]{0,30}(?:介绍|写|加入|提及|展开|删除|修改|补充)"
+            r"|用户(?:让我|希望)(?:我|我们|本文|文章)(?:介绍|写|加入|提及|展开|删除|修改))"
         ),
     ),
     (
@@ -72,15 +77,16 @@ PROCESS_LEAKAGE_RULES = (
     ),
     (
         "PROCESS-SOURCE-001",
-        re.compile(r"(?:来源|引用|资料)(?:展示)?策略(?:是|为|：|:)"),
+        re.compile(r"(?:来源|引用|资料)(?:展示)?策略(?:是|为|：|:)(?:优先)?(?:官方文档|独立来源|尾注|脚注|文中标注)"),
     ),
 )
 INTERNAL_ARTIFACT_RULE = (
     "PROCESS-ARTIFACT-001",
     re.compile(
-        r"(?:brief|editorial-brief|channel-contract|asset-manifest|review-report|"
-        r"revision-report|acceptance-report|claims|sources|storyboard|draft-v[12]|"
-        r"final)\.(?:md|yaml|json)|canonical\s+final|recommended_combo",
+        r"(?:brief\.md|editorial-brief\.md|channel-contract\.yaml|asset-manifest\.json|"
+        r"review-report\.yaml|revision-report\.md|acceptance-report\.md|claims\.yaml|"
+        r"sources\.yaml|storyboard\.md|draft-v[12]\.md|final\.md)|"
+        r"canonical\s+final|recommended_combo",
         re.IGNORECASE,
     ),
 )

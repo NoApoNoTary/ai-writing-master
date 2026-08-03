@@ -66,6 +66,9 @@ class MechanicalQualityTests(unittest.TestCase):
             "这里需要配一张图。",
             "来源策略：优先官方文档。",
             "是否应该介绍 Qwen API？",
+            "是否要介绍 Qwen API？",
+            "应不应该写 Qwen API？",
+            "需不需要提及 Qwen API？",
             "这部分是否需要写 Qwen API？",
         )
 
@@ -83,9 +86,17 @@ class MechanicalQualityTests(unittest.TestCase):
         self.assertEqual(result["findings"][0]["original_text"], "根据用户要求，这里需要补充 API。")
 
     def test_normal_product_user_intent_is_not_process_leakage(self):
-        result = score_article("用户希望导出 PDF。\n\n" + "正文。" * 80)
+        samples = (
+            "用户希望导出 PDF。",
+            "用户要求系统支持双因素认证。",
+            "数据来源策略是优先使用官方统计。",
+            "brief.yaml 是服务配置文件。",
+        )
 
-        self.assertEqual(result["findings"], [])
+        for sample in samples:
+            with self.subTest(sample=sample):
+                result = score_article(sample + "\n\n" + "正文。" * 80)
+                self.assertEqual(result["findings"], [])
 
 
 if __name__ == "__main__":
