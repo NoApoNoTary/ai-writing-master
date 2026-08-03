@@ -2,6 +2,8 @@
 
 失败案例库默认位于 `${WRITING_MASTER_HOME:-~/.writing-master}/failure-cases.jsonl`。仅使用标准库和 JSON Lines；每条记录最少包含：`id`、`status`、`tags`、`source_run`、`source_session`、`symptom`、`root_cause`、`guardrail`、`audit_check`。
 
+最少字段之外允许保存 `notes` 等 JSON 扩展字段；状态更新和原子重写必须原样保留这些扩展，不因当前 runtime 尚未解释它们而丢弃。
+
 ## 生命周期
 
 - `proposed`：已登记，尚未进入新任务。

@@ -2,8 +2,10 @@
 from __future__ import annotations
 import argparse
 import json
+from pathlib import Path
 import sys
-from writing_master.failure_cases import FailureCaseError, list_cases, propose_case, select_cases, update_case_status, write_snapshot
+from writing_master.failure_cases import FailureCaseError, list_cases, propose_case, update_case_status, write_snapshot
+from writing_master.personal_context import ContextError
 
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
@@ -31,7 +33,7 @@ def main(argv=None) -> int:
         args = parser.parse_args(argv)
         if args.operation == "propose":
             try:
-                raw = open(args.case_json, encoding="utf-8").read()
+                raw = Path(args.case_json).read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 raw = args.case_json
             case = propose_case(json.loads(raw), args.path)
@@ -41,7 +43,7 @@ def main(argv=None) -> int:
             case = {"cases": list_cases(args.path, status=args.status)}
         else:
             case = write_snapshot(args.run_dir, tags=args.tag, limit=args.limit, path=args.path)
-    except (FailureCaseError, json.JSONDecodeError) as error:
+    except (ContextError, json.JSONDecodeError, TypeError, ValueError) as error:
         if json_requested:
             _json({"error": {"code": getattr(error, "code", "invalid_input"), "message": str(error)}})
         else:

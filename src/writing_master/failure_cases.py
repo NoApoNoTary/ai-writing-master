@@ -7,7 +7,14 @@ import os
 from pathlib import Path
 from typing import Iterable
 
-from writing_master.personal_context import ContextError, atomic_write_bytes, context_lock
+from writing_master._runfs import RunFsError, run_directory, run_lock
+from writing_master.personal_context import (
+    ContextError,
+    atomic_write_bytes,
+    atomic_write_bytes_at,
+    context_lock,
+    read_bytes_at,
+)
 
 FAILURE_CASES_FILE = "failure-cases.jsonl"
 SNAPSHOT_FILE = "failure-case-snapshot.md"
@@ -48,20 +55,18 @@ def _tags(value: object) -> list[str]:
 def validate_case(value: dict, *, allow_created_at: bool = True) -> dict:
     if not isinstance(value, dict):
         raise FailureCaseError("invalid_input", "failure case must be an object")
+    if any(not isinstance(key, str) for key in value):
+        raise FailureCaseError("invalid_input", "failure case keys must be strings")
     missing = [field for field in REQUIRED_FIELDS if field not in value]
     if missing:
         raise FailureCaseError("invalid_input", f"failure case missing fields: {', '.join(missing)}")
-    case = {
-        "id": _text(value["id"], "id"),
-        "status": _text(value["status"], "status"),
-        "tags": _tags(value["tags"]),
-        "source_run": _text(value["source_run"], "source_run"),
-        "source_session": _text(value["source_session"], "source_session"),
-        "symptom": _text(value["symptom"], "symptom"),
-        "root_cause": _text(value["root_cause"], "root_cause"),
-        "guardrail": _text(value["guardrail"], "guardrail"),
-        "audit_check": _text(value["audit_check"], "audit_check"),
-    }
+    case = dict(value)
+    for field in (
+        "id", "status", "source_run", "source_session", "symptom", "root_cause",
+        "guardrail", "audit_check",
+    ):
+        case[field] = _text(value[field], field)
+    case["tags"] = _tags(value["tags"])
     if case["status"] not in STATUSES:
         raise FailureCaseError("invalid_input", "status must be proposed, active, or superseded")
     if allow_created_at and "created_at" in value:
@@ -92,7 +97,20 @@ def _lock(path: Path):
     return context_lock(path.parent)
 
 def _atomic_write(path: Path, text: str) -> None:
-    atomic_write_bytes(path, text.encode("utf-8"))
+    try:
+        atomic_write_bytes(path, text.encode("utf-8"))
+    except ContextError as error:
+        raise FailureCaseError(error.code, str(error)) from error
+
+
+def _serialize(cases: list[dict]) -> str:
+    try:
+        return "".join(
+            json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n"
+            for item in cases
+        )
+    except (TypeError, ValueError) as error:
+        raise FailureCaseError("invalid_input", "failure case extensions must be JSON values") from error
 
 def list_cases(path: Path | str | None = None, *, status: str | None = None) -> list[dict]:
     target = Path(path).expanduser() if path is not None else default_failure_cases_path()
@@ -106,13 +124,15 @@ def list_cases(path: Path | str | None = None, *, status: str | None = None) -> 
 
 def propose_case(case: dict, path: Path | str | None = None) -> dict:
     target = Path(path).expanduser() if path is not None else default_failure_cases_path()
+    if not isinstance(case, dict):
+        raise FailureCaseError("invalid_input", "failure case must be an object")
     candidate = validate_case({**case, "status": "proposed"})
     candidate.setdefault("created_at", datetime.now(timezone.utc).isoformat())
     with _lock(target):
         cases = _read(target)
         if any(item["id"] == candidate["id"] for item in cases):
             raise FailureCaseError("already_exists", f"failure case already exists: {candidate['id']}")
-        _atomic_write(target, "".join(json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for item in cases + [candidate]))
+        _atomic_write(target, _serialize(cases + [candidate]))
     return candidate
 
 
@@ -127,7 +147,7 @@ def update_case_status(case_id: str, status: str, path: Path | str | None = None
             if case["id"] == ident:
                 updated = dict(case, status=status)
                 cases[index] = updated
-                _atomic_write(target, "".join(json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for item in cases))
+                _atomic_write(target, _serialize(cases))
                 return updated
     raise FailureCaseError("not_found", f"failure case not found: {ident}")
 
@@ -135,6 +155,8 @@ def update_case_status(case_id: str, status: str, path: Path | str | None = None
 def select_cases(tags: Iterable[str] | None = None, *, limit: int = 5, path: Path | str | None = None) -> list[dict]:
     if type(limit) is not int or not 0 <= limit:
         raise FailureCaseError("invalid_input", "limit must be a non-negative integer")
+    if limit == 0:
+        return []
     wanted = set(_tags(list(tags))) if tags is not None else set()
     selected = []
     for case in list_cases(path, status="active"):
@@ -148,14 +170,12 @@ def select_cases(tags: Iterable[str] | None = None, *, limit: int = 5, path: Pat
 
 def snapshot_markdown(cases: Iterable[dict]) -> str:
     cases = [validate_case(case) for case in cases]
-    lines = ["# Failure Case Snapshot", "", "仅注入选中案例的 guardrail 与 audit check；不包含历史会话。", ""]
+    lines = ["# Failure Case Snapshot", ""]
     if not cases:
-        lines.append("（本次没有匹配的 active failure case。）")
+        lines.append("（本次没有匹配规则。）")
         return "\n".join(lines) + "\n"
     for case in cases:
         lines.extend([
-            f"## {case['id']}",
-            f"- tags: {', '.join(case['tags']) or '（无）'}",
             f"- guardrail: {case['guardrail']}",
             f"- audit_check: {case['audit_check']}",
             "",
@@ -164,12 +184,18 @@ def snapshot_markdown(cases: Iterable[dict]) -> str:
 
 
 def write_snapshot(run_dir: Path | str, *, tags: Iterable[str] | None = None, limit: int = 5, path: Path | str | None = None) -> dict:
-    run = Path(run_dir).expanduser()
-    if not run.is_dir():
-        raise FailureCaseError("not_initialized", f"run directory is missing: {run}")
     cases = select_cases(tags, limit=limit, path=path)
-    output = run / SNAPSHOT_FILE
-    _atomic_write(output, snapshot_markdown(cases))
+    try:
+        with run_directory(run_dir) as (run_fd, _):
+            with run_lock(run_fd):
+                try:
+                    read_bytes_at(run_fd, SNAPSHOT_FILE)
+                except ContextError as error:
+                    if error.code != "not_initialized":
+                        raise
+                atomic_write_bytes_at(run_fd, SNAPSHOT_FILE, snapshot_markdown(cases).encode("utf-8"))
+    except (RunFsError, ContextError) as error:
+        raise FailureCaseError(error.code, str(error)) from error
     return {"path": SNAPSHOT_FILE, "count": len(cases), "case_ids": [case["id"] for case in cases]}
 
 
