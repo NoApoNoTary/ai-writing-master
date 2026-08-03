@@ -15,7 +15,7 @@
 - `draft-v1.md`
 - 用户风格档案与少量代表性正反例
 - 当前任务的 `voice-profile-snapshot.json`（仅 Voice Audit；不得用全局 Registry 替代）
-- 选择外部 Persona 时，当前任务的 `persona-brief.md`（Editorial、Writer、Auditor 共用同一份）
+- 选择 Persona（内置或外部）时，当前任务的 `persona-brief.md`（Editorial、Writer、Auditor 共用同一份）
 - `editorial-brief.md` 中的 `recommended_combo`
 
 如文章包含视觉规划，同时读取 `asset-manifest.yaml` 与 `storyboard.md`。
@@ -70,6 +70,8 @@ application_check:
 ```
 
 `application_check.status` 只有 `pass` 可进入内容验收通过。`partial` 需要修订或显式降低深度后重审；`blocked` 作为阻断问题处理。
+
+Persona 身份、背景、`author/reference` 模式或 Brief 采用边界违规使用 `layer: editorial`；与 Voice Snapshot 重叠的表达冲突使用 `layer: voice`。
 
 严重程度：
 

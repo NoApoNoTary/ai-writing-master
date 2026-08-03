@@ -30,6 +30,8 @@ class PersonaWorkflowContractTests(unittest.TestCase):
         self.writer = read("skills/writing-master/agents/writer.md")
         self.auditor = read("skills/writing-master/agents/auditor.md")
         self.voice = read("skills/writing-master/references/voice-presets.md")
+        self.review = read("skills/writing-master/references/three-pass-review.md")
+        self.context = read("skills/writing-master/references/personal-context.md")
 
     def test_every_contract_offers_all_three_persona_modes(self):
         phase0 = section(self.main, "### Phase 0：内容契约、能力预检与素材接收")
@@ -45,6 +47,7 @@ class PersonaWorkflowContractTests(unittest.TestCase):
             "卡兹克科技观察（实验）",
             "不注入真实作者身份、经历或第一人称事实",
             "writing-master persona list --json",
+            "builtin:khazix-writer",
         ):
             self.assertIn(token, self.contract)
 
@@ -100,10 +103,54 @@ class PersonaWorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(token, combined)
 
+    def test_selected_persona_brief_is_source_neutral_for_downstream_roles(self):
+        for document in (self.main, self.orchestration, self.editorial, self.writer, self.auditor):
+            self.assertIn("选择 Persona", document)
+            self.assertIn("`persona-brief.md`", document)
+        self.assertIn("内置或外部 Persona", self.orchestration)
+        self.assertIn("不回读来源", self.orchestration)
+        self.assertIn("不得读取 `persona-skill.md`、`persona-brief.md`", self.researcher)
+        self.assertIn("Persona 来源 Skill（内置或外部）", self.researcher)
+        self.assertIn("所选 Persona Skill（内置或外部）", self.voice)
+        self.assertIn("选择 Persona（内置或外部）", self.review)
+        self.assertIn("所选 Persona（内置或外部）", self.context)
+
+    def test_ready_persona_or_voice_change_creates_a_new_run_without_overwrite(self):
+        for token in (
+            "`persona_snapshot=ready`",
+            "`voice_snapshot=ready`",
+            "展示同样的差异",
+            "创建新 Writing run",
+            "新 run 的 `source_task_id` 记录当前 `task_id`",
+            "当前 run 的关联字段和冻结 Snapshot 均不改写",
+        ):
+            self.assertIn(token, self.main)
+        for token in (
+            "若 `persona_snapshot=ready`",
+            "新 run 的 `source_task_id` 记录原 `task_id`",
+            "原 run 的关联字段、`persona-skill.md`、`persona-brief.md` 和 hash 保持不变",
+            "`contract` 从 `pending` 重新确认",
+        ):
+            self.assertIn(token, self.contract)
+
+    def test_voice_snapshot_controls_overlapping_surface_expression(self):
+        surface = "词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比"
+        for document in (self.contract, self.main, self.writer):
+            self.assertIn(surface, document)
+            self.assertIn("显式非默认 Voice", document)
+            self.assertIn("不得覆盖", document)
+        self.assertIn("词汇、句式、节奏、段落形态、开场", self.voice)
+        self.assertIn("显式非默认 Voice 以 Voice Snapshot 为准", self.voice)
+        self.assertIn("Persona 决定身份、判断与背景", self.contract)
+        self.assertIn("`natural-default` 时 Persona 的表达建议", self.contract)
+        template = read("src/writing_master/persona_templates/khazix-writer/SKILL.md")
+        for token in ("R01–R25", "A01–A09", "Voice Snapshot 统一决定", "不得覆盖它"):
+            self.assertIn(token, template)
+
     def test_resume_reuses_frozen_files_and_scope_stays_small(self):
         for token in (
             "恢复任务只校验并复用任务内",
-            "不采用外部 Skill 的当前版本",
+            "不回读或从任何内置、外部来源重建当前版本",
             "固定 Persona Schema",
             "自动学习",
             "Registry 导入",
@@ -112,6 +159,14 @@ class PersonaWorkflowContractTests(unittest.TestCase):
             "Marketplace",
         ):
             self.assertIn(token, self.contract)
+
+    def test_persona_issues_use_existing_audit_layers(self):
+        orchestration = read("skills/writing-master/references/agent-orchestration.md")
+        review = read("skills/writing-master/references/three-pass-review.md")
+        for document in (self.auditor, orchestration, review):
+            self.assertIn("layer: evidence | editorial | voice", document)
+        self.assertIn("身份、背景、模式或采用边界违规归入 `layer: editorial`", self.auditor)
+        self.assertIn("表层表达冲突归入 `layer: voice`", self.auditor)
 
 
 if __name__ == "__main__":

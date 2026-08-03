@@ -6,14 +6,14 @@
 
 - `khazix-writer` / 卡兹克科技观察（实验）：从 Article-only 实验 Profile 提炼的科技观察与判断方法；不注入真实作者身份、经历或第一人称事实。
 
-用 `writing-master persona list --json` 查看内置模板。内置模板只通过明确 ID 解析，不扫描目录、不联网、不导入外部 Registry。
+用 `writing-master persona list --json` 查看内置模板。内置模板只通过明确 ID 解析；同名本地路径存在时用 `builtin:khazix-writer` 明确指定，不扫描目录、不联网、不导入外部 Registry。
 
 ## 内容契约中的选择
 
 每次新任务都在同一份内容契约中询问：
 
 ```text
-本次是否使用外部作者人格？
+本次是否使用作者人格？（可选内置模板或外部 Skill）
 1. 不使用
 2. 让这个人格来写
 3. 参考这个人格写
@@ -31,7 +31,7 @@
 2. 使用人格默认背景，并追加用户提供的项目背景；
 3. 本次不生成背景。
 
-项目背景只进入当前任务，不写回外部 Persona Skill。
+项目背景只进入当前任务，不写回所选 Persona Skill。
 
 ## 任务内产物
 
@@ -67,9 +67,9 @@
 两者可以组合，职责保持分离：
 
 - Persona：作者身份、背景、观察方式、判断习惯、立场形成方式和写作方法；
-- Voice Preset：词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比等表层表达。
+- Voice Snapshot：词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比等重叠表层表达。
 
-冲突优先级：事实与证据边界 → 已确认 Brief 与当前作者要求 → Persona Brief → Channel Contract → Voice Snapshot → 其他风格规则。Voice 不得覆盖 Persona 的身份边界；Persona 也不取代 Voice Registry 或写入 `voice-profile-snapshot.json`。
+事实与证据边界、已确认 Brief 和当前作者要求始终优先。Persona 决定身份、判断与背景；对上述重叠表层表达，Voice Snapshot 为准。`natural-default` 时 Persona 的表达建议可进入任务 Brief；显式非默认 Voice 时同维度的 Persona 建议不得覆盖该 Snapshot。Persona 不取代 Voice Registry，也不写入 `voice-profile-snapshot.json`。
 
 ## 角色读取边界
 
@@ -77,14 +77,14 @@
 - Editorial Strategist、Writer 与 Auditor 读取同一份任务内 `persona-brief.md` 及其精确 SHA-256。
 - Writer 在 `author` 模式可使用 Brief 明确采用的构造性第一人称背景；在 `reference` 模式不得把 Persona 的身份、经历、关系或第一人称事件移给当前作者。
 - 外部主题事实、数据、引述、真实人物事件和测试结果在两种模式下都进入正常调研，不因写在 Persona Skill 中就成为 accepted claim。
-- 角色不回读外部 Persona Skill，也不把原始 `persona-skill.md` 当作角色输入；需要核对原文时由 Lead 读取任务内保存副本，且仍受运行目录边界限制。
+- 角色不回读来源 Persona Skill，也不把原始 `persona-skill.md` 当作角色输入；需要核对原文时由 Lead 读取任务内保存副本，且仍受运行目录边界限制。
 
 ## 恢复与完整性
 
-`status.json` 记录 `persona_mode`、`persona_snapshot: none | pending | ready | unavailable`、来源路径、可见版本、原始 Skill SHA-256 和 Persona Brief SHA-256。恢复任务只校验并复用任务内 `persona-skill.md` 与 `persona-brief.md`，不采用外部 Skill 的当前版本；即使外部路径内容已更新，也继续使用原任务版本。不同 Persona、模式、背景选项或项目背景属于内容契约变化，不覆盖既有 Brief。
+`status.json` 记录 `persona_mode`、`persona_snapshot: none | pending | ready | unavailable`、来源路径、可见版本、原始 Skill SHA-256 和 Persona Brief SHA-256。恢复任务只校验并复用任务内 `persona-skill.md` 与 `persona-brief.md`，不回读或从任何内置、外部来源重建当前版本。内容契约确认后，若 `persona_snapshot=ready` 的 Persona、模式、背景选项或项目背景发生变化，先展示差异并创建新 Writing run；新 run 的 `source_task_id` 记录原 `task_id`，`contract` 从 `pending` 重新确认。原 run 的关联字段、`persona-skill.md`、`persona-brief.md` 和 hash 保持不变。
 
 `content_type` 随内容契约和 Persona Snapshot 在当前 run 内冻结。选题后的推荐组合只调整应用深度；另一文章类型可作为备选建议，采用时新建 Writing run，因此不会改写已冻结的 `persona-brief.md`。
 
-旧任务缺少 Persona 字段时按 `none` 处理。Persona 文件缺失或 hash 不一致时停止依赖 Persona 的策划、写作和审校，不从外部路径重建一个看似相同的版本。
+旧任务缺少 Persona 字段时按 `none` 处理。Persona 文件缺失或 hash 不一致时停止依赖 Persona 的策划、写作和审校，不从内置模板或外部路径重建一个看似相同的版本。
 
 首版不包含固定 Persona Schema、自动学习、外部 Registry 导入、目录扫描、推荐引擎或 Marketplace；内置模板仍是显式打包的 `SKILL.md`，不形成第二套 Persona Schema。

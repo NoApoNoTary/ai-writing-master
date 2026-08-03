@@ -21,7 +21,7 @@
 
 Lead Agent 负责模式、Brief、文件状态、用户确认、问题合并、Baoyu 闸门和最终验收。Lead 不与专项代理竞争同一份正文。
 
-选择外部 Persona 时，Lead 还负责保存原始 `persona-skill.md`、生成一次 `persona-brief.md` 并冻结其来源 hash。Researcher 保持中立；Editorial Strategist、Writer 与 Auditor 使用同一份 Persona Brief。
+选择 Persona（内置或外部）时，Lead 还负责保存原始 `persona-skill.md`、生成一次 `persona-brief.md` 并冻结其来源 hash。Researcher 保持中立；Editorial Strategist、Writer 与 Auditor 使用同一份 Persona Brief。
 
 任务较短时可由一个 Auditor 完成三层审计；只有文章重要且并行收益明确时，再拆成 Evidence Auditor 与 Editorial/Voice Auditor。Agent 数量服务于上下文隔离，不追求数量。
 
@@ -135,9 +135,9 @@ allowed_inputs:
 
 Writer 只在 Phase 3 使用该 Snapshot 调整表达；Auditor 用同一 Snapshot 进行 Voice Audit。Snapshot 输入 hash 变化或校验失败会使相关 handoff stale，并阻断生成、审校、验收和发布；不得改读当前 Registry 或回退为另一 Voice。`natural-default` 的 Snapshot 不可用时由 Lead 记录 `voice_snapshot: unavailable` 并走既有自然写作；显式非默认 Voice 的创建失败保持在内容契约确认，不能派发 Writer。
 
-### External Persona Skill
+### Selected Persona Skill
 
-外部 Persona 的选择和任务 Brief 见 `persona-skills.md`。Lead 只解析用户明确提供的名称或路径，把原始 `SKILL.md` 原样保存为任务内 `persona-skill.md`，再创建自由格式 `persona-brief.md`；不把 Persona 转成 Voice Profile。
+内置或外部 Persona 的选择和任务 Brief 见 `persona-skills.md`。Lead 只解析用户明确提供的内置 ID、名称或路径，把原始 `SKILL.md` 原样保存为任务内 `persona-skill.md`，再创建自由格式 `persona-brief.md`；不把 Persona 转成 Voice Profile。
 
 Researcher 的 Manifest `allowed_inputs` **不得**列出 `persona-skill.md`、`persona-brief.md` 或其等价内容。Editorial Strategist、Writer 与 Auditor 在 Persona 启用时都列出同一份 Persona Brief 及精确 hash：
 
@@ -148,7 +148,7 @@ allowed_inputs:
     required: true
 ```
 
-上述三个角色不回读外部路径，也不把原始 `persona-skill.md` 作为角色输入；它只作为 Lead 的冻结副本和恢复校验依据。恢复时继续使用冻结文件，不采用外部 Skill 的当前版本。
+上述三个角色不回读来源路径，也不把原始 `persona-skill.md` 作为角色输入；它只作为 Lead 的冻结副本和恢复校验依据。恢复时继续使用冻结文件，不采用来源 Skill 的当前版本。
 
 ### Topic Research
 

@@ -50,7 +50,7 @@
 ```text
 模式选择
   → 所选模式就绪检查
-  → 单一 target_id + 内容契约（含外部人格与写作声音）+ 能力/素材预检
+  → 单一 target_id + 内容契约（含内置/外部 Persona 与写作声音）+ 能力/素材预检
   → 事实轨 + 素材轨调研
   → 角度、读者决策、大纲和 storyboard
   → 初稿
@@ -90,7 +90,7 @@ voice_snapshot：ready
 
 内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、一个 `target_id`、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消。
 
-内容契约每次也会询问是否使用作者人格：不使用、让这个人格来写，或参考这个人格写。人格来源可以是内置的 `khazix-writer` 模板，也可以是用户给出的 Nuwa 等 Persona Skill 名称或路径。原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责背景、观察和判断方式；现有 Voice Preset 继续独立负责表层表达，两者可以组合。
+内容契约每次也会询问是否使用作者人格：不使用、让这个人格来写，或参考这个人格写。人格来源可以是内置的 `khazix-writer` 模板，也可以是用户给出的 Nuwa 等 Persona Skill 名称或路径。原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责身份、背景、观察和判断方式；Voice Snapshot 负责词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比。自然默认声音可采纳人格的表达建议；显式非默认声音覆盖同维度建议。
 
 先完成内容验收，使 `final.md` 成为所选渠道的 canonical final；仅在其后生成渠道 YAML 要求的必要产物。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加当前渠道必要产物。微信完整交付包含格式化 Markdown、HTML 和封面；X 单帖与 X Thread 交付各自经过逐项渠道审查的正文。
 
@@ -198,6 +198,10 @@ writing-master learn show --json
 # 保存并校验任务内选题 Research Brief
 writing-master research verify RUN_DIR --json
 
+# 管理失败案例与任务快照
+writing-master failure-cases list --status active --json
+writing-master failure-cases snapshot RUN_DIR --tag wechat --limit 5 --json
+
 # 列出声音并冻结任务 Snapshot
 writing-master voice list --json
 writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
@@ -209,6 +213,10 @@ writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md --m
 # 也可以冻结外部 Persona Skill
 writing-master persona snapshot RUN_DIR /path/to/SKILL.md persona-brief-draft.md --mode author --content-type analysis --background project --json
 writing-master persona verify-run RUN_DIR --json
+
+# 生成或校验公众号发布时间建议
+writing-master wechat-timing recommend --timezone Asia/Shanghai --content-type article --timeliness evergreen --length medium
+writing-master wechat-timing verify wechat-draft-report.json
 ```
 
 `quality` 这个命令名为兼容现有调用保留。它只检查套话、句长变化、段落节奏、副词密度和字符 bigram 多样性，并输出机械预警分数。它不验证事实、证据、原创性、论证质量或作者风格，也不产生“AI 味百分比”。
@@ -225,7 +233,7 @@ Quick / Standard 只在初稿和 Voice Audit 读取该 Snapshot。Deep 模式仅
 
 ## 作者人格：内置模板或直接复用 Persona Skill
 
-项目内置 `khazix-writer` / 卡兹克科技观察（实验）模板；Nuwa 等工具产出的作者人格也可以直接以原始 `SKILL.md` 接入，不转换成固定 Voice JSON。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时继续使用该版本及 hash，不受外部 Skill 后续变化影响。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
+项目内置 `khazix-writer` / 卡兹克科技观察（实验）模板；Nuwa 等工具产出的作者人格也可以直接以原始 `SKILL.md` 接入，不转换成固定 Voice JSON。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时只校验并使用任务副本及 hash，不回读或从已变化的内置、外部来源重建当前版本。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
 
 ## Personal Context：显式、可追溯的个人上下文
 
@@ -293,6 +301,7 @@ ai-writing-master/
 │       ├── platforms/              # 微信、X 单帖、X Thread 输出合同
 │       └── references/             # 单目标改写与质量门槛
 ├── src/writing_master/             # CLI 实现
+│   └── persona_templates/           # 显式打包的内置 Persona 模板
 ├── bin/writing-master              # 无需安装的 CLI 启动脚本
 ├── docs/
 │   ├── quick-start.md
@@ -305,7 +314,7 @@ ai-writing-master/
 
 - 已交付：两个 Skill、三种新写作模式、深度模式角色协议、证据/素材契约、Baoyu 分阶段路由、微信/X 单帖/X Thread 单目标合同、机械文本检查和相似度命令，以及显式的个人上下文 Profile/Knowledge/Snapshot Runtime。
 - Baoyu Skills 需要独立安装；仓库只负责能力发现和路由。
-- 仓库当前没有 Web UI、数据面板、内置发布实现、十个独立写作模块、示例工程或模板目录。
+- 仓库当前没有 Web UI、数据面板、内置发布实现、十个独立写作模块或示例工程；内置 Persona 模板位于 `src/writing_master/persona_templates/`。
 - 渠道适配 P0 只接受 `wechat`、`x-post`、`x-thread`；X Article、自动发布和渠道数据反馈不属于本阶段。
 - CLI 是确定性辅助工具；文章事实和编辑质量仍由研究与审校流程处理。
 - 深度模式 Handoff Runtime 已验收，覆盖已建立 deep/multi-agent 运行目录的交接、hash、stale、attempt 与真实宿主链路；`quick/standard` 的通用任务恢复仍未实现。

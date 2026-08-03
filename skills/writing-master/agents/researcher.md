@@ -18,7 +18,7 @@ Article Research 通常还会读取 Manifest 明确列出的 `channel-contract.y
 
 不得读取 `voice-profile-snapshot.json`、Voice Snapshot hash、全局 Voice Registry 或等价 Profile 内容。Voice 不参与 Topic Research、Article Research、来源筛选、accepted claim 或素材判断。
 
-不得读取 `persona-skill.md`、`persona-brief.md`、外部 Persona Skill 或其等价内容。Persona 不参与来源筛选、事实核验、accepted claim 或素材身份判断；Researcher 始终保持事实资料中立。
+不得读取 `persona-skill.md`、`persona-brief.md`、Persona 来源 Skill（内置或外部）或其等价内容。Persona 不参与来源筛选、事实核验、accepted claim 或素材身份判断；Researcher 始终保持事实资料中立。
 
 Manifest 中的 `brief.md` 必须是 Persona-neutral 研究投影，只含主题、读者、渠道、内容目的和证据要求；不得包含 Persona 原文、背景、拟采用部分或角色侧重。
 

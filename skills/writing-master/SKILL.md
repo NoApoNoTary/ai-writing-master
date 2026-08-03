@@ -24,7 +24,7 @@ allowed-tools:
 
 - 新建完整文章必须先完成模式选择，Agent 不根据题目难度自行决定模式。
 - 每个任务只选择一个 `target_id`：`wechat`、`x-post` 或 `x-thread`；需要第二个渠道时，在当前 canonical final 完成后新建一次 Rewrite。
-- 每次内容契约都询问是否使用外部作者人格：不使用、让这个人格来写、参考这个人格写；没有外部人格时保持现有流程。
+- 每次内容契约都询问是否使用作者人格：不使用、让这个人格来写、参考这个人格写；人格可来自内置模板或用户提供的外部 Skill。
 - 快速草稿和标准写作始终使用当前 Agent；只有深度模式启用多 Agent，且当前宿主必须具备真实 Handoff Runtime。
 - 事实、引用、个人经历和测试结果都要可追溯；未知项保留为待确认项。
 - Baoyu 在开题阶段进入能力与素材预检，视觉生产放在证据、角度和文章结构明确之后。
@@ -79,6 +79,7 @@ allowed-tools:
 ```json
 {
   "task_id": "YYYYMMDD-001",
+  "source_task_id": null,
   "entry": "writing",
   "mode": "quick | standard | deep",
   "execution": "single_agent | multi_agent",
@@ -155,7 +156,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 
 | 等待点 | 必须展示的问题 | 继续方式 |
 |---|---|---|
-| 内容契约 | `请确认内容契约：{摘要}`（包含外部人格使用方式） | 回复“确认”，或用“修改：字段=值”更新，或回复“取消” |
+| 内容契约 | `请确认内容契约：{摘要}`（包含 Persona 使用方式） | 回复“确认”，或用“修改：字段=值”更新，或回复“取消” |
 | 方向 | `请选择方向：1/2/3；同时确认推荐组合类型，或说明你要修改的取舍。` | 选择、修改或取消 |
 | 审校问题 | `审校发现 {blocking} 个阻断、{major} 个主要问题。需要你决定：{方向性问题}` | 接受建议、忽略非阻断项、修改原始要求、补充证据，或要求重写受影响部分 |
 | 风格候选 | `是否接受这条可追溯风格规则：{规则、范围、证据摘要}？` | 接受、拒绝或暂不决定 |
@@ -165,7 +166,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 
 用户修改内容契约时，任务摘要必须列出受影响阶段（调研、方向、草稿、审校或打包）和下一步。运行时具备输入 hash 与依赖关系时，只重跑这些阶段；缺少该能力时，说明局部重跑仍属 Product–Technical Gap，不把它描述为已执行。
 
-内容契约确认后，主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求、Persona、Voice 或视觉范围发生实质变化时，先展示变更前后差异、保持不变项和受影响阶段，再将 `status.json` 的 `current_phase` 退回 `contract`、`phases.contract` 退回 `pending`，停在“等待契约确认”；未再次确认前不得继续调研、写作、审校、验收或交付。仅修正错别字、标点或不改变读者问题、证据范围和交付边界的微小措辞，不触发完整重确认。
+内容契约确认后，主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求或视觉范围，以及尚未 `ready` 的 Persona/Voice 选择发生实质变化时，先展示变更前后差异、保持不变项和受影响阶段，再将同一 run 的 `status.json` 的 `current_phase` 退回 `contract`、`phases.contract` 退回 `pending`，停在“等待契约确认”；未再次确认前不得继续调研、写作、审校、验收或交付。若已是 `persona_snapshot=ready` 的 Persona 身份、模式或背景，或 `voice_snapshot=ready` 的 Voice 选择发生变化，则展示同样的差异，但保持当前 run 的 Persona/Voice Snapshot 不变，并创建新 Writing run：新 run 的 `source_task_id` 记录当前 `task_id`，`contract` 设为 `pending` 等待确认；当前 run 的关联字段和冻结 Snapshot 均不改写。仅修正错别字、标点或不改变读者问题、证据范围和交付边界的微小措辞，不触发完整重确认。
 
 ## 核心工作流
 
@@ -185,7 +186,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 8. 根据 `content_type` 生成当前任务的人格角色侧重，并在用户可见内容契约摘要中展示 Persona 选择与背景选项。研究用 `brief.md` 只保留主题、读者、渠道、内容目的和证据要求，不写入 Persona Skill 原文、拟采用部分、人格背景或角色侧重；这些细节在确认后只进入 `persona-brief.md`。项目背景只影响当前任务，不回写 Persona Skill。
 9. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，展示当前选择与可用写作声音。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
 10. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。用户回复“确认”同时确认当前 `persona_mode` 与 `voice_id`；可用“修改：人格=参考它写”“修改：写作声音=清晰分析”更新选择。
-11. 内容契约确认后，Persona 已选择时保留用户提供的原始 `SKILL.md` 字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读已变化的外部 Skill。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
+11. 内容契约确认后，已选择 Persona 时保留所选内置或外部 `SKILL.md` 的原始字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读来源。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
 12. 内容契约确认后立即读取 `references/run-spec.md`，生成冻结的 `{run_dir}/spec.md`；从 Spec 投影 Persona-neutral 的 `brief.md`。
 13. 内容契约确认后、任何初稿前创建或确认 `voice-profile-snapshot.json`。显式非默认 Voice 不可用、无效或创建失败时停留在“等待契约确认”，展示可用项并阻止进入 Phase 3；`natural-default` 运行异常记录 `voice_snapshot: unavailable`，继续既有自然写作而不声称已应用 Voice。
 14. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。Voice Snapshot、Persona Snapshot 与 Personal Context Snapshot 独立，互不写入。
@@ -197,7 +198,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 - `channel-contract.yaml`
 - `capability-preflight.md`
 - `status.json`
-- 选择外部人格时追加 `persona-skill.md` 与 `persona-brief.md`
+- 选择 Persona 时追加 `persona-skill.md` 与 `persona-brief.md`
 
 `capability-preflight.md` 先记录 `selected_mode`、`mode_readiness` 和诊断编号，再记录外部能力、deep 所需的 `handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。
 
@@ -221,7 +222,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 读取 `references/evidence-and-assets.md`。
 
-本阶段不得读取 `voice-profile-snapshot.json`、`persona-brief.md` 或外部 Persona Skill；传给 Researcher 的 `brief.md` 是 Persona-neutral 研究投影，不含 Persona 原文、背景、拟采用部分或角色侧重。Voice 和 Persona 不影响来源、事实、素材和 accepted claim 的判断。
+本阶段不得读取 `voice-profile-snapshot.json`、`persona-brief.md`、`persona-skill.md` 或来源 Persona Skill；传给 Researcher 的 `brief.md` 是 Persona-neutral 研究投影，不含 Persona 原文、背景、拟采用部分或角色侧重。Voice 和 Persona 不影响来源、事实、素材和 accepted claim 的判断。
 
 当用户明确只要选题、内容契约仍是宽主题，或要求近期热点/值得关注的话题时，先读取 `references/research-brief.md` 并执行 Topic Research：
 
@@ -248,7 +249,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 2：角度、读者决策与 Storyboard
 
-本阶段不得读取 `voice-profile-snapshot.json` 或全局 Voice Registry。存在外部 Persona 时，Editorial Strategist 只读取任务内 `persona-brief.md`，使用其中的角色侧重和观察方式，不回读外部 Skill；Persona 不替代证据和编辑判断。
+本阶段不得读取 `voice-profile-snapshot.json` 或全局 Voice Registry。选择 Persona 时，Editorial Strategist 只读取任务内 `persona-brief.md`，使用其中的角色侧重和观察方式，不回读来源 Skill；Persona 不替代证据和编辑判断。
 
 1. 若存在已验证的 `research-brief.json`，只从用户或 Lead 选定的 candidate 继续；否则按 `references/mode-selection.md` 中当前模式的用户确认规则，从用户已明确的主题继续或给出一个建议角度及其取舍。
 2. 读取 `references/content-routing.md`，基于已选 candidate 或已明确主题、目标读者、accepted evidence、素材和可验证性生成 `recommended_combo`（含 `label`、冻结的 `content_type`、`application_depth`、`reason`、`required_blocks`；低确定性可带 `alternative`）。当前 run 的推荐 `content_type` 必须与已确认的 `channel-contract.yaml` 一致；不同文章类型只作为新 run 的备选建议。
@@ -276,7 +277,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 读取 `references/voice-presets.md`。Quick / Standard 在本阶段只读取任务 `voice-profile-snapshot.json`，不回读全局 Registry；Deep 仅由 Writer Manifest 列出该 Snapshot 与 hash 后读取。Snapshot 结构、任务 ID 或 hash 校验失败时停止生成，不自动改用当前 Registry 或默认 Voice。
 
-存在外部 Persona 时，Writer 读取任务内 `persona-brief.md`；该文件与 Editorial Strategist、Auditor 使用同一份。`author` 模式允许采用 Persona 的背景、判断、表达和构造性第一人称叙事；`reference` 模式只借用观察方式、判断习惯和写作方式，正文仍以当前作者身份表达。两种模式都不得把外部主题事实当作已核验事实，事实仍走正常调研。
+选择 Persona 时，Writer 读取任务内 `persona-brief.md`；该文件与 Editorial Strategist、Auditor 使用同一份。`author` 模式允许采用 Persona 的背景、判断、表达和构造性第一人称叙事；`reference` 模式只借用观察方式、判断习惯和写作方式，正文仍以当前作者身份表达。两种模式都不得把 Persona 中的主题事实当作已核验事实，事实仍走正常调研。
 
 写作要求：
 
@@ -285,13 +286,13 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - 当前作者的现实个人经历仅来自用户提供的记录；`author` Persona 模式可使用 `persona-brief.md` 明确标注的构造性第一人称背景，但不得把它冒充当前作者的现实经历。
 - 具体数据关联 `claim_id`；边界条件进入正文，而不是藏在研究笔记里。
 - 风格匹配依赖历史文本的可观察特征，不靠随机添加情绪词或口语套句。
-- Voice 只调整词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比；事实、证据边界、核心判断、作者立场和真实经历优先。
+- Persona 决定身份、判断、背景、观察方式和立场形成；Voice Snapshot 决定词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比。`natural-default` 时 Persona 的表达建议可写入 Brief；显式非默认 Voice 时同维度的 Persona 建议不得覆盖 Voice Snapshot。事实、证据边界、核心判断、作者立场和真实经历优先。
 
 产物：`draft-v1.md` 和 `claim-usage.yaml`。完成后保留 `draft-v1.md` 原样，后续修订另写版本文件。
 
 ### Phase 4：三层审校与修订
 
-读取 `references/three-pass-review.md` 时只采用其中事实、结构、模板句和节奏检查项；本文件中的“展示产物而非隐藏推理”和“以证据报告代替主观百分比”规则优先。存在外部 Persona 时，Auditor 与 Writer、Editorial Strategist 使用同一份 `persona-brief.md`，检查采用边界是否被突破；Researcher 不参与 Persona 判断。
+读取 `references/three-pass-review.md` 时只采用其中事实、结构、模板句和节奏检查项；本文件中的“展示产物而非隐藏推理”和“以证据报告代替主观百分比”规则优先。选择 Persona 时，Auditor 与 Writer、Editorial Strategist 使用同一份 `persona-brief.md`，检查采用边界是否被突破；显式非默认 Voice 时还检查表层表达没有被 Persona 建议覆盖。Researcher 不参与 Persona 判断。
 
 读取 `references/voice-presets.md`。Voice Audit 与 Writer 使用同一任务 `voice-profile-snapshot.json`；每个 Voice issue 都要精确定位正文、引用 Profile 字段/规则、保留原句证据并给出不改变事实或核心判断的修订边界。Snapshot 校验失败时停止审校、验收和发布。
 

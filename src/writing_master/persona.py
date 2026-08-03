@@ -8,7 +8,12 @@ from pathlib import Path
 import re
 import stat
 
-from writing_master._runfs import RunFsError, run_directory, run_lock
+from writing_master._runfs import (
+    RunFsError,
+    resolved_descriptor_path,
+    run_directory,
+    run_lock,
+)
 from writing_master.personal_context import (
     ContextError,
     atomic_write_bytes_at,
@@ -16,7 +21,12 @@ from writing_master.personal_context import (
     read_bytes_at,
     read_json_at,
 )
-from writing_master.persona_templates import resolve_source
+from writing_master.persona_templates import (
+    TemplateSourceError,
+    external_source_path,
+    load_builtin,
+    source_identity,
+)
 
 
 PERSONA_SKILL_FILE = "persona-skill.md"
@@ -56,15 +66,22 @@ class PersonaError(ValueError):
 
 
 def _source_input(source: Path | str) -> str:
-    if not isinstance(source, (str, os.PathLike)) or not os.fspath(source):
+    if not isinstance(source, (str, os.PathLike)):
         raise PersonaError("invalid_input", "persona source must be a non-empty path")
-    value = os.fspath(source)
+    try:
+        value = os.fspath(source)
+    except (TypeError, ValueError) as error:
+        raise PersonaError("invalid_input", "persona source must be a text path") from error
+    if not isinstance(value, str) or not value:
+        raise PersonaError("invalid_input", "persona source must be a text path")
     if "\x00" in value or "\n" in value or "\r" in value:
         raise PersonaError("path_escape", "Persona Skill path is unsafe")
     return value
 
 
-def _read_regular_utf8(path: Path, *, label: str) -> bytes:
+def _read_regular_utf8(
+    path: Path, *, label: str, include_path: bool = False
+) -> bytes | tuple[bytes, str]:
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
         descriptor = os.open(path, flags)
@@ -78,6 +95,11 @@ def _read_regular_utf8(path: Path, *, label: str) -> bytes:
         with os.fdopen(descriptor, "rb") as handle:
             descriptor = None
             value = handle.read()
+            if include_path:
+                try:
+                    source_path = str(resolved_descriptor_path(handle.fileno()))
+                except RunFsError as error:
+                    raise PersonaError(error.code, f"cannot resolve {label}: {path}") from error
     except PersonaError:
         raise
     except OSError as error:
@@ -89,25 +111,75 @@ def _read_regular_utf8(path: Path, *, label: str) -> bytes:
         value.decode("utf-8")
     except UnicodeDecodeError as error:
         raise PersonaError("invalid_input", f"{label} must be UTF-8") from error
-    return value
+    return (value, source_path) if include_path else value
 
 
 def _load_source(source: Path | str) -> tuple[str, str, bytes]:
     source_input = _source_input(source)
-    path = resolve_source(source_input)
+    try:
+        builtin = load_builtin(source)
+    except TemplateSourceError as error:
+        raise PersonaError(error.code, str(error)) from error
+    if builtin is not None:
+        source_path, value = builtin
+        if not value:
+            raise PersonaError("invalid_input", "Persona Skill must not be empty")
+        try:
+            value.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise PersonaError("invalid_input", "Persona Skill must be UTF-8") from error
+        return source_input, source_path, value
+    try:
+        path = external_source_path(source)
+    except (OSError, RuntimeError, ValueError) as error:
+        raise PersonaError("path_escape", f"unsafe Persona Skill: {source_input}") from error
     try:
         if path.is_dir():
             path = path / "SKILL.md"
-    except OSError as error:
+    except (OSError, RuntimeError, ValueError) as error:
         raise PersonaError("path_escape", f"unsafe Persona Skill: {source_input}") from error
-    value = _read_regular_utf8(path, label="Persona Skill")
+    value, resolved = _read_regular_utf8(path, label="Persona Skill", include_path=True)
     if not value:
         raise PersonaError("invalid_input", "Persona Skill must not be empty")
-    try:
-        resolved = str(path.resolve(strict=True))
-    except OSError as error:
-        raise PersonaError("path_escape", f"unsafe Persona Skill: {source_input}") from error
     return source_input, resolved, value
+
+
+def _selector_identity(
+    source: Path | str, *, check_ambiguity: bool = True
+) -> tuple[str, str]:
+    try:
+        return source_identity(source, check_ambiguity=check_ambiguity)
+    except TemplateSourceError as error:
+        raise PersonaError(error.code, str(error)) from error
+
+
+def _provenance_identity(provenance: dict) -> tuple[str, str]:
+    source_path = provenance["source_path"]
+    if source_path.startswith("builtin:"):
+        return "builtin", source_path.removeprefix("builtin:")
+    source_input = provenance["source_input"]
+    try:
+        kind, value = source_identity(source_input, check_ambiguity=False)
+    except TemplateSourceError:
+        kind, value = "external", source_input
+    if kind == "builtin" and source_path.endswith(
+        f"/persona_templates/{value}/SKILL.md"
+    ):
+        return kind, value
+    return "external", source_input
+
+
+def _matches_request(
+    provenance: dict,
+    requested: dict,
+    selector_identity: tuple[str, str],
+    source_version: str | None,
+) -> bool:
+    return (
+        _provenance_identity(provenance) == selector_identity
+        and all(provenance[key] == value for key, value in requested.items())
+        and (source_version is None or provenance["source_version"] == source_version)
+    )
 
 
 def _version_scalar(raw: str) -> str | None:
@@ -295,6 +367,28 @@ def _publish_task_files_at(run_fd: int, source: bytes, brief: bytes) -> None:
             atomic_write_bytes_at(run_fd, name, expected)
 
 
+def _recover_published_snapshot(
+    run_fd: int,
+    status: dict,
+    requested: dict,
+    selector_identity: tuple[str, str],
+    source_version: str | None,
+) -> tuple[dict, bytes] | None:
+    source = _optional_task_file_at(run_fd, PERSONA_SKILL_FILE)
+    brief = _optional_task_file_at(run_fd, PERSONA_BRIEF_FILE)
+    if source is None and brief is None:
+        return None
+    if source is None or brief is None:
+        raise PersonaError("snapshot_conflict", "partial task Persona files exist")
+    provenance, _ = _parse_brief_document(brief)
+    if hashlib.sha256(source).hexdigest() != provenance["source_sha256"]:
+        raise PersonaError("hash_mismatch", "task Persona Skill has changed")
+    if not _matches_request(provenance, requested, selector_identity, source_version):
+        raise PersonaError("snapshot_conflict", "task already owns a different Persona Snapshot")
+    _assert_pending_compatible(status, provenance, hashlib.sha256(brief).hexdigest())
+    return provenance, brief
+
+
 def _none_result(run_fd: int, status: dict) -> dict:
     if _persona_files_present(run_fd):
         raise PersonaError("snapshot_conflict", "Persona files exist without ready task status")
@@ -369,7 +463,6 @@ class PersonaStore:
         source_input = _source_input(source)
         body = _load_brief(brief)
         requested = {
-            "source_input": source_input,
             "mode": mode,
             "content_type": content_type,
             "background_mode": background_mode,
@@ -381,12 +474,28 @@ class PersonaStore:
                     status = _status_at(run_fd)
                     if status.get("persona_snapshot") == "ready":
                         provenance, _ = _verify_ready_at(run_fd, status)
-                        if any(provenance[key] != value for key, value in requested.items()) or (
-                            source_version is not None and provenance["source_version"] != source_version
+                        selector_identity = _selector_identity(source, check_ambiguity=False)
+                        if not _matches_request(
+                            provenance, requested, selector_identity, source_version
                         ):
                             raise PersonaError("snapshot_conflict", "task already owns a different Persona Snapshot")
                         return _result(status, provenance)
 
+                    recovered = _recover_published_snapshot(
+                        run_fd,
+                        status,
+                        requested,
+                        _selector_identity(source, check_ambiguity=False),
+                        source_version,
+                    )
+                    if recovered is not None:
+                        provenance, persona_brief = recovered
+                        persona_brief_sha256 = hashlib.sha256(persona_brief).hexdigest()
+                        updated = {**status, **_status_values(provenance, persona_brief_sha256)}
+                        atomic_write_json_at(run_fd, "status.json", updated)
+                        return _result(updated, provenance)
+
+                    selector_identity = _selector_identity(source)
                     source_input, source_path, source_bytes = _load_source(source)
                     source_sha256 = hashlib.sha256(source_bytes).hexdigest()
                     provenance = {
@@ -411,7 +520,7 @@ class PersonaStore:
         except ContextError as error:
             raise PersonaError(error.code, str(error)) from error
         except OSError as error:
-            raise PersonaError("path_escape", "cannot write task Persona files") from error
+            raise PersonaError("io_error", "cannot write task Persona files") from error
 
     def verify_run(self, run_dir: Path | str) -> dict:
         try:

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from writing_master.cli import main as root_main
 from writing_master.commands.persona import main
@@ -84,6 +85,21 @@ class PersonaCliTests(unittest.TestCase):
         self.assertIn("persona", output.getvalue())
 
     def test_write_failure_is_machine_readable(self) -> None:
+        with mock.patch("writing_master.persona.atomic_write_json_at", side_effect=OSError("blocked")):
+            code, output, error = self.invoke([
+                "snapshot",
+                str(self.run),
+                str(self.skill),
+                str(self.brief),
+                "--mode", "author",
+                "--content-type", "analysis",
+                "--background", "default",
+                "--json",
+            ])
+        self.assertEqual((code, error), (1, ""))
+        self.assertEqual(json.loads(output)["error"]["code"], "io_error")
+
+    def test_invalid_task_file_is_machine_readable(self) -> None:
         (self.run / "persona-skill.md").mkdir()
         code, output, error = self.invoke([
             "snapshot",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -82,11 +83,165 @@ class PersonaStoreTests(unittest.TestCase):
 
     def test_same_request_recovers_after_status_write_failure(self) -> None:
         with mock.patch.object(persona, "atomic_write_json_at", side_effect=OSError("blocked")):
-            self.assert_error("path_escape", self.create)
+            self.assert_error("io_error", self.create)
 
         self.assertTrue((self.run / "persona-skill.md").is_file())
         self.assertTrue((self.run / "persona-brief.md").is_file())
+        (self.skill / "SKILL.md").unlink()
+        self.skill.rmdir()
         self.assertTrue(self.create()["verified"])
+
+    def test_failed_builtin_snapshot_recovers_without_rechecking_ambient_selector(self) -> None:
+        with mock.patch.object(persona, "atomic_write_json_at", side_effect=OSError("blocked")):
+            self.assert_error(
+                "io_error",
+                lambda: self.store.create_snapshot(
+                    self.run,
+                    "khazix-writer",
+                    self.brief,
+                    mode="reference",
+                    content_type="analysis",
+                    background_mode="none",
+                ),
+            )
+
+        (self.root / "khazix-writer").write_text("ambient path", encoding="utf-8")
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+        self.assertTrue(
+            self.store.create_snapshot(
+                self.run,
+                "khazix-writer",
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            )["verified"]
+        )
+
+    def test_pathlike_source_named_as_builtin_is_treated_as_a_path(self) -> None:
+        source = self.root / "khazix-writer"
+        source.write_text("path Persona", encoding="utf-8")
+
+        result = self.store.create_snapshot(
+            self.run,
+            source,
+            self.brief,
+            mode="reference",
+            content_type="analysis",
+            background_mode="none",
+        )
+
+        self.assertEqual(result["source_path"], str(source))
+        self.assertEqual((self.run / "persona-skill.md").read_text(encoding="utf-8"), "path Persona")
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+        self.assert_error(
+            "snapshot_conflict",
+            lambda: self.store.create_snapshot(
+                self.run,
+                "khazix-writer",
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            ),
+        )
+
+    def test_source_path_follows_the_open_file_when_path_is_retargeted_during_read(self) -> None:
+        live = self.root / "live"
+        parked = self.root / "parked"
+        live.mkdir()
+        original = b"original Persona"
+        (live / "SKILL.md").write_bytes(original)
+        real_fdopen = persona.os.fdopen
+
+        class RetargetingFile:
+            def __init__(self, descriptor: int, *args, **kwargs):
+                self.handle = real_fdopen(descriptor, *args, **kwargs)
+                self.retarget = os.readlink(f"/proc/self/fd/{descriptor}") == str(live / "SKILL.md")
+
+            def __enter__(self):
+                self.handle.__enter__()
+                return self
+
+            def __exit__(self, *args):
+                return self.handle.__exit__(*args)
+
+            def fileno(self):
+                return self.handle.fileno()
+
+            def read(self, *args):
+                if self.retarget:
+                    self.retarget = False
+                    live.rename(parked)
+                    live.mkdir()
+                    (live / "SKILL.md").write_text("replacement Persona", encoding="utf-8")
+                return self.handle.read(*args)
+
+            def __getattr__(self, name):
+                return getattr(self.handle, name)
+
+        with mock.patch.object(persona.os, "fdopen", RetargetingFile):
+            result = self.store.create_snapshot(
+                self.run,
+                live,
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            )
+
+        self.assertEqual((self.run / "persona-skill.md").read_bytes(), original)
+        self.assertEqual(result["source_path"], str(parked / "SKILL.md"))
+        self.assertEqual(Path(result["source_path"]).read_bytes(), original)
+
+    def test_string_builtin_name_requires_an_explicit_choice_when_a_path_matches(self) -> None:
+        (self.root / "khazix-writer").write_text("path Persona", encoding="utf-8")
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+
+        self.assert_error(
+            "ambiguous_source",
+            lambda: self.store.create_snapshot(
+                self.run,
+                "khazix-writer",
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            ),
+        )
+        result = self.store.create_snapshot(
+            self.run,
+            "builtin:khazix-writer",
+            self.brief,
+            mode="reference",
+            content_type="analysis",
+            background_mode="none",
+        )
+        self.assertEqual(result["source_input"], "builtin:khazix-writer")
+
+    def test_broken_same_name_path_does_not_silently_select_the_builtin(self) -> None:
+        os.symlink("missing-persona", self.root / "khazix-writer")
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+
+        self.assert_error(
+            "ambiguous_source",
+            lambda: self.store.create_snapshot(
+                self.run,
+                "khazix-writer",
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            ),
+        )
 
     def test_different_frozen_inputs_conflict(self) -> None:
         self.create()
@@ -289,10 +444,21 @@ class PersonaStoreTests(unittest.TestCase):
         )
 
         self.assertEqual(result["source_input"], "khazix-writer")
-        self.assertTrue(result["source_path"].endswith("persona_templates/khazix-writer/SKILL.md"))
+        self.assertEqual(result["source_path"], "builtin:khazix-writer")
+        self.assertEqual(
+            self.store.create_snapshot(
+                self.run,
+                "builtin:khazix-writer",
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            ),
+            result,
+        )
         self.assertEqual(
             (self.run / "persona-skill.md").read_bytes(),
-            Path(result["source_path"]).read_bytes(),
+            persona.load_builtin("khazix-writer")[1],
         )
         content = (self.run / "persona-skill.md").read_text(encoding="utf-8")
         self.assertIn("卡兹克科技观察", content)
@@ -301,6 +467,51 @@ class PersonaStoreTests(unittest.TestCase):
             *(f"A{number:02d}" for number in range(1, 10)),
         ):
             self.assertIn(rule_id, content)
+
+        (self.root / "khazix-writer").write_text("ambient path", encoding="utf-8")
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+        self.assertEqual(
+            self.store.create_snapshot(
+                self.run,
+                "khazix-writer",
+                self.brief,
+                mode="reference",
+                content_type="analysis",
+                background_mode="none",
+            ),
+            result,
+        )
+
+    def test_legacy_builtin_snapshot_remains_idempotent(self) -> None:
+        result = self.store.create_snapshot(
+            self.run,
+            "khazix-writer",
+            self.brief,
+            mode="reference",
+            content_type="analysis",
+            background_mode="none",
+        )
+        provenance, body = persona._parse_brief_document((self.run / "persona-brief.md").read_bytes())
+        provenance["source_path"] = "/opt/writing-master/src/writing_master/persona_templates/khazix-writer/SKILL.md"
+        legacy_brief = persona._brief_document(body, provenance)
+        (self.run / "persona-brief.md").write_bytes(legacy_brief)
+        status = json.loads((self.run / "status.json").read_text(encoding="utf-8"))
+        status["persona_source_path"] = provenance["source_path"]
+        status["persona_brief_sha256"] = hashlib.sha256(legacy_brief).hexdigest()
+        (self.run / "status.json").write_text(json.dumps(status), encoding="utf-8")
+
+        legacy_result = self.store.create_snapshot(
+            self.run,
+            "builtin:khazix-writer",
+            self.brief,
+            mode="reference",
+            content_type="analysis",
+            background_mode="none",
+        )
+        self.assertEqual(legacy_result["source_input"], result["source_input"])
+        self.assertEqual(legacy_result["source_path"], provenance["source_path"])
 
 
 class PersonaHandoffTests(unittest.TestCase):

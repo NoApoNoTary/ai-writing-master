@@ -2,7 +2,7 @@
 
 本文面向需要从 Shell 调用、编写自动化脚本或排查工程状态的用户。普通写作不以 CLI 为入口，请从[用户上手指南](quick-start.md)开始。
 
-AI Writing Master 的 CLI 提供九项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验、任务级 Voice Snapshot 和内置/外部 Persona Skill 冻结。它们不替代事实研究或编辑审查。
+AI Writing Master 的 CLI 提供十一项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验、失败案例库与任务快照、任务级 Voice Snapshot、内置/外部 Persona Skill 冻结，以及公众号发布时间建议。它们不替代事实研究或编辑审查。
 
 ## 安装与运行
 
@@ -69,12 +69,18 @@ writing-master learn decide OBSERVATION_ID (--accept | --reject) [--json]
 writing-master learn show [--json]
 writing-master research save RUN_DIR DRAFT.json [--json]
 writing-master research verify RUN_DIR [--json]
+writing-master failure-cases propose CASE.json [--path PATH] [--json]
+writing-master failure-cases status CASE_ID proposed|active|superseded [--path PATH] [--json]
+writing-master failure-cases list [--status proposed|active|superseded] [--path PATH] [--json]
+writing-master failure-cases snapshot RUN_DIR [--tag TAG ...] [--limit N] [--path PATH] [--json]
 writing-master voice list [--json]
 writing-master voice snapshot RUN_DIR [VOICE] [--source default|request|content-contract] [--json]
 writing-master voice verify-run RUN_DIR [--json]
 writing-master persona list [--json]
 writing-master persona snapshot RUN_DIR TEMPLATE_OR_SKILL PERSONA_BRIEF.md --mode author|reference --content-type TYPE --background default|project|none [--source-version VERSION] [--json]
 writing-master persona verify-run RUN_DIR [--json]
+writing-master wechat-timing recommend [--now ISO-8601] [--timezone Asia/Shanghai] [--content-type TYPE] [--timeliness VALUE] [--length VALUE] [--configured-window WINDOW]
+writing-master wechat-timing verify wechat-draft-report.json
 ```
 
 ## `quality`：机械文本检查
@@ -264,6 +270,17 @@ Candidate 记录：
 
 完整 Candidate schema 见 [`Goal B Contract`](goals/2026-07-28-v0.2b-goal-contract.md)。
 
+## `failure-cases`：失败案例库与任务快照
+
+```bash
+writing-master failure-cases propose case.json --json
+writing-master failure-cases status FC-20260803-001 active --json
+writing-master failure-cases list --status active --json
+writing-master failure-cases snapshot RUN_DIR --tag wechat --limit 5 --json
+```
+
+`propose` 登记 `proposed` 案例；`status` 在 `proposed`、`active`、`superseded` 间更新；`list` 按状态列出案例；`snapshot` 从 active 案例生成任务内 `failure-case-snapshot.md`。工作流只向 Writer/Auditor 交付该任务快照中的 guardrail 与 audit check。
+
 ## `voice`：任务级写作声音
 
 ```bash
@@ -274,7 +291,7 @@ writing-master voice snapshot RUN_DIR 清晰分析 --json
 writing-master voice verify-run RUN_DIR --json
 ```
 
-`list` 返回稳定 ID、版本、显示名称、说明和适用场景。`snapshot` 接受序号、ID 或显示名称；省略时使用 `natural-default`。同一任务、同一 Voice 重试幂等，不同 Voice 返回 `snapshot_conflict` 且保留原文件。
+`list` 返回稳定 ID、版本、显示名称、说明和适用场景。`snapshot` 接受序号、ID 或显示名称；省略时使用 `natural-default`。同一任务、同一 Voice 重试幂等，不同 Voice 返回 `snapshot_conflict` 且保留原文件；已 ready 后改用其他 Voice 时，工作流新建 run 并用 `source_task_id` 指向原任务。
 
 任务 Snapshot 保存任务 ID、选择来源、Profile ID/版本、Profile hash、完整 Profile 与 Snapshot hash，并同步更新 `status.json` 的 `voice_id`、`voice_profile_version`、`voice_snapshot` 和 `voice_snapshot_sha256`。新任务在调用 `snapshot` 前由工作流写入 `voice_snapshot: pending`；缺少全部 Voice 字段的旧任务会标记为 `legacy-natural`，不回填新 Profile。`verify-run` 只读任务文件校验完整性，不依赖当前 Registry。显式非默认 Voice 加载失败会阻止进入初稿；自然默认 Registry 异常会标记 `unavailable` 并保留既有自然写作行为。
 
@@ -291,9 +308,18 @@ writing-master persona snapshot RUN_DIR /path/to/PERSONA/SKILL.md persona-brief-
 writing-master persona verify-run RUN_DIR --json
 ```
 
-`list` 返回显式打包的内置 Persona 模板；当前包含 `khazix-writer` / 卡兹克科技观察（实验）。`snapshot` 的 `SKILL.md` 参数可以是内置模板 ID，也可以是外部文件或只包含一个 `SKILL.md` 的目录。无论来源如何，Runtime 都原样保存 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
+`list` 返回显式打包的内置 Persona 模板；当前包含 `khazix-writer` / 卡兹克科技观察（实验）。`snapshot` 的 `SKILL.md` 参数可以是内置模板 ID（同名路径存在时用 `builtin:khazix-writer` 明确指定），也可以是外部文件或只包含一个 `SKILL.md` 的目录。无论来源如何，Runtime 都原样保存 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
 
-同一任务、同一来源输入与 Brief 重试幂等；外部文件之后变化不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`。`verify-run` 只校验任务内两份文件和 `status.json`，不回读外部路径、不扫描 Skill 目录。
+同一任务、同一来源选择与 Brief 重试幂等；内置模板或外部文件之后变化都不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`；已 ready 后改用其他 Persona 时，工作流新建 run 并用 `source_task_id` 指向原任务。`verify-run` 只校验任务内两份文件和 `status.json`，不回读 Persona 来源、不扫描 Skill 目录。
+
+## `wechat-timing`：公众号发布时间建议
+
+```bash
+writing-master wechat-timing recommend --timezone Asia/Shanghai --content-type article --timeliness evergreen --length medium
+writing-master wechat-timing verify wechat-draft-report.json
+```
+
+`recommend` 输出确定性建议窗口及其依据；`verify` 校验 `wechat-draft-report.json` 是否包含完整的发布时间建议字段。它只提供建议，不调用发布或群发接口。
 
 ## `research`：上下文感知选题 Brief
 

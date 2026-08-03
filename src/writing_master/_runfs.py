@@ -1,4 +1,4 @@
-"""Linux-only run-directory anchoring and locking shared by Handoff and Voice."""
+"""Linux-only descriptor anchoring and locking shared by runtime domains."""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -63,12 +63,17 @@ def run_directory(run_dir: Path | str) -> Iterator[tuple[int, Path]]:
         os.close(descriptor)
 
 
+def resolved_descriptor_path(descriptor: int) -> Path:
+    """Resolve the object held by one anchored Linux descriptor."""
+    try:
+        return Path(os.readlink(f"/proc/self/fd/{descriptor}"))
+    except OSError as error:
+        raise RunFsError("path_escape", "cannot resolve anchored descriptor") from error
+
+
 def resolved_run_directory(run_fd: int) -> Path:
     """Resolve an anchored Linux directory descriptor after possible ancestor moves."""
-    try:
-        return Path(os.readlink(f"/proc/self/fd/{run_fd}"))
-    except OSError as error:
-        raise RunFsError("path_escape", "cannot resolve anchored run directory") from error
+    return resolved_descriptor_path(run_fd)
 
 
 @contextmanager

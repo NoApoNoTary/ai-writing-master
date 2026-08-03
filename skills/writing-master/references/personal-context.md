@@ -23,7 +23,7 @@ Deep 模式由 Lead 在内容契约确认后创建或确认同一 Snapshot；需
 
 `voice-profile-snapshot.json` 与 `personal-context-snapshot.json` 是两个独立任务文件：Voice Profile 不写入 Personal Context Snapshot，Personal Context 也不成为 Voice Profile 的来源。Voice 的选择、版本、hash、Phase 3/Voice Audit 读取和失败语义见 `voice-presets.md`。
 
-外部 Persona 的 `persona-skill.md` 与 `persona-brief.md` 同样不写入 Personal Context Snapshot，不自动生成 Style Observation，也不回写 Author Profile。项目补充背景只属于当前任务。
+所选 Persona（内置或外部）的 `persona-skill.md` 与 `persona-brief.md` 同样不写入 Personal Context Snapshot，不自动生成 Style Observation，也不回写 Author Profile。项目补充背景只属于当前任务。
 
 - Phase 1 Research 与 Phase 2 Editorial 不读取 Voice Snapshot；它不影响个人材料选择、事实、角度或结构。
 - Quick / Standard 仅在 Phase 3 与 Voice Audit 读取任务 Voice Snapshot。

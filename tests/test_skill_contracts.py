@@ -704,11 +704,16 @@ class WritingSkillContractTests(unittest.TestCase):
         main = read("skills/writing-master/SKILL.md")
 
         for field in (
-            "主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求、Persona、Voice 或视觉范围",
+            "主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求或视觉范围，以及尚未 `ready` 的 Persona/Voice 选择",
             "变更前后差异",
             "保持不变项",
             "受影响阶段",
             "`current_phase` 退回 `contract`、`phases.contract` 退回 `pending`",
+            "`persona_snapshot=ready`",
+            "`voice_snapshot=ready`",
+            "创建新 Writing run",
+            "新 run 的 `source_task_id` 记录当前 `task_id`",
+            "当前 run 的关联字段和冻结 Snapshot 均不改写",
             "停在“等待契约确认”",
             "未再次确认前不得继续调研、写作、审校、验收或交付",
             "微小措辞",

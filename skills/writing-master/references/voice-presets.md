@@ -2,7 +2,7 @@
 
 Voice Preset 是任务级“写作声音”，只控制表达层；它不是身份模仿、人格、作者立场或长期 Style Profile。用户侧称“写作声音”，内部字段为 `voice_id` 与 `voice_profile`。
 
-外部 Persona Skill 与 Voice Preset 是两条独立输入：Persona 决定任务采用的身份、背景、观察和判断方式，Voice 继续只控制表层表达。两者可组合，互不转换、互不写入对方 Snapshot；详见 `persona-skills.md`。
+所选 Persona Skill（内置或外部）与 Voice Preset 是两条独立输入：Persona 决定任务采用的身份、背景、观察和判断方式，Voice 继续只控制表层表达。两者可组合，互不转换、互不写入对方 Snapshot；详见 `persona-skills.md`。
 
 ## 内容契约中的选择
 
@@ -65,7 +65,7 @@ Registry Profile 使用 JSON；每个已发布版本固定包含：
 
 `scope` 固定为 `expression_only`；`preserve` 必须是上述完整集合。Profile 只含可观察表达规则和短小合成示例，禁止含真实创作者姓名、原句、身份、经历、价值判断或角色扮演指令。
 
-内容契约确认后、任何初稿前，创建或确认 `{run_dir}/voice-profile-snapshot.json`。Snapshot 至少含任务 ID、选择来源、Profile ID、版本、完整 Profile 与 Profile hash。相同任务、相同 `voice_id` 的重试幂等；不同 `voice_id` 是冲突，不覆盖既有 Snapshot。后续 Registry 更新、删除或排序变化不影响已冻结任务。
+内容契约确认后、任何初稿前，创建或确认 `{run_dir}/voice-profile-snapshot.json`。Snapshot 至少含任务 ID、选择来源、Profile ID、版本、完整 Profile 与 Profile hash。相同任务、相同 `voice_id` 的重试幂等；`voice_snapshot=ready` 后改用其他 `voice_id` 不覆盖既有 Snapshot，应新建 Writing run，新 run 的 `source_task_id` 指向原 `task_id`、`contract` 从 `pending` 重新确认。后续 Registry 更新、删除或排序变化不影响已冻结任务。
 
 ## 阶段读取边界
 
@@ -76,7 +76,7 @@ Registry Profile 使用 JSON；每个已发布版本固定包含：
 
 ## Writer 与 Voice Audit
 
-Writer 只把 Voice 用于词汇、句式、节奏、段落形态、开场、转折、确定性、幽默和类比。优先级从高到低：事实与证据边界、已确认 Brief/核心判断/真实经历、Channel Contract、Voice Snapshot、不冲突的 Personal Context Style、通用默认规则。Voice 不得新增人物、事件、数字、引述、测试结果、感官细节或第一人称事实。
+Writer 只把 Voice 用于词汇、句式、节奏、段落形态、开场、转折、确定性、幽默和类比。当存在 Persona 与这些表达维度重叠时，`natural-default` 可采用 Persona 建议，显式非默认 Voice 以 Voice Snapshot 为准。优先级从高到低：事实与证据边界、已确认 Brief/核心判断/真实经历、Channel Contract、Voice Snapshot、不冲突的 Personal Context Style、通用默认规则。Voice 不得新增人物、事件、数字、引述、测试结果、感官细节或第一人称事实。
 
 Voice Audit 使用 Writer 的同一份 Snapshot。每条 `layer: voice` issue 必须包含正文精确位置、命中的 Profile 字段或规则、原句/可观察证据和不改变事实或核心判断的 `required_change`；“像 AI”“不像某人”或百分比不是证据。
 
