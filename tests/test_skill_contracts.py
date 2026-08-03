@@ -681,6 +681,38 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertIn("Rewrite 不新增、展示或解析 Voice Selector", rewrite)
         self.assertIn("保留源稿已验收的写作声音，不重新选择 Voice", rewrite)
 
+    def test_confirmed_contract_reverts_to_pending_after_material_change(self):
+        main = read("skills/writing-master/SKILL.md")
+
+        for field in (
+            "主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求、Persona、Voice 或视觉范围",
+            "变更前后差异",
+            "保持不变项",
+            "受影响阶段",
+            "`current_phase` 退回 `contract`、`phases.contract` 退回 `pending`",
+            "停在“等待契约确认”",
+            "未再次确认前不得继续调研、写作、审校、验收或交付",
+            "微小措辞",
+        ):
+            self.assertIn(field, main)
+
+    def test_process_leakage_is_a_blocking_editorial_boundary(self):
+        main = read("skills/writing-master/SKILL.md")
+        review = read("skills/writing-master/references/three-pass-review.md")
+        auditor = read("skills/writing-master/agents/auditor.md")
+
+        for document in (main, review, auditor):
+            self.assertIn("prompt/process leakage", document.lower())
+            self.assertIn("标题", document)
+            self.assertIn("H1/H2/H3", document)
+            self.assertIn("高置信", document)
+            self.assertIn("blocking", document)
+        self.assertIn("未解决的 blocking issue 必须为 0", main)
+        for document in (review, auditor):
+            self.assertIn("rule_id:", document)
+            self.assertIn("line_number:", document)
+            self.assertIn("excerpt:", document)
+
 
 if __name__ == "__main__":
     unittest.main()

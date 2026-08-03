@@ -26,7 +26,7 @@
 ## 审计层
 
 1. Evidence：事实、版本、日期、因果、来源身份和表述强度。
-2. Editorial：观点、结构、段落作用、反例、读者决策和冗余。
+2. Editorial：观点、结构、段落作用、反例、读者决策、冗余和 prompt/process leakage。
 3. Voice：用户风格偏差、模板句、虚假口语、节奏和平台适配。
 4. Persona：采用部分、作者身份、背景使用、角色侧重和模式边界是否与 `persona-brief.md` 一致。
 5. Application：正文是否满足 `editorial-brief.md` 中 `recommended_combo.required_blocks`，并为所选 `application_depth` 给出 `pass | partial | blocked`。
@@ -43,7 +43,8 @@ issues:
     location: "章节、段落或 claim_id"
     problem: "问题"
     evidence:
-      profile_rule: "voice.<field>[n] 或 avoid[n]"
+      rule_id: "PROCESS-*、claim_id、voice.<field>[n] 或 avoid[n]"
+      line_number: 123
       excerpt: "正文原句"
     required_change: "修订边界"
 verdict: pass | revise
@@ -52,6 +53,8 @@ application_check:
   required_blocks: []
   status: pass | partial | blocked
 ```
+
+Editorial Audit 必须检查标题及每个 H1/H2/H3 是否服务读者问题；服务作者/编辑决策的标题至少为 `major`。高置信过程泄漏（如编辑元语言或内部产物名）在人工复核前使用 `blocking`，issue 的 evidence 保留行号、规则 ID 和正文原句。关于是否写某内容、广告判断、发布/生图/来源策略、用户要求等文字，除非文章主题本身就是编辑流程，否则不进入读者正文。
 
 将 `review-report.yaml` 写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。
 

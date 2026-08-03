@@ -165,6 +165,8 @@ persona_snapshot: {none | pending | ready | unavailable}
 
 用户修改内容契约时，任务摘要必须列出受影响阶段（调研、方向、草稿、审校或打包）和下一步。运行时具备输入 hash 与依赖关系时，只重跑这些阶段；缺少该能力时，说明局部重跑仍属 Product–Technical Gap，不把它描述为已执行。
 
+内容契约确认后，主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求、Persona、Voice 或视觉范围发生实质变化时，先展示变更前后差异、保持不变项和受影响阶段，再将 `status.json` 的 `current_phase` 退回 `contract`、`phases.contract` 退回 `pending`，停在“等待契约确认”；未再次确认前不得继续调研、写作、审校、验收或交付。仅修正错别字、标点或不改变读者问题、证据范围和交付边界的微小措辞，不触发完整重确认。
+
 ## 核心工作流
 
 ### Phase 0：内容契约、能力预检与素材接收
@@ -295,6 +297,8 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 2. **编辑层**：观点、结构、段落作用、反例、读者决策和冗余。
 3. **声音层**：用户风格偏差、模板句、虚假口语、节奏和平台适配。
 
+编辑层还必须审计 prompt/process leakage：检查标题以及每个 H1/H2/H3，判断其是否服务读者问题；若服务作者或编辑取舍，至少标记为 `major`。关于“是否应该写某内容”、广告判断、发布/生图/来源策略、用户要求和内部产物名的文字只影响编辑取舍，除非文章主题本身讨论编辑流程，否则不得进入读者正文。高置信过程泄漏在人工复核前保持 `blocking`。
+
 快速模式合并为一次审校；标准模式由当前 Agent 依次完成三层；深度模式只在真实 Handoff Runtime 可用时由 fresh-context 审计代理执行，再由 Writer 根据结构化问题清单修订。
 
 审校结果必须按严重程度汇总给用户：阻断问题需要补充来源、缩小表述、修改要求或重新生成受影响部分；主要和次要问题可以接受、带理由忽略或请求重写。先集中询问真正需要用户决定的方向性问题，再统一修订，避免每条小问题打断写作。
@@ -311,7 +315,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 - 标题与正文结论一致；
 - 关键主张均有来源或明确标为观点；
-- 所有 blocking 审校问题已经关闭；
+- 所有 blocking 审校问题已经关闭（未解决的 blocking issue 必须为 0）；高置信过程泄漏未完成人工复核时不得通过；
 - `application_check` 已记录 `depth`、`required_blocks` 与 `status: pass | partial | blocked`；只有 `pass` 可通过内容验收。`partial` 先修订或显式降低深度并重新验收，`blocked` 先解决缺失证据或输入；缺少真实测试证据时不得声称 `reproducible`。
 - `final.md`、来源、主张、素材和审校产物彼此对应。
 - `final.md` 已满足当前 `target_id` 的正文、结构和长度合同。
