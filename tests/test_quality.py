@@ -45,13 +45,20 @@ class MechanicalQualityTests(unittest.TestCase):
         self.assertTrue(all(f["severity"] == "blocking" for f in result["findings"]))
 
     def test_internal_artifact_name_has_a_located_finding(self):
-        result = score_article("先检查 review-report.yaml。\n\n" + "\n\n".join(["正文。" * 40] * 3))
+        samples = (
+            "先检查 review-report.yaml。",
+            "先检查 asset-manifest.yaml。",
+            "打开 revision-report.yaml 查看修订记录。",
+        )
 
-        self.assertEqual(len(result["findings"]), 1)
-        finding = result["findings"][0]
-        self.assertEqual(finding["rule_id"], "PROCESS-ARTIFACT-001")
-        self.assertEqual(finding["line_number"], 1)
-        self.assertEqual(finding["original_text"], "先检查 review-report.yaml。")
+        for sample in samples:
+            with self.subTest(sample=sample):
+                result = score_article(sample + "\n\n" + "\n\n".join(["正文。" * 40] * 3))
+                self.assertEqual(len(result["findings"]), 1)
+                finding = result["findings"][0]
+                self.assertEqual(finding["rule_id"], "PROCESS-ARTIFACT-001")
+                self.assertEqual(finding["line_number"], 1)
+                self.assertEqual(finding["original_text"], sample)
 
     def test_technical_api_key_reminder_is_not_editorial_meta_language(self):
         result = score_article("# API 安全\n\n不要把 API key 写进仓库。" + ("补充说明。" * 80))
@@ -90,7 +97,10 @@ class MechanicalQualityTests(unittest.TestCase):
             "用户希望导出 PDF。",
             "用户要求系统支持双因素认证。",
             "数据来源策略是优先使用官方统计。",
+            "数据来源策略是优先官方文档。",
             "brief.yaml 是服务配置文件。",
+            "根据用户要求，我们修改了登录流程。",
+            "按用户要求，我们补充了批量导出功能。",
         )
 
         for sample in samples:
