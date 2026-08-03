@@ -122,12 +122,16 @@ class PersonaWorkflowContractTests(unittest.TestCase):
             "展示同样的差异",
             "创建新 Writing run",
             "新 run 的 `source_task_id` 记录当前 `task_id`",
+            "`source_change_kind` 记录 `persona` 或 `voice`",
+            "`source_change_sha256` 记录变更摘要 hash",
             "当前 run 的关联字段和冻结 Snapshot 均不改写",
         ):
             self.assertIn(token, self.main)
         for token in (
             "若 `persona_snapshot=ready`",
             "新 run 的 `source_task_id` 记录原 `task_id`",
+            "`source_change_kind: persona`",
+            "`source_change_sha256` 记录变更摘要 hash",
             "原 run 的关联字段、`persona-skill.md`、`persona-brief.md` 和 hash 保持不变",
             "`contract` 从 `pending` 重新确认",
         ):
@@ -167,6 +171,17 @@ class PersonaWorkflowContractTests(unittest.TestCase):
             self.assertIn("layer: evidence | editorial | voice", document)
         self.assertIn("身份、背景、模式或采用边界违规归入 `layer: editorial`", self.auditor)
         self.assertIn("表层表达冲突归入 `layer: voice`", self.auditor)
+
+    def test_khazix_exposes_all_profile_rule_ids(self):
+        template = read("src/writing_master/persona_templates/khazix-writer/SKILL.md")
+        rule_lines = [
+            line for line in template.splitlines()
+            if re.match(r"^- (?:R\d{2}|A\d{2}) ", line)
+        ]
+        self.assertEqual(
+            {line.split(" ", 2)[1] for line in rule_lines},
+            {f"R{i:02d}" for i in range(1, 26)} | {f"A{i:02d}" for i in range(1, 10)},
+        )
 
 
 if __name__ == "__main__":

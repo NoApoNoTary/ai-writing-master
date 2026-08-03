@@ -14,7 +14,7 @@
 
 ## 任务注入
 
-按当前任务标签从 active 案例中默认选择 3–5 条（上限由 `--limit` 控制），写 `{run_dir}/failure-case-snapshot.md`。没有匹配时也写空 snapshot 并继续。Writer 与 Auditor 只读取 snapshot 中选中条目的 `guardrail` 与 `audit_check`，不读取完整库、来源会话或历史讨论。
+按当前任务标签从 active 案例中默认选择 3–5 条（上限由 `--limit` 控制），写 `{run_dir}/failure-case-snapshot.md`。没有匹配时也写空 snapshot 并继续。Snapshot 是任务级冻结文件：同一内容重试幂等，选择结果变化时报冲突，不覆盖已有快照。Writer 与 Auditor 只读取 snapshot 中选中条目的 `guardrail` 与 `audit_check`，不读取完整库、来源会话或历史讨论。
 
 ## 合成案例 fixture
 

@@ -148,7 +148,17 @@ allowed_inputs:
     required: true
 ```
 
-上述三个角色不回读来源路径，也不把原始 `persona-skill.md` 作为角色输入；它只作为 Lead 的冻结副本和恢复校验依据。恢复时继续使用冻结文件，不采用来源 Skill 的当前版本。
+上述三个角色不回读来源路径，也不把原始 `persona-skill.md` 作为角色输入；它只作为 Lead 的冻结副本和恢复校验依据。恢复时继续使用冻结文件，不回读或从任何内置、外部来源重建当前版本。
+
+Persona/Voice 已 ready 后的变更由 Lead 创建关联 Writing run，不覆盖原 run。新 run 的 `status.json` 必须写入：
+
+```yaml
+source_task_id: 原 run 的 task_id
+source_change_kind: persona | voice
+source_change_sha256: 变更摘要 hash
+```
+
+原 run 的 Persona/Voice Snapshot、hash 和关联字段保持不变；新 run 从 `contract: pending` 开始，用户确认后才创建新的 Snapshot。
 
 ### Topic Research
 

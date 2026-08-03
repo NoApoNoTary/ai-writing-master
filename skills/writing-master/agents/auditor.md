@@ -56,6 +56,8 @@ application_check:
   status: pass | partial | blocked
 ```
 
+Persona 问题沿用现有审计层：身份、背景、模式或采用边界违规使用 `layer: editorial`；与 Voice Snapshot 重叠的表层表达冲突使用 `layer: voice`，不扩展输出 Schema。
+
 Editorial Audit 必须检查标题及每个 H1/H2/H3 是否服务读者问题；服务作者/编辑决策的标题至少为 `major`。高置信过程泄漏（如编辑元语言或内部产物名）在人工复核前使用 `blocking`，issue 的 evidence 保留行号、规则 ID 和正文原句。关于是否写某内容、广告判断、发布/生图/来源策略、用户要求等文字，除非文章主题本身就是编辑流程，否则不进入读者正文。
 
 将 `review-report.yaml` 写到 Manifest `output_root`，并把 Result 写到 Manifest `result_path`。

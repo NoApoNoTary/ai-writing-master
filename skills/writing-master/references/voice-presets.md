@@ -67,6 +67,8 @@ Registry Profile 使用 JSON；每个已发布版本固定包含：
 
 内容契约确认后、任何初稿前，创建或确认 `{run_dir}/voice-profile-snapshot.json`。Snapshot 至少含任务 ID、选择来源、Profile ID、版本、完整 Profile 与 Profile hash。相同任务、相同 `voice_id` 的重试幂等；`voice_snapshot=ready` 后改用其他 `voice_id` 不覆盖既有 Snapshot，应新建 Writing run，新 run 的 `source_task_id` 指向原 `task_id`、`contract` 从 `pending` 重新确认。后续 Registry 更新、删除或排序变化不影响已冻结任务。
 
+新 run 的顺序固定为：保留原 run 的关联字段与 Voice Snapshot → 创建新 `task_id` 并写入 `source_task_id`、`source_change_kind: voice` 与变更摘要 hash → 将新 run 的 `contract` 设为 `pending` → 用户确认后再写入新 Voice Snapshot。不得先改写原 run。
+
 ## 阶段读取边界
 
 - Phase 1 Research 与 Phase 2 Editorial 不读取 Voice Snapshot、不回读全局 Registry；事实选择、核心判断和论证结构保持声音无关。

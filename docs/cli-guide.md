@@ -291,7 +291,7 @@ writing-master voice snapshot RUN_DIR 清晰分析 --json
 writing-master voice verify-run RUN_DIR --json
 ```
 
-`list` 返回稳定 ID、版本、显示名称、说明和适用场景。`snapshot` 接受序号、ID 或显示名称；省略时使用 `natural-default`。同一任务、同一 Voice 重试幂等，不同 Voice 返回 `snapshot_conflict` 且保留原文件；已 ready 后改用其他 Voice 时，工作流新建 run 并用 `source_task_id` 指向原任务。
+`list` 返回稳定 ID、版本、显示名称、说明和适用场景。`snapshot` 接受序号、ID 或显示名称；省略时使用 `natural-default`。同一任务、同一 Voice 重试幂等，不同 Voice 返回 `snapshot_conflict` 且保留原文件；已 ready 后改用其他 Voice 时，工作流先保留原 run，再创建 `contract=pending` 的新 run，并用 `source_task_id`、`source_change_kind` 和 `source_change_sha256` 关联原任务，用户确认后才写入新 Snapshot。
 
 任务 Snapshot 保存任务 ID、选择来源、Profile ID/版本、Profile hash、完整 Profile 与 Snapshot hash，并同步更新 `status.json` 的 `voice_id`、`voice_profile_version`、`voice_snapshot` 和 `voice_snapshot_sha256`。新任务在调用 `snapshot` 前由工作流写入 `voice_snapshot: pending`；缺少全部 Voice 字段的旧任务会标记为 `legacy-natural`，不回填新 Profile。`verify-run` 只读任务文件校验完整性，不依赖当前 Registry。显式非默认 Voice 加载失败会阻止进入初稿；自然默认 Registry 异常会标记 `unavailable` 并保留既有自然写作行为。
 
@@ -310,7 +310,7 @@ writing-master persona verify-run RUN_DIR --json
 
 `list` 返回显式打包的内置 Persona 模板；当前包含 `khazix-writer` / 卡兹克科技观察（实验）。`snapshot` 的 `SKILL.md` 参数可以是内置模板 ID（同名路径存在时用 `builtin:khazix-writer` 明确指定），也可以是外部文件或只包含一个 `SKILL.md` 的目录。无论来源如何，Runtime 都原样保存 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
 
-同一任务、同一来源选择与 Brief 重试幂等；内置模板或外部文件之后变化都不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`；已 ready 后改用其他 Persona 时，工作流新建 run 并用 `source_task_id` 指向原任务。`verify-run` 只校验任务内两份文件和 `status.json`，不回读 Persona 来源、不扫描 Skill 目录。
+同一任务、同一来源选择与 Brief 重试幂等；内置模板或外部文件之后变化都不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`；已 ready 后改用其他 Persona 或 Voice 时，工作流先保留原 run，再创建 `contract=pending` 的新 run，并在新 run 的 `status.json` 写入 `source_task_id`、`source_change_kind` 和 `source_change_sha256` 指向原任务与变更摘要，用户确认后才写入新 Snapshot。`verify-run` 只校验任务内两份文件和 `status.json`，不回读或从任何内置、外部来源重建 Persona 当前版本，也不扫描 Skill 目录。
 
 ## `wechat-timing`：公众号发布时间建议
 

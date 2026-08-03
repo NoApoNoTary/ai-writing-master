@@ -185,15 +185,23 @@ def snapshot_markdown(cases: Iterable[dict]) -> str:
 
 def write_snapshot(run_dir: Path | str, *, tags: Iterable[str] | None = None, limit: int = 5, path: Path | str | None = None) -> dict:
     cases = select_cases(tags, limit=limit, path=path)
+    raw = snapshot_markdown(cases).encode("utf-8")
     try:
         with run_directory(run_dir) as (run_fd, _):
             with run_lock(run_fd):
                 try:
-                    read_bytes_at(run_fd, SNAPSHOT_FILE)
+                    existing = read_bytes_at(run_fd, SNAPSHOT_FILE)
                 except ContextError as error:
                     if error.code != "not_initialized":
                         raise
-                atomic_write_bytes_at(run_fd, SNAPSHOT_FILE, snapshot_markdown(cases).encode("utf-8"))
+                else:
+                    if existing != raw:
+                        raise FailureCaseError(
+                            "conflict",
+                            "failure-case-snapshot already exists with different content",
+                        )
+                    return {"path": SNAPSHOT_FILE, "count": len(cases), "case_ids": [case["id"] for case in cases]}
+                atomic_write_bytes_at(run_fd, SNAPSHOT_FILE, raw)
     except (RunFsError, ContextError) as error:
         raise FailureCaseError(error.code, str(error)) from error
     return {"path": SNAPSHOT_FILE, "count": len(cases), "case_ids": [case["id"] for case in cases]}

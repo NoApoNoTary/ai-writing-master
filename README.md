@@ -214,6 +214,8 @@ writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md --m
 writing-master persona snapshot RUN_DIR /path/to/SKILL.md persona-brief-draft.md --mode author --content-type analysis --background project --json
 writing-master persona verify-run RUN_DIR --json
 
+# Persona/Voice ready 后变更：新 run 的 status.json 追踪 source_task_id、source_change_kind、source_change_sha256
+
 # 生成或校验公众号发布时间建议
 writing-master wechat-timing recommend --timezone Asia/Shanghai --content-type article --timeliness evergreen --length medium
 writing-master wechat-timing verify wechat-draft-report.json
@@ -227,7 +229,7 @@ writing-master wechat-timing verify wechat-draft-report.json
 
 ## Voice Preset：任务级写作声音
 
-Voice Preset 只控制词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比，不改变事实、证据边界、核心判断、作者立场或真实经历。内置声音继续作为独立表层表达选项；内容契约确认后写入不可变的 `voice-profile-snapshot.json`，后续恢复只读任务快照，不回读已变化的 Registry。
+Voice Preset 当前有五个内置 Profile，只控制词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比，不改变事实、证据边界、核心判断、作者立场或真实经历。内置声音继续作为独立表层表达选项；内容契约确认后写入不可变的 `voice-profile-snapshot.json`，后续恢复只读任务快照，不回读已变化的 Registry。
 
 Quick / Standard 只在初稿和 Voice Audit 读取该 Snapshot。Deep 模式仅 Writer 与 Auditor 的 Manifest 可列出它；Researcher 与 Editorial Strategist 不读取。非默认 Voice 任务默认不作为长期 Style Observation 的 baseline/evidence，平台 Rewrite 继续从已验收 canonical final 开始，不重新选择 Voice。
 

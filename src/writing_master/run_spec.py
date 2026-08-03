@@ -189,6 +189,8 @@ def save_spec(run_dir: Path | str, contract: Mapping[str, object], *, version: i
             with run_lock(run_fd):
                 raw_metadata = _read_optional_at(run_fd, SPEC_METADATA_FILE)
                 if raw_metadata is None:
+                    if version != 1:
+                        raise SpecError("conflict", "initial spec version must be 1")
                     history_name = _history_file(version)
                     existing_history = _read_optional_at(run_fd, history_name)
                     existing_current = _read_optional_at(run_fd, SPEC_FILE)

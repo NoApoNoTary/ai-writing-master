@@ -54,6 +54,18 @@ class FailureCaseTests(unittest.TestCase):
     def test_limit_zero_selects_nothing(self):
         self.assertEqual(select_cases(["headings"], limit=0, path=self.library), [])
 
+    def test_snapshot_is_write_once_and_conflict_safe(self):
+        first = write_snapshot(self.run, tags=["headings"], path=self.library)
+        before = (self.run / SNAPSHOT_FILE).read_bytes()
+        self.assertEqual(write_snapshot(self.run, tags=["headings"], path=self.library), first)
+        self.assertEqual((self.run / SNAPSHOT_FILE).read_bytes(), before)
+
+        update_case_status("FC-20260803-001", "superseded", self.library)
+        with self.assertRaises(FailureCaseError) as captured:
+            write_snapshot(self.run, tags=["headings"], path=self.library)
+        self.assertEqual(captured.exception.code, "conflict")
+        self.assertEqual((self.run / SNAPSHOT_FILE).read_bytes(), before)
+
     def test_unknown_extension_fields_survive_status_rewrite(self):
         before = list_cases(self.library)[0]
         self.assertEqual(before["notes"], {"fixture": True, "owner": "synthetic"})
@@ -165,6 +177,12 @@ class FailureCaseTests(unittest.TestCase):
         with self.assertRaises(SpecError) as captured:
             verify_spec(self.run, expected_sha256="0" * 64)
         self.assertEqual(captured.exception.code, "hash_mismatch")
+
+    def test_initial_spec_version_must_start_at_one(self):
+        with self.assertRaises(SpecError) as captured:
+            save_spec(self.run, self.contract(), version=2)
+        self.assertEqual(captured.exception.code, "conflict")
+        self.assertFalse((self.run / "spec.md").exists())
 
     def test_new_spec_version_preserves_immutable_history_and_updates_current(self):
         first = save_spec(self.run, self.contract(), version=1)

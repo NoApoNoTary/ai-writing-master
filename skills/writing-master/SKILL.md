@@ -80,6 +80,8 @@ allowed-tools:
 {
   "task_id": "YYYYMMDD-001",
   "source_task_id": null,
+  "source_change_kind": null,
+  "source_change_sha256": null,
   "entry": "writing",
   "mode": "quick | standard | deep",
   "execution": "single_agent | multi_agent",
@@ -166,7 +168,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 
 用户修改内容契约时，任务摘要必须列出受影响阶段（调研、方向、草稿、审校或打包）和下一步。运行时具备输入 hash 与依赖关系时，只重跑这些阶段；缺少该能力时，说明局部重跑仍属 Product–Technical Gap，不把它描述为已执行。
 
-内容契约确认后，主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求或视觉范围，以及尚未 `ready` 的 Persona/Voice 选择发生实质变化时，先展示变更前后差异、保持不变项和受影响阶段，再将同一 run 的 `status.json` 的 `current_phase` 退回 `contract`、`phases.contract` 退回 `pending`，停在“等待契约确认”；未再次确认前不得继续调研、写作、审校、验收或交付。若已是 `persona_snapshot=ready` 的 Persona 身份、模式或背景，或 `voice_snapshot=ready` 的 Voice 选择发生变化，则展示同样的差异，但保持当前 run 的 Persona/Voice Snapshot 不变，并创建新 Writing run：新 run 的 `source_task_id` 记录当前 `task_id`，`contract` 设为 `pending` 等待确认；当前 run 的关联字段和冻结 Snapshot 均不改写。仅修正错别字、标点或不改变读者问题、证据范围和交付边界的微小措辞，不触发完整重确认。
+内容契约确认后，主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求或视觉范围，以及尚未 `ready` 的 Persona/Voice 选择发生实质变化时，先展示变更前后差异、保持不变项和受影响阶段，再将同一 run 的 `status.json` 的 `current_phase` 退回 `contract`、`phases.contract` 退回 `pending`，停在“等待契约确认”；未再次确认前不得继续调研、写作、审校、验收或交付。若已是 `persona_snapshot=ready` 的 Persona 身份、模式或背景，或 `voice_snapshot=ready` 的 Voice 选择发生变化，则展示同样的差异，但保持当前 run 的 Persona/Voice Snapshot 不变，并创建新 Writing run：新 run 的 `source_task_id` 记录当前 `task_id`，`source_change_kind` 记录 `persona` 或 `voice`，`source_change_sha256` 记录变更摘要 hash，`contract` 设为 `pending` 等待确认；当前 run 的关联字段和冻结 Snapshot 均不改写。仅修正错别字、标点或不改变读者问题、证据范围和交付边界的微小措辞，不触发完整重确认。
 
 ## 核心工作流
 
@@ -186,7 +188,7 @@ persona_snapshot: {none | pending | ready | unavailable}
 8. 根据 `content_type` 生成当前任务的人格角色侧重，并在用户可见内容契约摘要中展示 Persona 选择与背景选项。研究用 `brief.md` 只保留主题、读者、渠道、内容目的和证据要求，不写入 Persona Skill 原文、拟采用部分、人格背景或角色侧重；这些细节在确认后只进入 `persona-brief.md`。项目背景只影响当前任务，不回写 Persona Skill。
 9. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，展示当前选择与可用写作声音。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
 10. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。用户回复“确认”同时确认当前 `persona_mode` 与 `voice_id`；可用“修改：人格=参考它写”“修改：写作声音=清晰分析”更新选择。
-11. 内容契约确认后，已选择 Persona 时保留所选内置或外部 `SKILL.md` 的原始字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读来源。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
+11. 内容契约确认后，已选择 Persona 时保留所选内置或外部 `SKILL.md` 的原始字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读或从任何内置、外部来源重建当前版本。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
 12. 内容契约确认后立即读取 `references/run-spec.md`，生成冻结的 `{run_dir}/spec.md`；从 Spec 投影 Persona-neutral 的 `brief.md`。
 13. 内容契约确认后、任何初稿前创建或确认 `voice-profile-snapshot.json`。显式非默认 Voice 不可用、无效或创建失败时停留在“等待契约确认”，展示可用项并阻止进入 Phase 3；`natural-default` 运行异常记录 `voice_snapshot: unavailable`，继续既有自然写作而不声称已应用 Voice。
 14. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。Voice Snapshot、Persona Snapshot 与 Personal Context Snapshot 独立，互不写入。

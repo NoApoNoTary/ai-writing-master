@@ -69,6 +69,8 @@ application_check:
   status: pass | partial | blocked
 ```
 
+Persona 问题不新增第四个 `layer`：身份、背景、模式或采用边界违规归入 `editorial`；与 Voice Snapshot 重叠的表层表达冲突归入 `voice`。
+
 `application_check.status` 只有 `pass` 可进入内容验收通过。`partial` 需要修订或显式降低深度后重审；`blocked` 作为阻断问题处理。
 
 Persona 身份、背景、`author/reference` 模式或 Brief 采用边界违规使用 `layer: editorial`；与 Voice Snapshot 重叠的表达冲突使用 `layer: voice`。
