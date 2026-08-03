@@ -1,0 +1,83 @@
+review:
+  mode: khazix_end_to_end_pilot
+  status: pass
+  input:
+    baseline: baseline.md
+    baseline_sha256: 0601c5a1fd9e78416a28032ca65b46518efac5f0debe0c82a7c1b4c0afe26b7d
+    profile: ../voice-profile.json
+    profile_id: khazix0918-article-experimental
+    profile_version: 2
+    profile_sha256: 44e921661c17d347a03993bc0209243d1ada317c4dd4710d85ca5abc28378e66
+    profile_file_sha256: fa560413f580652775fff6a20a1c38d8ea06c05880ceb4de1d0347e9c548f4ed
+  readiness_gate:
+    status: pass
+    ready_status: READY
+    profile_schema: pass
+    preserve_exact: pass
+    profile_hash: pass
+    corpus_gate: pass
+  mechanical_warning:
+    status: pass_with_signal
+    baseline_score: 94.09
+    rewrite_score: 90.79
+    threshold: 60
+    signal: >-
+      Rewrite paragraph-rhythm score is lower because the mechanical heuristic counts more adjacent short paragraphs as similar.
+      This is not a content failure; profile R06 deliberately permits frequent short paragraphs. Keep this metric as a regression signal.
+  evidence_regression:
+    status: pass
+    blocking: []
+    checks:
+      - location: "whole document / validation-report.json"
+        evidence: "Baseline copy and original final.md both match the fixed SHA-256."
+        result: pass
+      - location: "rewrite lines 9-11, 31, 35, 75, 85, 101, 105, 111, 113, 177-181"
+        evidence: "Citation-marker multiset is byte-for-byte unchanged: 15 markers, including all multi-source markers."
+        result: pass
+      - location: "rewrite lines 9, 17-35, 101-113, 163, 177-181"
+        evidence: "Dates, person and product names, permission conditions, Autopilot limits, Codespaces description, source list, and cited claims remain present with their original evidence boundaries."
+        result: pass
+      - location: "rewrite lines 3-13, 85-95, 129-173"
+        evidence: "No new personal experience is introduced; existing first-person editorial judgments remain editorial judgments."
+        result: pass
+  editorial_regression:
+    status: pass
+    blocking: []
+    checks:
+      - location: "rewrite lines 9-13"
+        evidence: "Preserves the main judgment: master the current harness before adding tools; use the article as a discovery-oriented analysis rather than a Copilot tutorial."
+        result: pass
+      - location: "rewrite lines 17-79"
+        evidence: "Preserves original order: workflow explanation, then prototype, planning, and iterative second-opinion arguments."
+        result: pass
+      - location: "rewrite lines 81-117"
+        evidence: "Preserves original order and force of the three risk boundaries: harness definition, permission scope, and Autopilot/reviewer cost and applicability."
+        result: pass
+      - location: "rewrite lines 119-173"
+        evidence: "Preserves five-layer transfer model, one-week action plan, audience fit, non-fit, and closing judgment."
+        result: pass
+  voice_audit:
+    status: pass
+    blocking: []
+    major: []
+    minor: []
+    accepted_exceptions:
+      - location: "rewrite lines 119-127 and 137-143"
+        rule: "R07 / A02"
+        evidence: "The table and numbered sequence remain because they carry the baseline's comparison and action content. They are isolated, not a dense heading-and-list replacement for the argument."
+        required_change: "None for this pilot; retain this exception only where source structure carries distinct content."
+    observed_matches:
+      - location: "rewrite lines 3-13"
+        rules: [R01, R03, R04, R11, R12]
+        evidence: "Direct concrete opening, conversational technical register, and short paragraphs establish the article's direction without adding a new personal scene."
+      - location: "rewrite lines 29-39, 45-51, 71-79"
+        rules: [R03, R04, R06, R08, R09]
+        evidence: "Mechanism and examples are followed by short landing sentences; the object-to-mechanism-to-judgment chain is explicit."
+      - location: "rewrite lines 85-117, 163-173"
+        rules: [R10, R13, R14, R15, R16, R25]
+        evidence: "Conversational bridges and conditional language preserve the original limits, then return to the central harness claim at the close."
+      - location: "whole document"
+        rules: [A03, A04, A05, A06, A07, A08, A09]
+        evidence: "No generic summary opener, certainty upgrade, invented experience, repeated rhetorical-question pattern, unsupported slogan, or speaker-attribution rewrite was introduced."
+  decision: promote
+  decision_scope: "Promote this experimental profile and pilot method to candidate-registry review; this is not a public release decision."

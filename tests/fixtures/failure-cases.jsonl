@@ -1,0 +1,1 @@
+{"audit_check":"逐个检查标题是否服务读者问题，且不包含内部决策语言。","guardrail":"广告或内部判断只留在内部执行约束，不作为读者可见标题。","id":"FC-20260803-001","notes":{"fixture":true,"owner":"synthetic"},"root_cause":"把内部广告判断错误投影为读者可见结构。","source_run":"synthetic-run","source_session":"synthetic-session","status":"active","symptom":"内部广告判断成为文章小标题。","tags":["headings","reader-visible","contract"]}

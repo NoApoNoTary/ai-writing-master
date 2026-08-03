@@ -69,6 +69,8 @@ fi
 
 # 创建子目录
 mkdir -p "$HOME_DIR/runs"
+# ponytail: only provision the root; context init owns schema files and legacy import stays explicit.
+mkdir -p "$HOME_DIR/personal-context"
 mkdir -p "$HOME_DIR/personal_materials/articles"
 mkdir -p "$HOME_DIR/personal_materials/experiences"
 mkdir -p "$HOME_DIR/personal_materials/topics"
@@ -77,21 +79,6 @@ mkdir -p "$HOME_DIR/themes"
 mkdir -p "$HOME_DIR/output"
 
 echo -e "${GREEN}✓ 目录结构创建完成${NC}"
-
-# 复制配置文件
-if [ ! -f "$HOME_DIR/config.yaml" ]; then
-    if [ -f "$PROJECT_DIR/templates/config.example.yaml" ]; then
-        cp "$PROJECT_DIR/templates/config.example.yaml" "$HOME_DIR/config.yaml"
-        echo -e "${GREEN}✓ 创建配置文件: config.yaml${NC}"
-    fi
-fi
-
-if [ ! -f "$HOME_DIR/style.yaml" ]; then
-    if [ -f "$PROJECT_DIR/templates/style.example.yaml" ]; then
-        cp "$PROJECT_DIR/templates/style.example.yaml" "$HOME_DIR/style.yaml"
-        echo -e "${GREEN}✓ 创建风格文件: style.yaml${NC}"
-    fi
-fi
 
 # 链接 skills
 echo ""
@@ -112,11 +99,22 @@ link_skills() {
             skill_name=$(basename "$skill")
             target="$skills_dir/$skill_name"
 
-            if [ -L "$target" ] || [ -d "$target" ]; then
-                rm -rf "$target"
+            if [ -L "$target" ]; then
+                existing_target=$(readlink "$target")
+                if [ "$existing_target" = "$skill" ]; then
+                    echo -e "${GREEN}  ✓ $agent_name: $skill_name（已链接）${NC}"
+                    continue
+                fi
+                echo -e "${YELLOW}  ⚠ $agent_name: $skill_name 已指向其他位置，保留现有链接${NC}"
+                continue
             fi
 
-            ln -sfn "$skill" "$target"
+            if [ -e "$target" ]; then
+                echo -e "${YELLOW}  ⚠ $agent_name: $skill_name 已存在，保留现有文件${NC}"
+                continue
+            fi
+
+            ln -s "$skill" "$target"
             echo -e "${GREEN}  ✓ $agent_name: $skill_name${NC}"
         fi
     done
@@ -145,12 +143,18 @@ echo -e "${YELLOW}[4/4] 安装 CLI 工具（可选）...${NC}"
 
 if command -v uv >/dev/null 2>&1; then
     echo -e "${BLUE}检测到 uv，使用 uv 安装 CLI...${NC}"
-    cd "$PROJECT_DIR/cli" && uv tool install --editable . 2>/dev/null || true
-    echo -e "${GREEN}✓ CLI 安装完成（uv）${NC}"
+    if uv tool install --editable "$PROJECT_DIR"; then
+        echo -e "${GREEN}✓ CLI 安装完成（uv）${NC}"
+    else
+        echo -e "${YELLOW}  CLI 安装未完成；Skills 链接保持可用${NC}"
+    fi
 elif command -v pipx >/dev/null 2>&1; then
     echo -e "${BLUE}检测到 pipx，使用 pipx 安装 CLI...${NC}"
-    cd "$PROJECT_DIR/cli" && pipx install --editable . 2>/dev/null || true
-    echo -e "${GREEN}✓ CLI 安装完成（pipx）${NC}"
+    if pipx install --editable "$PROJECT_DIR"; then
+        echo -e "${GREEN}✓ CLI 安装完成（pipx）${NC}"
+    else
+        echo -e "${YELLOW}  CLI 安装未完成；Skills 链接保持可用${NC}"
+    fi
 else
     echo -e "${YELLOW}  未检测到 uv 或 pipx，跳过 CLI 安装${NC}"
     echo -e "${YELLOW}  Skills 可以独立使用，不需要 CLI${NC}"
@@ -163,9 +167,8 @@ echo -e "${GREEN}  ✓ 安装完成！${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${BLUE}📦 已安装的 Skills:${NC}"
-echo -e "  • writing-master    - 完整创作流程主入口"
-echo -e "  • writing-rewrite   - 洗稿与改写"
-echo -e "  • (更多模块正在开发中...)"
+echo -e "  • writing-master    - 单渠道完整创作主入口"
+echo -e "  • writing-rewrite   - 单渠道内容改写"
 echo ""
 echo -e "${BLUE}📁 用户数据目录:${NC}"
 echo -e "  $HOME_DIR"
@@ -173,10 +176,8 @@ echo ""
 echo -e "${BLUE}🚀 开始使用:${NC}"
 echo -e "  1. 打开 Claude Code / Cursor"
 echo -e "  2. 对话输入: ${GREEN}写一篇公众号文章${NC}"
-echo -e "  3. 或输入: ${GREEN}把这篇文章改写成小红书版本${NC}"
+echo -e "  3. 或输入: ${GREEN}把这篇文章改写成 X Thread${NC}"
 echo ""
 echo -e "${BLUE}📖 查看文档:${NC}"
 echo -e "  cat $PROJECT_DIR/README.md"
-echo ""
-echo -e "${YELLOW}💡 提示: 首次使用会自动进行风格设置（Onboard）${NC}"
 echo ""

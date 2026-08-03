@@ -1,218 +1,187 @@
-# CLI 工具使用指南
+# CLI 工具指南
 
-AI Writing Master 提供独立的命令行工具，可以在不依赖 AI 的情况下进行质量检测和相似度分析。
+本文面向需要从 Shell 调用、编写自动化脚本或排查工程状态的用户。普通写作不以 CLI 为入口，请从[用户上手指南](quick-start.md)开始。
 
-## 📦 安装
+AI Writing Master 的 CLI 提供十一项确定性辅助能力：机械文本检查、字符相似度、运行目录查询、深度模式角色交接、个人上下文管理、确认式风格学习、Research Brief 校验、失败案例库与任务快照、任务级 Voice Snapshot、内置/外部 Persona Skill 冻结，以及公众号发布时间建议。它们不替代事实研究或编辑审查。
 
-### 方式1: 直接使用（无需 pip）
+## 安装与运行
+
+### 使用仓库启动脚本
 
 ```bash
-# 克隆项目
 git clone https://github.com/NoApoNoTary/ai-writing-master.git ~/ai-writing-master
+cd ~/ai-writing-master
+./bin/writing-master --help
+```
 
-# 添加到 PATH（添加到 ~/.bashrc 或 ~/.zshrc）
+`bin/writing-master` 会把仓库的 `src/` 加入 `PYTHONPATH`，因此无需先安装 Python 包。
+
+完整仓库还包含两个 Skills、角色卡、参考文件与 `install.sh`；只安装 build wheel 时只得到 Python CLI 包和 `writing-master` 命令，不会安装 Skills、角色卡或用户数据目录。需要完整写作工作流时，从仓库运行 `install.sh`；只需 Runtime CLI 时可安装 wheel。
+
+需要全局命令时，把 `bin` 加入 PATH：
+
+```bash
 export PATH="$HOME/ai-writing-master/bin:$PATH"
-
-# 验证安装
 writing-master --version
 ```
 
-### 方式2: 使用 Python 模块
+### 通过安装脚本
+
+```bash
+cd ~/ai-writing-master
+bash install.sh
+```
+
+若本机存在 `uv` 或 `pipx`，安装脚本会执行仓库根目录的可编辑安装；否则 Skills 仍可使用，CLI 可通过 `./bin/writing-master` 运行。
+
+### Python 模块入口
 
 ```bash
 cd ~/ai-writing-master
 PYTHONPATH=./src python3 -m writing_master --help
 ```
 
-## 🚀 命令概览
+## 命令概览
 
 ```bash
-writing-master --help              # 查看所有命令
-writing-master --version           # 查看版本
-writing-master home                # 输出状态目录路径
-writing-master quality <文件>      # 质量评分
-writing-master similarity <文件...> # 相似度检测
+writing-master --help
+writing-master --version
+writing-master quality <file> [--verbose | --json]
+writing-master similarity <file> <file> [...] [--json] [-n N]
+writing-master home
+writing-master handoff prepare RUN_DIR --to-role ROLE --phase PHASE --objective TEXT --decision-to-inform TEXT --input FILE --write FILE --done-criterion TEXT
+writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF
+writing-master handoff complete RUN_DIR [--result RESULT_PATH]
+writing-master handoff show RUN_DIR [--json]
+writing-master context init
+writing-master context profile set PROFILE.json --expected-revision N [--json]
+writing-master context profile show [--json]
+writing-master context material add FILE --kind KIND --title TITLE --source-kind KIND --source-ref REF --visibility VISIBILITY [--tag TAG ...]
+writing-master context material list [--kind KIND] [--status STATUS] [--json]
+writing-master context search QUERY [--kind KIND] [--tag TAG] [--limit N] [--json]
+writing-master context import-legacy SOURCE_DIR [--kind KIND]
+writing-master context approve RUN_DIR ITEM_ID --allow background|paraphrase|quote
+writing-master context snapshot RUN_DIR --material ITEM_ID:PURPOSE [--material ITEM_ID:PURPOSE ...]
+writing-master context verify-run RUN_DIR [--json]
+writing-master learn propose CANDIDATE.json --run-dir RUN_DIR [--json]
+writing-master learn decide OBSERVATION_ID (--accept | --reject) [--json]
+writing-master learn show [--json]
+writing-master research save RUN_DIR DRAFT.json [--json]
+writing-master research verify RUN_DIR [--json]
+writing-master failure-cases propose CASE.json [--path PATH] [--json]
+writing-master failure-cases status CASE_ID proposed|active|superseded [--path PATH] [--json]
+writing-master failure-cases list [--status proposed|active|superseded] [--path PATH] [--json]
+writing-master failure-cases snapshot RUN_DIR [--tag TAG ...] [--limit N] [--path PATH] [--json]
+writing-master voice list [--json]
+writing-master voice snapshot RUN_DIR [VOICE] [--source default|request|content-contract] [--json]
+writing-master voice verify-run RUN_DIR [--json]
+writing-master persona list [--json]
+writing-master persona snapshot RUN_DIR TEMPLATE_OR_SKILL PERSONA_BRIEF.md --mode author|reference --content-type TYPE --background default|project|none [--source-version VERSION] [--json]
+writing-master persona verify-run RUN_DIR [--json]
+writing-master wechat-timing recommend [--now ISO-8601] [--timezone Asia/Shanghai] [--content-type TYPE] [--timeliness VALUE] [--length VALUE] [--configured-window WINDOW]
+writing-master wechat-timing verify wechat-draft-report.json
 ```
 
----
+## `quality`：机械文本检查
 
-## 📊 quality - 质量评分
+命令名 `quality` 为兼容既有工作流保留。它计算五项可观察的文本特征，并汇总为 `mechanical_score`：
 
-对 Markdown 文章进行多维度质量检测。
+| 检查项 | 权重 | 当前实现 |
+|---|---:|---|
+| `banned_words` | 30% | 统计内置套话表的命中数量 |
+| `sentence_variance` | 20% | 计算句长标准差 |
+| `paragraph_rhythm` | 20% | 检查相邻段落长度是否过于接近 |
+| `adverb_density` | 15% | 统计内置常见副词密度 |
+| `vocabulary_diversity` | 15% | 计算中文字符 bigram 多样性 |
+
+这五项都是启发式规则。分数高只表示机械预警较少，不表示：
+
+- 事实准确；
+- 引用充分；
+- 观点原创；
+- 论证严密；
+- 符合特定作者声音；
+- 文本来自人类而非模型。
 
 ### 基本用法
 
 ```bash
-# 简单评分
 writing-master quality article.md
-# 输出: 72.5
-#       ✅ 通过 (阈值: 60)
-
-# 详细报告
 writing-master quality article.md --verbose
-
-# JSON 输出（供程序解析）
 writing-master quality article.md --json
 ```
 
-### 评分维度
+普通输出包含分数和机械阈值结果。当前阈值为 `60`，只用于工作流预警。
 
-CLI 工具使用统计方法检测以下维度：
-
-| 维度 | 权重 | 检测内容 | 目标 |
-|------|------|----------|------|
-| **准确性** | 25% | 提醒人工核对事实 | 默认0.9 |
-| **套话检测** | 20% | 14类AI套话黑名单 | 无套话 |
-| **句子变化** | 15% | 句长标准差 | ≥15 |
-| **段落节奏** | 10% | 段落长度多样性 | 变化丰富 |
-| **副词密度** | 15% | 过度修饰检测 | ≤2.0/100字 |
-| **词汇丰富度** | 15% | 字符bigram多样性 | ≥0.6 |
-
-**质量门槛**：≥60分
-
-### AI套话黑名单
-
-CLI 工具检测以下套话模式：
-
-```
-首先、其次、再者、最后、总之、综上所述、总而言之
-此外、另外、与此同时、不仅如此、更重要的是
-作为一个、让我们、值得注意的是、需要指出的是
-不可否认、毋庸置疑、众所周知、事实上、显而易见
-非常重要、至关重要、不言而喻、具有重要意义
-意义深远、影响深远、引发了广泛关注
-总的来说、综合来看、由此可见、不难发现、通过以上分析
-```
-
-### 详细报告示例
-
-```bash
-writing-master quality article.md --verbose
-```
-
-输出：
-
-```
-============================================================
-写作质量评分: 85.8/100
-============================================================
-
-各维度得分:
-  █████████░ 0.90 (权重25%)  accuracy
-         需人工核对事实
-  █████████░ 0.90 (权重20%)  banned_words
-         发现 1 个套话
-         示例: 最后
-  ███████░░░ 0.73 (权重15%)  sentence_variance
-         句长标准差: 14.6（目标 ≥15）
-  ████░░░░░░ 0.44 (权重10%)  paragraph_rhythm
-         18/32 对连续段落长度相似
-  ██████████ 1.00 (权重15%)  adverb_density
-         副词密度: 0.07/100字（目标 ≤2.0）
-  ██████████ 1.00 (权重15%)  vocabulary_diversity
-         字符bigram多样性: 0.827（目标 ≥0.6）
-
-字符数: 1471
-综合得分: 85.8/100
-✅ 通过质量门槛（≥60分）
-```
-
-### JSON 输出示例
-
-```bash
-writing-master quality article.md --json
-```
-
-输出：
+### JSON 字段
 
 ```json
 {
-  "quality_score": 85.75,
+  "score_type": "mechanical_style",
+  "mechanical_score": 72.5,
+  "quality_score": 72.5,
   "dimensions": {
-    "accuracy": {
-      "score": 0.9,
-      "detail": "需人工核对事实"
-    },
-    "banned_words": {
-      "score": 0.9,
-      "detail": "发现 1 个套话",
-      "found": ["最后"]
-    },
-    "sentence_variance": {
-      "score": 0.7333,
-      "detail": "句长标准差: 14.6（目标 ≥15）"
-    },
-    "paragraph_rhythm": {
-      "score": 0.4375,
-      "detail": "18/32 对连续段落长度相似"
-    },
-    "adverb_density": {
-      "score": 1.0,
-      "detail": "副词密度: 0.07/100字（目标 ≤2.0）"
-    },
-    "vocabulary_diversity": {
-      "score": 1.0,
-      "detail": "字符bigram多样性: 0.827（目标 ≥0.6）"
-    }
+    "banned_words": {"score": 0.8, "detail": "..."},
+    "sentence_variance": {"score": 0.7, "detail": "..."},
+    "paragraph_rhythm": {"score": 0.6, "detail": "..."},
+    "adverb_density": {"score": 1.0, "detail": "..."},
+    "vocabulary_diversity": {"score": 0.9, "detail": "..."}
   },
   "weights": {
-    "accuracy": 0.25,
-    "banned_words": 0.2,
-    "sentence_variance": 0.15,
-    "paragraph_rhythm": 0.1,
+    "banned_words": 0.3,
+    "sentence_variance": 0.2,
+    "paragraph_rhythm": 0.2,
     "adverb_density": 0.15,
     "vocabulary_diversity": 0.15
   },
-  "char_count": 1471
+  "char_count": 1200,
+  "manual_review_required": [
+    "factual_accuracy",
+    "claim_support",
+    "editorial_judgment",
+    "voice_fidelity"
+  ]
 }
 ```
 
----
+`quality_score` 与 `mechanical_score` 当前数值相同，仅为旧调用方保留。新集成应读取 `mechanical_score` 和 `score_type`。
 
-## 🔄 similarity - 相似度检测
+### 套话表
 
-检测两个或多个文本之间的相似度，用于防洗稿检查。
+当前套话表定义在 [`src/writing_master/commands/quality.py`](../src/writing_master/commands/quality.py)。它包含“综上所述”“值得注意的是”“具有重要意义”等常见模板表达。
+
+命中并不意味着该词在所有语境中都错误；检查结果用于定位候选句，再由编辑判断是否修改。
+
+### 短文本行为
+
+输入少于完整文章的最低样本要求时，JSON 返回 `status: "insufficient_data"`，
+`mechanical_score` 与兼容字段 `quality_score` 为 `null`，并列出 `insufficient_reasons`。
+命令行输出 `N/A`，不把短标题、提纲或几句话标记为通过。
+
+## `similarity`：字符表面相似度
 
 ### 基本用法
 
 ```bash
-# 比较两个文件
 writing-master similarity source.md rewritten.md
-# 输出: 最大相似度: 0.4200
-#       ✅ 通过 (阈值: 0.6)
-
-# 比较多个文件（计算两两最大相似度）
-writing-master similarity source.md v1.md v2.md v3.md
-
-# JSON 输出
+writing-master similarity source.md version-a.md version-b.md
 writing-master similarity source.md rewritten.md --json
+writing-master similarity source.md rewritten.md -n 4
 ```
 
-### 算法说明
+有意义的比较至少需要两个文件。多个文件输入时，命令返回所有文本对中的最大相似度。
 
-使用**字符 3-gram Jaccard 相似度**：
+### 算法
 
-1. 提取每个文本的字符3-gram集合
-2. 计算 Jaccard 相似度：`|A ∩ B| / |A ∪ B|`
-3. 返回所有文本对之间的最大相似度
+默认算法是字符 `3-gram` Jaccard：
 
-**相似度阈值**：≤0.6
+1. 删除标点和空白，保留字母、数字及中日韩字符；
+2. 为每个文本生成字符 n-gram 集合；
+3. 计算 `|A ∩ B| / |A ∪ B|`；
+4. 多文件场景返回最大值。
 
-### 判断标准
-
-| 相似度范围 | 判断 | 建议 |
-|-----------|------|------|
-| > 0.6 | ❌ 不通过 | 过于相似，需要更激进的重构 |
-| 0.4-0.6 | ⚠️ 边缘 | 检查是否有明显洗稿痕迹 |
-| < 0.4 | ✅ 通过 | 内容级真改写 |
-
-### JSON 输出示例
-
-```bash
-writing-master similarity source.md rewritten.md --json
-```
-
-输出：
+### JSON 输出
 
 ```json
 {
@@ -222,171 +191,250 @@ writing-master similarity source.md rewritten.md --json
 }
 ```
 
-### 高级选项
+`0.6` 是当前工作流的固定预警线。它没有考虑语义改写、引用规范、公共事实、版权边界或跨语言翻译，因此只适合回答“字符表面重合是否偏高”。
 
-```bash
-# 自定义 n-gram 长度（默认 3）
-writing-master similarity a.md b.md -n 4
-```
-
----
-
-## 🏠 home - 状态目录
-
-输出状态目录路径，用于脚本集成。
+## `home`：运行数据目录
 
 ```bash
 writing-master home
-# 输出: /home/user/.writing-master
 ```
 
-### 环境变量
-
-可以通过环境变量自定义状态目录：
+默认返回当前用户的 `~/.writing-master`。设置环境变量后返回指定路径：
 
 ```bash
-export WRITING_MASTER_HOME=/custom/path
+export WRITING_MASTER_HOME="$HOME/content-system"
 writing-master home
-# 输出: /custom/path
 ```
 
----
+`home` 只输出路径，不创建任务、不读取状态，也不执行写作流程。
 
-## 🔧 在 Skill 中使用
+## `context`：个人上下文
 
-在 `writing-rewrite` skill 中，AI 会自动检测 CLI 工具是否可用：
+`context` 管理版本化 Author Profile、五类 Knowledge Item、任务级 approval 与不可变任务 Snapshot。所有运行时 JSON 由 Python 标准库维护；初始化、导入、Snapshot、usage 和 verify 都是显式动作。它不扫描或自动导入旧 `personal_materials/`；风格决定与 Research Brief 分别由 `learn` 和 `research` 管理。
 
 ```bash
-# AI 自动执行以下逻辑
-if command -v writing-master &> /dev/null; then
-    # CLI 可用，使用 CLI 工具
-    writing-master quality xiaohongshu.md --json
-    writing-master similarity source.md xiaohongshu.md --json
-else
-    # CLI 不可用，使用 AI 评估
-    # [AI 自行评估质量和相似度]
-fi
+# 初始化 Profile、Style 与 Knowledge Index 的 canonical 空状态
+writing-master context init
+
+# Profile 以 optimistic revision 更新
+writing-master context profile set profile.json --expected-revision 0 --json
+writing-master context profile show --json
+
+# 导入、查询和控制素材生命周期
+writing-master context material add experience.md \
+  --kind experiences --title '一次可追溯经历' \
+  --source-kind user_provided --source-ref 'local://experience-001' \
+  --visibility ask_before_use --tag example --json
+writing-master context search '可追溯' --json
+writing-master context material disable ITEM_ID
+writing-master context material enable ITEM_ID
 ```
 
-**优势**：
-
-- ✅ **一致性**：CLI 工具使用固定算法，结果可复现
-- ✅ **速度**：无需 LLM 推理，秒级完成
-- ✅ **独立性**：不依赖 API 额度，可离线使用
-- ✅ **可集成**：JSON 输出方便集成到自动化流程
-
----
-
-## 📝 实战示例
-
-### 场景1：写作后质量检查
+素材 kind 是 `experiences`、`opinions`、`cases`、`references`、`previous_articles`。重复导入只在同一 `(kind, normalized_content_hash, source_kind)` 身份内幂等；相同正文以不同 kind 或 source identity 导入时保留为独立 item。
 
 ```bash
-# 写完文章后立即检查
-writing-master quality my-article.md --verbose
+# legacy 导入仍是显式操作；每个文件独立报告 imported/skipped/failed
+writing-master context import-legacy personal_materials
 
-# 如果分数低于60，查看详细问题
-# 根据提示修改文章
-# 再次检查直到通过
+# ask_before_use 需要当前任务 approval，之后才能进入 Snapshot
+writing-master context approve RUN_DIR ITEM_ID --allow background
+writing-master context snapshot RUN_DIR --material ITEM_ID:background
+
+# final.md 与 acceptance-report.md 存在后，由 Runtime 记录 usage 并核验整条链路
+writing-master context verify-run RUN_DIR --json
 ```
 
-### 场景2：洗稿质量验证
+`publishable` 可直接进入新 Snapshot；`ask_before_use` 需要对应任务、item 和用途的 approval；`private` 永远不会进入写作 Snapshot。Snapshot 写入后保持不可变，任务只读取 Snapshot 和任务内 `context-materials/` 副本；`verify-run` 检查明确记录的 hash、approval、usage 及 final/acceptance 文件，不宣称对正文作语义性隐私审计。
+
+## `learn`：确认式风格学习
+
+`learn` 保存可追溯的 Style Observation Candidate，并要求用户显式接受或拒绝。Runtime 不从一次编辑自动修改 Style，也不对规则语义作判断。
 
 ```bash
-# 洗稿前：记录原文路径
-source="original-article.md"
-
-# 洗稿后：检查质量和相似度
-writing-master quality rewritten.md
-writing-master similarity $source rewritten.md
-
-# 如果相似度 > 0.6，需要更激进的重构
+writing-master learn propose style-candidate.json --run-dir RUN_DIR --json
+writing-master learn decide OBSERVATION_ID --accept --json
+writing-master learn decide OBSERVATION_ID --reject --json
+writing-master learn show --json
 ```
 
-### 场景3：批量检查多篇文章
+Candidate 记录：
+
+- 来源任务；
+- baseline/edited 文件路径与 SHA-256；
+- before/after 片段或 diff 引用；
+- `expression | sentence | structure | stance | platform` 规则维度；
+- global/platform/content type/topic 适用范围；
+- proposal model 与 prompt。
+
+`propose` 只创建 `proposed` observation。终态为 `accepted` 或 `rejected`；重复相同决定幂等，相反决定返回 revision conflict。Style Profile 只由 accepted observations 确定性重建，每条规则保留 observation ID/revision/hash 引用。全局 Style 更新只影响之后创建的新 Snapshot，既有任务不变化。`--run-dir RUN_DIR` 必须绑定来源任务并执行 Voice 隔离校验；非默认 Voice 任务的表达变化不进入 Style Observation。
+
+完整 Candidate schema 见 [`Goal B Contract`](goals/2026-07-28-v0.2b-goal-contract.md)。
+
+## `failure-cases`：失败案例库与任务快照
 
 ```bash
-#!/bin/bash
-for file in articles/*.md; do
-    echo "检查: $file"
-    score=$(writing-master quality "$file" --json | jq -r '.quality_score')
-    if (( $(echo "$score >= 60" | bc -l) )); then
-        echo "  ✅ $score/100"
-    else
-        echo "  ❌ $score/100 (需要修改)"
-    fi
-done
+writing-master failure-cases propose case.json --json
+writing-master failure-cases status FC-20260803-001 active --json
+writing-master failure-cases list --status active --json
+writing-master failure-cases snapshot RUN_DIR --tag wechat --limit 5 --json
 ```
 
-### 场景4：多平台改写相似度矩阵
+`propose` 登记 `proposed` 案例；`status` 在 `proposed`、`active`、`superseded` 间更新；`list` 按状态列出案例；`snapshot` 从 active 案例生成任务内 `failure-case-snapshot.md`。工作流只向 Writer/Auditor 交付该任务快照中的 guardrail 与 audit check。
+
+## `voice`：任务级写作声音
 
 ```bash
-# 检查所有平台版本的相似度
-writing-master similarity \
-    source.md \
-    wechat.md \
-    xiaohongshu.md \
-    douyin.md \
-    zhihu.md
-
-# 输出最大相似度，确保所有版本都是独立改写
+writing-master voice list --json
+writing-master voice snapshot RUN_DIR
+writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
+writing-master voice snapshot RUN_DIR 清晰分析 --json
+writing-master voice verify-run RUN_DIR --json
 ```
 
----
+`list` 返回稳定 ID、版本、显示名称、说明和适用场景。`snapshot` 接受序号、ID 或显示名称；省略时使用 `natural-default`。同一任务、同一 Voice 重试幂等，不同 Voice 返回 `snapshot_conflict` 且保留原文件；已 ready 后改用其他 Voice 时，工作流先保留原 run，再创建 `contract=pending` 的新 run，并用 `source_task_id`、`source_change_kind` 和 `source_change_sha256` 关联原任务，用户确认后才写入新 Snapshot。
 
-## 🐛 故障排除
+任务 Snapshot 保存任务 ID、选择来源、Profile ID/版本、Profile hash、完整 Profile 与 Snapshot hash，并同步更新 `status.json` 的 `voice_id`、`voice_profile_version`、`voice_snapshot` 和 `voice_snapshot_sha256`。新任务在调用 `snapshot` 前由工作流写入 `voice_snapshot: pending`；缺少全部 Voice 字段的旧任务会标记为 `legacy-natural`，不回填新 Profile。`verify-run` 只读任务文件校验完整性，不依赖当前 Registry。显式非默认 Voice 加载失败会阻止进入初稿；自然默认 Registry 异常会标记 `unavailable` 并保留既有自然写作行为。
 
-### 问题1: `command not found: writing-master`
+当前内置五项：`natural-default`、`clear-analytical`、`conversational-observer`、`sharp-commentary`、`magazine-dialogue-editor`。Profile 只约束表达维度，不得改变事实、证据边界、核心判断、作者立场或真实经历。
 
-**原因**：CLI 工具未加入 PATH
-
-**解决**：
+## `persona`：任务级人格模板与外部作者人格
 
 ```bash
-# 临时添加
-export PATH="$HOME/ai-writing-master/bin:$PATH"
+writing-master persona list --json
+writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md \
+  --mode reference --content-type analysis --background project --json
+writing-master persona snapshot RUN_DIR /path/to/PERSONA/SKILL.md persona-brief-draft.md \
+  --mode author --content-type analysis --background project --json
+writing-master persona verify-run RUN_DIR --json
+```
 
-# 永久添加（添加到 ~/.bashrc 或 ~/.zshrc）
+`list` 返回显式打包的内置 Persona 模板；当前包含 `khazix-writer` / 卡兹克科技观察（实验）。`snapshot` 的 `SKILL.md` 参数可以是内置模板 ID（同名路径存在时用 `builtin:khazix-writer` 明确指定），也可以是外部文件或只包含一个 `SKILL.md` 的目录。无论来源如何，Runtime 都原样保存 `persona-skill.md`，并在自由格式 Brief 前追加最小来源注释后保存为 `persona-brief.md`。来源版本优先读取原 Skill frontmatter 的 `version`，且 `--source-version` 不得覆盖它；Skill 没有版本时可显式提供外部版本，再缺失时使用完整内容 SHA-256。状态始终另存原始 Skill hash、Brief hash 和使用模式，不建立固定 Persona Schema。
+
+同一任务、同一来源选择与 Brief 重试幂等；内置模板或外部文件之后变化都不会覆盖任务副本。不同人格、`author/reference` 模式、文章类型、背景选项或 Brief 返回 `snapshot_conflict`；已 ready 后改用其他 Persona 或 Voice 时，工作流先保留原 run，再创建 `contract=pending` 的新 run，并在新 run 的 `status.json` 写入 `source_task_id`、`source_change_kind` 和 `source_change_sha256` 指向原任务与变更摘要，用户确认后才写入新 Snapshot。`verify-run` 只校验任务内两份文件和 `status.json`，不回读或从任何内置、外部来源重建 Persona 当前版本，也不扫描 Skill 目录。
+
+## `wechat-timing`：公众号发布时间建议
+
+```bash
+writing-master wechat-timing recommend --timezone Asia/Shanghai --content-type article --timeliness evergreen --length medium
+writing-master wechat-timing verify wechat-draft-report.json
+```
+
+`recommend` 输出确定性建议窗口及其依据；`verify` 校验 `wechat-draft-report.json` 是否包含完整的发布时间建议字段。它只提供建议，不调用发布或群发接口。
+
+## `research`：上下文感知选题 Brief
+
+`research` 不执行网络调研。Researcher 或当前 Agent 先基于实时来源生成 `research-brief-draft.json`，Runtime 再把它绑定到既有任务的 `brief.md` 与 `personal-context-snapshot.json`：
+
+```bash
+writing-master research save RUN_DIR research-brief-draft.json --json
+writing-master research verify RUN_DIR --json
+```
+
+有效 draft 包含 3–10 个候选，每个候选具备 Topic、Heat、Audience、Angle、Evidence、`heat/user_value/differentiation/author_fit` 四维评分及 Rationale。Runtime 校验：
+
+- 分数范围和 Heat 一致性；
+- 非未来 RFC3339 时间；
+- Evidence URL、内容 hash 和稳定 ID；
+- `author_fit` 只引用冻结 Snapshot 的 Profile revision/hash 或已选 Material ID；
+- canonical Brief 与原始 `brief.md`、Snapshot 的输入 hash。
+
+相同保存幂等；同一任务的不同第二次保存返回 duplicate。`verify` 会发现 Brief、Snapshot 或 canonical 文件变化。Research Brief Evidence 只支持候选排序，不自动成为文章 `claims.yaml` 中的 accepted claim。缺少实时检索能力时，Host 在生成 draft 前报告 `realtime_research_unavailable`。
+
+Draft schema 与 Agent 边界见 [`Research Brief reference`](../skills/writing-master/references/research-brief.md)。
+
+## `handoff`：深度模式角色交接
+
+`handoff` 只处理已建立且 `status.json` 为 `mode=deep`、`execution=multi_agent` 的运行目录。它创建不可变 Manifest、校验专项 Agent Result 并显示输入新鲜度；路径、hash、stale 和 attempt 历史由 Runtime 复核。
+
+```bash
+writing-master handoff prepare RUN_DIR \
+  --to-role researcher \
+  --phase research \
+  --objective '建立证据包' \
+  --decision-to-inform '后续角度选择' \
+  --input brief.md \
+  --write claims.yaml \
+  --done-criterion '关键主张可追溯'
+
+writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+# 仅当宿主确认该 Agent 已丢失时：
+writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF
+writing-master handoff complete RUN_DIR
+writing-master handoff show RUN_DIR --json
+```
+
+`prepare` 输出 Manifest 路径；`start` 在创建 Agent 前持久化 `agent_ref`；`recover-lost` 只处理宿主已确认丢失的同一 Agent；`complete` 在 Result 和已暂存输出都通过校验后推进状态；`show` 显示当前 handoff、输入新鲜度和阻断原因。它不是“继续最近任务”命令，也不为 quick/standard 提供通用恢复。当前运行目录锚定与锁定属于 Linux staging 边界。
+
+## 在自动化中使用
+
+### 机械检查
+
+```bash
+result=$(writing-master quality final.md --json)
+score=$(printf '%s' "$result" | jq -r '.mechanical_score')
+printf 'mechanical score: %s\n' "$score"
+```
+
+脚本门禁后仍应保留独立编辑审查：
+
+```text
+机械检查
+  → 证据审查
+  → 编辑判断
+  → 声音审查
+  → 验收
+```
+
+### 改写重合预警
+
+```bash
+writing-master similarity source.md rewritten.md --json \
+  | jq '{max_similarity, threshold, pass}'
+```
+
+不要根据 `pass` 字段自动声明原创或直接发布。
+
+## 故障排查
+
+### `command not found: writing-master`
+
+```bash
+cd ~/ai-writing-master
+./bin/writing-master --help
+```
+
+确认可运行后再把目录加入 PATH：
+
+```bash
 echo 'export PATH="$HOME/ai-writing-master/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 问题2: `No module named writing_master`
+### `No module named writing_master`
 
-**原因**：Python 无法找到模块
-
-**解决**：
+从仓库根目录调用启动脚本，或显式设置：
 
 ```bash
-# 使用绝对路径
 cd ~/ai-writing-master
-./bin/writing-master --help
-
-# 或设置 PYTHONPATH
-export PYTHONPATH="$HOME/ai-writing-master/src:$PYTHONPATH"
+PYTHONPATH=./src python3 -m writing_master --help
 ```
 
-### 问题3: 评分结果不符合预期
+### 文件读取错误
 
-**说明**：CLI 工具使用统计方法，与人工判断可能有差异
+命令按 UTF-8 读取输入。先检查路径、文件权限和编码：
 
-**建议**：
+```bash
+file article.md
+test -r article.md && echo readable
+```
 
-- CLI 评分是**参考指标**，不是绝对标准
-- 最终质量判断应结合人工审校
-- 可以调整写作策略提高各维度得分
+### 分数与编辑判断不一致
 
----
+优先相信针对事实、证据、论证和作者声音的具体审校证据。机械分数只用于发现规则能够观察到的问题。
 
-## 📚 相关文档
+## 相关文件
 
-- [完整流程说明](workflow-guide.md)
-- [洗稿使用手册](rewrite-guide.md)
-- [质量评分算法](quality-scoring.md)
-- [相似度算法](similarity-algorithm.md)
-
----
-
-**CLI 工具版本**：1.0.0  
-**Python 要求**：≥3.11  
-**依赖**：无（标准库即可运行）
+- [README](../README.md)
+- [用户上手指南](quick-start.md)
+- [`quality.py`](../src/writing_master/commands/quality.py)
+- [`similarity.py`](../src/writing_master/commands/similarity.py)

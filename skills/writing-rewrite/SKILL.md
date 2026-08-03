@@ -1,413 +1,248 @@
 ---
 name: writing-rewrite
 description: |
-  洗稿与改写模块：把一篇文章进行内容级真改写，支持小红书/抖音等多平台改写。
-  核心：不是简单洗稿，而是内容级重构，通过质量评分和相似度双重门槛确保原创性。
-  触发关键词：洗稿、改写、小红书版、抖音版、一稿多发、平台改写。
+  将一份已有 canonical source 改写为一个经过渠道审查的完整成品。每次 Rewrite 只接受一个 target_id；需要第二个渠道时新建一次 Rewrite，并复用相同的 source hash 与 source-analysis。编辑审查负责事实、立场、声音和渠道价值，CLI 只提供机械文本与源稿相似度预警。触发词：改写、渠道适配、公众号版、X 单帖、X Thread、再生成一个渠道版本。
 allowed-tools:
   - Bash
   - Read
   - Write
   - Edit
   - Glob
+  - Grep
 ---
 
-# Writing Rewrite — 洗稿与改写模块
+# Writing Rewrite
 
-## 🎯 核心理念
+## 目标
 
-**不是简单洗稿，而是内容级真改写**
+保留源稿的事实、证据边界、作者立场、真实案例和已验收声音，同时只为本次选择的一个渠道重新决定：
 
-### 什么是内容级真改写？
+- 内容顺序；
+- 开头与收束；
+- 信息密度；
+- 句式与段落；
+- 互动方式；
+- 渠道要求的格式、图片或封面。
 
-❌ **简单洗稿（我们不做）**：
-- 同义词替换
-- 句式调整
-- 段落重排
-- 删减压缩
+改写不是逐句替换，也不通过固定 emoji、口号或平台刻板话术制造“渠道感”。
 
-✅ **内容级真改写（我们做的）**：
-- 重构信息顺序
-- 重写开头和结尾
-- 改变叙事角度
-- 适配平台特性
-- 注入平台元素（emoji、标签、互动）
+## 运行约定
 
----
+- `{home}` = `$WRITING_MASTER_HOME`，未设置时使用 `~/.writing-master`
+- `{skill_dir}` = 当前 `writing-rewrite` Skill 目录
+- `source_ref` 只能是 `accepted_final` 或 `standalone_input`；整个 Rewrite 内 `source.md` 保持只读
+- P0 的 `target_id` 只能是 `wechat`、`x-post` 或 `x-thread`
+- 一个 run 只接受一个 `target_id`，不创建目标列表或批处理状态
+- P0 默认并始终使用当前 Agent；深度或多 Agent 改写尚未定义真实渠道角色与 Handoff 合同，收到该请求时说明受影响能力并等待用户确认标准改写或取消
+- Rewrite 不新增、展示或解析 Voice Selector；来自 Writing Master 的 canonical source 保持其已验收声音，只按渠道合同做必要适配，绝不回写来源 `final.md`
+- 用户需要第二个渠道时新建一次 Rewrite；复用相同 `source_sha256` 和已验证的 `source-analysis.md`，不重复调研，也不把前一个渠道正文作为输入
 
-## 🔄 运行约定
+## Phase 0：输入、单目标与任务目录
 
-- **{home}** = `$WRITING_MASTER_HOME` 或 `~/.writing-master`
-- **{skill_dir}** = 本 skill 目录
-- **质量判断**: 优先使用 `writing-master` CLI 工具；不可用时由 AI 直接评估
-- **CLI 检测**: 每次运行前检查 `which writing-master`
+先确定来源，不根据“当前任务存在”自动挑选源稿：
 
----
+1. `accepted_final`：使用同一 Writing Master 任务的已验收 canonical package。必须读取 `final.md`、`acceptance-report.md`、`sources.yaml` 与 `claims.yaml`；存在时同时读取同一任务的 `editorial-brief.md`、`outline.md` 和 `research-summary.md`。任务状态为 `voice_snapshot=ready` 时，还要读取并校验同一任务的 `voice-profile-snapshot.json`。`acceptance-report.md` 必须确认内容验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或 `final.md` 不得进入 Rewrite，也不得作为视觉、格式或发布来源。
+2. `standalone_input`：用户直接提供的文件或当前对话中的完整正文。它可作为本次 Rewrite 的独立 canonical source，不要求 Writing Master 的验收报告。
 
-## 🚀 执行流程
+将获准输入复制为本次 run 的 `source.md`，计算 SHA-256；之后 `source.md` 只读。`standalone_input` 不应被描述成已验收的 Writing Master final。
 
-### Step 1: 前置检查
+确认本次唯一的 `target_id`：
 
-1. **获取源文章**（按优先级）：
-   - 用户指定的文件
-   - 用户粘贴的内容
-   - 当前任务的 `final.md`
-   - 都没有 → 询问用户
+- `platforms/wechat.yaml`
+- `platforms/x-post.yaml`
+- `platforms/x-thread.yaml`
 
-2. **确定目标平台**：
-   - 用户明确指定 → 使用
-   - 未指定 → 列出可用平台，让用户选择
-   - 支持"全部"选项
+用户一次给出多个目标时，只让用户确定本次的一个 `target_id`；其余目标通过后续 Rewrite 完成。目标确定前不创建渠道正文。
 
-3. **保存源文章**：
-   ```bash
-   cp source.md {home}/runs/{task_id}/source.md
-   ```
+创建新的 Rewrite run，并保存：
 
----
-
-### Step 2: 分析源文章
-
-**Think Aloud**：
-```
-【分析源文章】
-字数: 3200字
-结构: 5部分（引入→问题→方案→案例→总结）
-核心观点: 3个
-关键数据: 5个
-适合平台: 小红书（生活化）、抖音（可视化）
+```text
+source.md
+rewrite-status.json
 ```
 
-**提取核心要素**：
-- 核心观点（3-5个）
-- 关键数据和事实
-- 真实案例
-- 情绪基调
-- 作者立场
+`rewrite-status.json` 使用单目标结构：
 
----
-
-### Step 3: 平台适配改写
-
-```
-读取: {skill_dir}/platforms/{platform}.yaml
-```
-
-**每个平台独立改写**：
-
-#### 小红书改写
-
-**平台特性**：
-- 字数: 500-1500字
-- 标题: 带emoji，吸睛
-- 标签: 3-5个
-- 配图: 6-9张（第一张最重要）
-- 风格: 生活化、情绪化、视觉冲击
-
-**改写策略**：
-1. **开头重构**：用钩子开场
-   ```
-   ❌ 源文章: "随着AI技术的发展..."
-   ✅ 小红书: "姐妹们！我发现了一个神器！🔥"
-   ```
-
-2. **信息重构**：按重要性排序
-   - 最吸引人的放前面
-   - 数据和案例可视化
-   - 增加emoji密度
-
-3. **互动增强**：
-   - 问句（"你们觉得呢？"）
-   - 表情符号
-   - 行动号召（"关注我获取更多"）
-
-4. **标签生成**：
-   ```
-   #AI工具 #效率提升 #程序员必备
-   ```
-
-#### 抖音改写（口播稿）
-
-**平台特性**：
-- 字数: 300-800字（60-120秒）
-- 格式: 口语化脚本
-- 结构: 钩子→问题→解决→行动
-- 风格: 口语、节奏快、有停顿
-
-**改写策略**：
-1. **前3秒钩子**：
-   ```
-   "等等！别划走！我要告诉你一个秘密..."
-   ```
-
-2. **口语化表达**：
-   ```
-   ❌ 书面: "该工具具有三个显著特点"
-   ✅ 口语: "这个工具啊，有三个特别厉害的地方"
-   ```
-
-3. **节奏标记**：
-   ```markdown
-   这个工具，[停顿] 真的改变了我的工作方式。
-   
-   [重音] 第一个功能，代码补全。
-   [加快] 你敲几个字母，它就能预测你要写什么。
-   [停顿] 神奇吧？
-   ```
-
-4. **行动号召**：
-   ```
-   "点赞收藏，下期教你怎么用！"
-   ```
-
----
-
-### Step 4: 质量双门槛检查
-
-#### 门槛1: 质量评分 ≥ 60/100
-
-**评分维度**：
 ```json
 {
-  "accuracy": 25,      // 准确性（事实、数据）
-  "originality": 20,   // 观点性（有独特见解）
-  "usefulness": 20,    // 实用性（读者能行动）
-  "readability": 20,   // 可读性（易读、有趣）
-  "platform_fit": 15   // 平台适配度
+  "entry": "rewrite",
+  "target_id": "wechat | x-post | x-thread",
+  "source_ref": "accepted_final | standalone_input",
+  "source_sha256": "...",
+  "source_analysis_sha256": null,
+  "output_sha256": null,
+  "review_sha256": null,
+  "derivatives_sha256": {},
+  "status": "in_progress | completed | failed",
+  "attempt": 1
 }
 ```
 
-**评估方式**：
+`target_id` 是标量；状态只描述当前 Rewrite，不维护目标集合、逐目标状态或跨任务重试。
 
-1. **优先使用 CLI 工具**（如果可用）：
-```bash
-# 检查 CLI 是否可用
-if command -v writing-master &> /dev/null; then
-    # 使用 CLI 工具评分
-    writing-master quality xiaohongshu.md --json
-else
-    # CLI 不可用，使用 AI 评估
-fi
+## Phase 1：加载单一渠道合同
+
+真实读取：
+
+- `references/single-target-rewrite.md`
+- `references/quality-gates.md`
+- 本次 `target_id` 对应的一个 `platforms/<target_id>.yaml`
+
+平台 YAML 是长度、输出类型、图片、HTML、封面、标签、必要派生产物和 `rewrite_brief` 的真实来源。不要同时加载其他目标合同，也不要使用未写入 YAML 的固定模板。
+
+`x-post` 与 `x-thread` 的 `manual_x_composer_preview` 是显式外部验收能力：开始正文前先确认当前宿主能取得实际 composer 预览，或用户会提供同一正文的预览证据。两者都没有时仍可保存草稿，但本次 Rewrite 必须以 `failed` 结束，不得声称通过 280 weighted length 校验。
+
+## Phase 2：生成或复用 source analysis
+
+首次处理该 source hash 时生成 `source-analysis.md`：
+
+```yaml
+source_sha256: "..."
+supporting_artifacts:
+  - path: "claims.yaml"
+    sha256: "..."
+core_thesis: "核心判断"
+facts:
+  - statement: "不可变事实"
+    source_or_location: "源稿位置或来源"
+boundaries:
+  - "限制条件或不确定性"
+author_position:
+  - "作者明确立场"
+voice_basis:
+  - "来自冻结 Voice Snapshot 或源稿的词汇、句式、节奏和确定性边界"
+personal_materials:
+  - "真实经历及其源稿位置"
+optional_details:
+  - "不影响核心判断的源稿旁支"
 ```
 
-2. **CLI 输出示例**：
+`accepted_final` 的分析从 `final.md` 与同一只读 canonical package 的 accepted claims、来源边界、编辑判断和冻结 Voice Snapshot 中抽取，因此短渠道 final 不会丢掉已经完成的研究依据或任务级声音；`standalone_input` 只分析用户正文。分析阶段不生成目标渠道文案，也不重新做 Article Research。`source-analysis.md` 不写 `target_id`、渠道结构或渠道输出决定；首次保存后立即计算 SHA-256，并写入 `rewrite-status.json.source_analysis_sha256`。
+
+再次基于同一 canonical source 发起 Rewrite 时，优先复制前一 Rewrite 包中的 `source-analysis.md`。复用必须同时满足：分析内记录的 `source_sha256` 与本次 `source.md` 完全一致；`supporting_artifacts` 中每个文件的当前 hash 一致；分析文件当前 SHA-256 与前一 run 的 `rewrite-status.json.source_analysis_sha256` 一致。校验通过后把同一分析 hash 写入新 run，并保持分析文件只读。任一 hash 不一致时为当前 source 重新分析，不继承旧渠道正文或旧分析结论。
+
+## Phase 3：单渠道改写
+
+只执行本次 `target_id`：
+
+1. 读取只读 `source.md`、`source-analysis.md` 和一个渠道 YAML；
+2. 选择该渠道最需要保留的一个主判断；
+3. 重新建立结构，不沿用源稿段落顺序；
+4. 保留事实、边界和作者立场；
+5. 第一人称只使用源稿或用户提供的真实素材；
+6. 保留源稿已验收的写作声音，不重新选择 Voice；
+7. 按 YAML 生成正文、标签及必要的格式或视觉需求；
+8. 保存为 YAML 中的 `rewrite_output_filename`。
+
+本次 Rewrite 不读取任何其他渠道正文，也不把已完成版本作为当前版本的输入。
+
+## Phase 4：渠道编辑审查
+
+先执行语义层面的编辑审查，再运行 CLI。
+
+### 事实、立场与声音
+
+- 关键事实与源稿一致；
+- 限制条件得到保留；
+- 没有新增来源不明的经历、数据或测试；
+- 作者立场没有因渠道化而反转；
+- 渠道适配没有覆盖 source 中已经验收的 Voice。
+
+### 渠道价值
+
+- 开头、结构和节奏符合当前渠道 YAML；
+- 删减后仍保留一个完整判断；
+- 互动元素服务于正文；
+- 成品不是缩写版源稿或刻板模板；
+- YAML 声明的必要派生产物都有明确生成路径。
+
+保存 `<target_id>-review.json`：
+
 ```json
 {
-  "quality_score": 72.5,
-  "dimensions": {
-    "accuracy": {"score": 0.90, "detail": "需人工核对事实"},
-    "banned_words": {"score": 0.80, "detail": "发现 2 个套话"},
-    "sentence_variance": {"score": 0.73, "detail": "句长标准差: 14.6"},
-    "paragraph_rhythm": {"score": 0.44, "detail": "18/32 对连续段落长度相似"},
-    "adverb_density": {"score": 1.00, "detail": "副词密度: 0.07/100字"},
-    "vocabulary_diversity": {"score": 1.00, "detail": "字符bigram多样性: 0.827"}
+  "target_id": "wechat | x-post | x-thread",
+  "source_sha256": "...",
+  "source_analysis_sha256": "...",
+  "output_sha256": "...",
+  "length_validation": {
+    "validator": "manual_x_composer_preview | not_applicable",
+    "status": "pass | unavailable | not_applicable",
+    "evidence": ["预览时间、截图路径或用户确认；Thread 每条各一项，不适用时为空"]
   },
-  "char_count": 1200
+  "editorial_decision": "pass | revise",
+  "fact_issues": [],
+  "channel_issues": [],
+  "voice_issues": [],
+  "required_changes": []
 }
 ```
 
-3. **AI 评估方式**（CLI 不可用时）：
-直接对改写后的文章进行评分，逐项检查：
+生成审查文件前先计算当前渠道正文的 `output_sha256`。Review 中的 source、analysis 与 output hash 必须指向本次当前文件。正文发生变化时，原审查结论失效，必须重新审查并更新 `output_sha256`；此阶段 `review_sha256` 保持为 null，直到机械结果附加完成。
 
-- **准确性（25分）**：事实和数据是否保留正确，无编造或扭曲原意
-- **观点性（20分）**：是否有独特见解，观点是否清晰
-- **实用性（20分）**：读者能否立即行动，是否有可操作的建议
-- **可读性（20分）**：易读、有趣，句式流畅，无AI套话
-- **平台适配（15分）**：符合平台特性（emoji、标签、互动），字数合适
+X 渠道的 `length_validation.status` 只有在实际 composer 预览或用户提供的同文预览证据确认通过后才能写为 `pass`。字符数估算、编辑器字数或模型自行判断都不能替代该证据；正文变化会使原长度证据失效。微信使用 `not_applicable`。
 
-**评分后输出**：
-```
-质量评分：72/100
-- 准确性：23/25 ✅
-- 观点性：18/20 ✅
-- 实用性：17/20 ✅
-- 可读性：19/20 ✅
-- 平台适配：15/15 ✅
-→ 通过（≥60）
-```
+## Phase 5：机械预警
 
-#### 门槛2: 相似度 ≤ 0.6
+CLI 可用时只比较 canonical source 与当前渠道正文：
 
-**检查维度**：
-- 与源文章相似度
-- 与其他平台版本相似度
-
-**评估方式**：
-
-1. **优先使用 CLI 工具**（如果可用）：
 ```bash
-# 检查 CLI 是否可用
-if command -v writing-master &> /dev/null; then
-    # 使用 CLI 工具检测相似度
-    writing-master similarity source.md xiaohongshu.md --json
-else
-    # CLI 不可用，使用 AI 评估
-fi
+writing-master quality <rewrite_output_filename> --json
+writing-master similarity source.md <rewrite_output_filename> --json
 ```
 
-2. **CLI 输出示例**：
-```json
-{
-  "max_similarity": 0.42,
-  "threshold": 0.6,
-  "pass": true
-}
-```
+解释规则：
 
-3. **AI 评估方式**（CLI 不可用时）：
-通过对比分析，估算相似度：
+- `mechanical_score` 只表示机械语言预警多少；
+- `similarity.max_similarity` 只表示源稿与当前成品的字符 n-gram 重合程度；
+- 两者都不替代编辑审查；
+- 机械检查结果附加到 `<target_id>-review.json`；
+- 不比较两个渠道成品之间的相似度。
 
-- **句子重叠度**：数相同或相似的句子占比，目标 < 20%
-- **词汇重叠度**：关键词保留程度，目标 20-40%（保留核心概念）
-- **结构相似度**：段落顺序是否一致，信息组织方式是否相同，目标 < 60%
+编辑结论为 `pass` 且机械结果附加完成后，计算最终 Review 文件的 SHA-256，写入 `rewrite-status.json.review_sha256`。任何后续正文、机械结果或 Review 变化都将 `review_sha256` 重置为 null，并重新执行受影响的审查步骤。
 
-**评估示例**：
-```
-相似度检测：
-- 句子重叠：15%（低）✅
-- 词汇重叠：28%（适中）✅
-- 结构相似：45%（已重构）✅
-→ 综合相似度：约 0.42
-→ 通过（≤0.6）
-```
+## Phase 6：定向返工
 
-**判断标准**：
-- 相似度 > 0.6：过于相似，需要更激进的重构
-- 相似度 0.4-0.6：边缘，检查是否有明显洗稿痕迹
-- 相似度 < 0.4：内容级真改写 ✅
+根据失败类型只重做当前渠道的相应部分：
 
----
+- 事实问题：恢复或修正源稿中的事实与限定；
+- 渠道问题：重新组织当前渠道版本；
+- 与源稿相似度偏高：改变信息顺序、开头、结构和表达框架；
+- 机械预警：针对具体套话、句长或段落命中修订；
+- 派生产物失败：保留已审查正文，重试当前渠道所需的格式、HTML 或封面步骤。
 
-### Step 5: 不通过 → 重写
+当前 Rewrite 最多两轮完整重写。每轮更新 review 文件并保留版本差异；失败只结束当前 Rewrite，不改动 canonical source 或之前完成的渠道版本。
 
-**不通过条件**：
-- 质量评分 < 60
-- 相似度 > 0.6
+## Phase 7：必要派生产物
 
-**操作**：
-1. **Think Aloud**：说明为什么不通过
-2. 重新改写（更激进的重构）
-3. 再次检查
-4. 最多重写 2 次
+正文通过渠道审查后，读取 YAML 的 `required_derivatives`：
 
-**如果2次都不通过**：
-- 告知用户
-- 提供当前最好的版本
-- 说明问题所在
+- `wechat`：组合 `baoyu-format-markdown`、`baoyu-markdown-to-html` 与 `baoyu-cover-image`，生成 `formatted.md`、`wechat.html` 和 `cover.png`；
+- `x-post`：在 `manual_x_composer_preview` 证据通过后交付 `x-post.md`；
+- `x-thread`：每条都取得 `manual_x_composer_preview` 证据后交付 `x-thread.md`。
 
----
+每个必要派生产物完成后计算 SHA-256，写入 `rewrite-status.json.derivatives_sha256`。必要能力或派生产物失败时，当前 Rewrite 标记为 `failed`，并记录已保留正文、失败步骤和重试入口；不汇总其他任务的成功或失败。视觉和格式只写派生产物，不覆盖渠道正文、`source.md` 或来源任务的 canonical `final.md`。
 
-### Step 6: 保存与汇报
+本阶段不自动发布。发布是用户之后单独触发的动作，不属于 Rewrite 完成条件。
 
-**保存文件**：
-```bash
-{home}/runs/{task_id}/xiaohongshu.md
-{home}/runs/{task_id}/douyin.md
-```
+## Phase 8：完整交付
 
-**汇报内容**：
-```markdown
-✅ 改写完成！
+只汇报本次渠道：
 
-📄 **小红书版本**
-- 字数: 1200字（原文3200字）
-- 质量评分: 72/100
-- 相似度: 0.42（通过）
-- 标签: #AI工具 #效率提升 #程序员必备
-- 配图建议: 6张（复用源文章2、4、5张，需补3张）
-- 保存位置: ~/.writing-master/runs/20260724-001/xiaohongshu.md
+- `target_id`；
+- canonical source 路径与 `source_sha256`；
+- `source-analysis.md` 路径、是否复用及其 hash；
+- 渠道正文路径和字数；
+- 渠道审查结论；
+- 机械检查与源稿相似度预警；
+- YAML 要求的派生产物；
+- 已知剩余问题。
 
-📄 **抖音版本**
-- 字数: 650字（60秒口播）
-- 质量评分: 68/100
-- 相似度: 0.38（通过）
-- 时长: 约60秒
-- 保存位置: ~/.writing-master/runs/20260724-001/douyin.md
+只有渠道正文、渠道审查和必要派生产物都完成，X 渠道长度证据为 `pass`，且 status 中的 source、analysis、output、review 与 derivative hash 全部匹配当前文件时，`rewrite-status.json.status` 才写为 `completed`。
 
-⚠️ **发布提醒**
-各平台账号发布需手动操作，系统当前只支持公众号草稿箱推送。
-```
+## 参考文件
 
----
-
-## 🎨 改写技巧
-
-### 技巧1: 开头重构
-
-**源文章开头类型 → 平台开头**：
-
-| 源类型 | 小红书 | 抖音 |
-|-------|--------|------|
-| 背景引入 | 个人故事钩子 | 前3秒悬念 |
-| 数据开场 | 震惊式数据 | "你知道吗？" |
-| 问题提出 | 共鸣式吐槽 | "别划走！" |
-
-### 技巧2: 信息密度调整
-
-**源文章 → 平台版本**：
-- 公众号（3000字）→ 小红书（1200字）: 保留核心3个观点
-- 公众号（3000字）→ 抖音（600字）: 只保留1个核心观点
-
-### 技巧3: 情绪注入
-
-**小红书**：
-```
-✅ 真的！我不骗你！
-✅ 姐妹们冲！
-✅ 太绝了！
-```
-
-**抖音**：
-```
-✅ [兴奋] 你们听我说！
-✅ [停顿] 重点来了！
-✅ [加快] 手速跟上！
-```
-
----
-
-## 🔒 核心原则（洗稿专用）
-
-### 1. 内容真改，不是表面洗稿
-
-**判断标准**：
-- 如果只是同义词替换 → ❌ 不合格
-- 如果信息顺序完全一样 → ❌ 不合格
-- 如果开头和源文章类似 → ❌ 不合格
-
-### 2. 人设一致，表达方式变
-
-**核心不变**：
-- 作者立场
-- 价值观
-- 专业度
-
-**表达可变**：
-- 语气（正式→口语）
-- 句式（长句→短句）
-- 结构（总分→场景）
-
-### 3. 事实不变，解读可变
-
-**不能改**：
-- 数据和事实
-- 引用来源
-- 真实案例
-
-**可以改**：
-- 对数据的解读角度
-- 案例的呈现方式
-- 情绪表达
-
----
-
-## 📖 参考文档
-
-- `multiplatform-rewrite.md` - 多平台改写详解
-- `quality-gates.md` - 质量门槛说明
-- `platforms/xiaohongshu.yaml` - 小红书平台定义
-- `platforms/douyin.yaml` - 抖音平台定义
-
----
-
-**记住：我们做的是内容级真改写，不是简单洗稿！**
+- `references/single-target-rewrite.md`
+- `references/quality-gates.md`
+- `platforms/wechat.yaml`
+- `platforms/x-post.yaml`
+- `platforms/x-thread.yaml`

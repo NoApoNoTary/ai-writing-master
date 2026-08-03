@@ -10,8 +10,16 @@ from . import __version__
 
 # 子命令映射：命令名 → (模块路径, 描述)
 _COMMANDS = {
-    "quality": ("writing_master.commands.quality", "写作质量评分（5维度检测）"),
+    "quality": ("writing_master.commands.quality", "机械文本检查（5维度预警）"),
     "similarity": ("writing_master.commands.similarity", "文本相似度检测（防洗稿）"),
+    "handoff": ("writing_master.commands.handoff", "深度模式角色交接"),
+    "context": ("writing_master.commands.context", "管理个人上下文"),
+    "learn": ("writing_master.commands.learn", "确认或拒绝风格学习候选"),
+    "research": ("writing_master.commands.research", "保存并校验选题 Research Brief"),
+    "failure-cases": ("writing_master.commands.failure_cases", "管理失败案例库与任务快照"),
+    "voice": ("writing_master.commands.voice", "选择并冻结任务级写作声音"),
+    "persona": ("writing_master.commands.persona", "列出并冻结任务级人格模板"),
+    "wechat-timing": ("writing_master.commands.wechat_timing", "生成或校验公众号发布时间建议"),
     "home": (None, "输出状态目录路径"),
 }
 
@@ -45,46 +53,40 @@ def _usage() -> str:
     return "\n".join(lines)
 
 
-def main() -> None:
+def main(argv=None) -> int:
     """CLI 主入口。"""
-    argv = sys.argv[1:]
+    argv = sys.argv[1:] if argv is None else list(argv)
 
     # 处理全局选项
     if not argv or argv[0] in {"-h", "--help"}:
         print(_usage())
-        return
+        return 0
     if argv[0] in {"-V", "--version"}:
         print(__version__)
-        return
+        return 0
 
     cmd, rest = argv[0], argv[1:]
 
     # 内置命令: home
     if cmd == "home":
         print(_get_home())
-        return
+        return 0
 
     # 动态加载子命令
-    if cmd in _COMMANDS:
-        module_name, _ = _COMMANDS[cmd]
-        if module_name is None:
-            print(f"命令 '{cmd}' 未实现。", file=sys.stderr)
-            sys.exit(1)
-
+    module_name = _COMMANDS.get(cmd, (None, ""))[0]
+    if module_name:
         try:
             module = importlib.import_module(module_name)
-            sys.argv = [f"writing-master {cmd}", *rest]
-            module.main()
         except ImportError as e:
             print(f"无法加载命令模块: {e}", file=sys.stderr)
-            sys.exit(1)
-        return
+            return 1
+        return module.main(rest)
 
     # 未知命令
     print(f"未知命令: {cmd}\n", file=sys.stderr)
     print(_usage(), file=sys.stderr)
-    sys.exit(2)
+    return 2
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

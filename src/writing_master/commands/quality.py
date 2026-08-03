@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""写作质量评分工具 - 基于统计特征和模式检测的质量评估。
+"""机械文本检查工具 - 基于统计特征和模式检测提供可复现预警。
 
 改编自 wewrite.commands.humanness_score，简化为 AI Writing Master 核心需求。
+
+这个命令只检查可由代码稳定观察的文本特征。事实准确性、原创判断、
+论证质量和作者风格由独立编辑审查负责，不在这里伪造为数值评分。
 
 用法：
     writing-master quality article.md                 # 输出分数
@@ -14,7 +17,9 @@ import argparse
 import json
 import re
 import sys
+from itertools import pairwise
 from pathlib import Path
+from statistics import pstdev
 
 
 # ============================================================
@@ -37,6 +42,55 @@ COMMON_ADVERBS = [
     "非常", "十分", "极其", "特别", "相当", "尤其", "格外",
     "更加", "越来越", "逐渐", "不断", "始终", "一直",
 ]
+
+MIN_CHAR_COUNT = 100
+MIN_SENTENCE_COUNT = 5
+MIN_PARAGRAPH_COUNT = 3
+
+# 高置信编辑元语言与内部产物名。它们是独立候选，不参与机械分数。
+PROCESS_LEAKAGE_RULES = (
+    (
+        "PROCESS-META-001",
+        re.compile(r"(?:要不要|是否要|是否应该|应不应该|需不需要)(?:介绍|写|加入|提及|展开)"),
+    ),
+    ("PROCESS-META-002", re.compile(r"(?:别|不要)写成(?:广告|软文|宣传稿|营销文)")),
+    (
+        "PROCESS-META-003",
+        re.compile(
+            r"(?:(?:根据用户(?:的)?要求|用户(?:的)?要求|按(?:用户|你)(?:的)?(?:要求|指示))"
+            r"[，,:：]?(?:[^。！？；\n]{0,20}(?:本文|文章|标题|正文|本节|这一节|这部分|这里)"
+            r"[^。！？；\n]{0,20}(?:介绍|写|加入|提及|展开|删除|修改|补充)"
+            r"|(?:我|我们)(?:先|来|将|会|准备)(?:介绍|写|加入|提及|展开))"
+            r"|用户(?:让我|希望)(?:我|我们|本文|文章)(?:介绍|写|加入|提及|展开|删除|修改))"
+        ),
+    ),
+    (
+        "PROCESS-META-004",
+        re.compile(r"(?:这部分|这一部分|这里|本文|文章)?(?:是否需要|该不该)(?:介绍|写|加入|提及|展开)"),
+    ),
+    (
+        "PROCESS-PUBLISH-001",
+        re.compile(r"(?:发布|发稿|推送)(?:时|前|后)?(?:，|,|：|:)?(?:标题|摘要|正文|封面)(?:要|需要|应|不要|保持)"),
+    ),
+    (
+        "PROCESS-VISUAL-001",
+        re.compile(r"(?:这里|此处|这一节|本段)(?:要|需要|应|不要)(?:配|放|加|生成)(?:一张|图片|配图|封面|图表|截图)"),
+    ),
+    (
+        "PROCESS-SOURCE-001",
+        re.compile(r"^(?:#{1,6}\s*)?(?:来源|引用|资料)(?:展示)?策略(?:是|为|：|:)(?:优先)?(?:官方文档|独立来源|尾注|脚注|文中标注)"),
+    ),
+)
+INTERNAL_ARTIFACT_RULE = (
+    "PROCESS-ARTIFACT-001",
+    re.compile(
+        r"(?:brief\.md|editorial-brief\.md|channel-contract\.yaml|asset-manifest\.yaml|"
+        r"review-report\.yaml|revision-report\.yaml|acceptance-report\.md|claims\.yaml|"
+        r"sources\.yaml|storyboard\.md|draft-v[12]\.md|final\.md)|"
+        r"canonical\s+final|recommended_combo",
+        re.IGNORECASE,
+    ),
+)
 
 
 # ============================================================
@@ -77,10 +131,7 @@ def check_sentence_variance(text: str) -> dict:
     if len(sentences) < 5:
         return {"score": 0.5, "detail": "句子数量太少"}
 
-    lengths = [len(s) for s in sentences]
-    mean = sum(lengths) / len(lengths)
-    variance = sum((l - mean) ** 2 for l in lengths) / len(lengths)
-    stddev = variance ** 0.5
+    stddev = pstdev(map(len, sentences))
 
     # 标准差越大越好（说明句子长度有变化）
     score = min(1.0, stddev / 20.0)
@@ -97,10 +148,10 @@ def check_paragraph_rhythm(text: str) -> dict:
         return {"score": 0.5, "detail": "段落数量太少"}
 
     # 检查连续段落长度是否过于相似
-    similar_count = 0
-    for i in range(len(paragraphs) - 1):
-        if abs(len(paragraphs[i]) - len(paragraphs[i + 1])) <= 30:
-            similar_count += 1
+    similar_count = sum(
+        abs(len(current) - len(next_paragraph)) <= 30
+        for current, next_paragraph in pairwise(paragraphs)
+    )
 
     ratio = similar_count / (len(paragraphs) - 1)
     score = 1.0 - ratio
@@ -144,26 +195,87 @@ def check_vocabulary_diversity(text: str) -> dict:
     }
 
 
+def find_process_leakage(text: str) -> list[dict]:
+    """返回可定位的过程泄漏候选；标题和正文使用同一套检查。"""
+    findings = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        original = line.strip()
+        if not original:
+            continue
+        for rule_id, pattern in PROCESS_LEAKAGE_RULES:
+            match = pattern.search(original)
+            if match:
+                findings.append({
+                    "rule_id": rule_id,
+                    "severity": "blocking",
+                    "line_number": line_number,
+                    "original_text": _containing_sentence(original, match.start(), match.end()),
+                    "kind": "prompt_process_leakage",
+                })
+        artifact_match = INTERNAL_ARTIFACT_RULE[1].search(original)
+        if artifact_match:
+            findings.append({
+                "rule_id": INTERNAL_ARTIFACT_RULE[0],
+                "severity": "blocking",
+                "line_number": line_number,
+                "original_text": _containing_sentence(original, artifact_match.start(), artifact_match.end()),
+                "kind": "internal_artifact_name",
+            })
+    return findings
+
+
+def _containing_sentence(line: str, match_start: int, match_end: int) -> str:
+    """Return the sentence containing one match while retaining Markdown heading context."""
+    boundaries = "。！？；!?;"
+    start = max((line.rfind(mark, 0, match_start) for mark in boundaries), default=-1) + 1
+    ends = [line.find(mark, match_end) for mark in boundaries]
+    ends = [position for position in ends if position >= 0]
+    end = min(ends) + 1 if ends else len(line)
+    sentence = line[start:end].strip()
+    if start == 0:
+        sentence = re.sub(r"^#{1,6}\s+", "", sentence)
+    return sentence
+
+
 # ============================================================
 # 综合评分
 # ============================================================
 
 def score_article(text: str) -> dict:
-    """对文章进行综合评分。
+    """对文章进行机械文本检查。
 
     Returns:
         dict: {
-            "quality_score": 0-100分（越高越好）,
+            "mechanical_score": 0-100分（越高表示机械预警越少）,
+            "quality_score": mechanical_score 的兼容字段,
             "dimensions": {...各维度详情},
-            "char_count": 字符数
+            "char_count": 字符数,
+            "findings": 独立的过程泄漏候选
         }
     """
+    # 标题只从机械统计中排除；过程泄漏检查必须包含标题。
+    findings = find_process_leakage(text)
     # 去除标题
     clean = re.sub(r'^#+\s+.*$', '', text, flags=re.MULTILINE).strip()
+    sentences = _split_sentences(clean)
+    paragraphs = _split_paragraphs(clean)
+    cjk_char_count = len(re.findall(r'[一-鿿]', clean))
+    input_stats = {
+        "char_count": len(clean),
+        "sentence_count": len(sentences),
+        "paragraph_count": len(paragraphs),
+        "cjk_char_count": cjk_char_count,
+    }
+    insufficient_reasons = []
+    if len(clean) < MIN_CHAR_COUNT:
+        insufficient_reasons.append(f"char_count_below_{MIN_CHAR_COUNT}")
+    if len(sentences) < MIN_SENTENCE_COUNT:
+        insufficient_reasons.append(f"sentence_count_below_{MIN_SENTENCE_COUNT}")
+    if len(paragraphs) < MIN_PARAGRAPH_COUNT:
+        insufficient_reasons.append(f"paragraph_count_below_{MIN_PARAGRAPH_COUNT}")
 
-    # 五个维度检查
+    # 只保留代码能够实际计算的维度。
     checks = {
-        "accuracy": {"score": 0.9, "detail": "需人工核对事实"},  # 默认给90分，提醒人工核对
         "banned_words": check_banned_words(clean),
         "sentence_variance": check_sentence_variance(clean),
         "paragraph_rhythm": check_paragraph_rhythm(clean),
@@ -171,35 +283,52 @@ def score_article(text: str) -> dict:
         "vocabulary_diversity": check_vocabulary_diversity(clean),
     }
 
-    # 计算加权平均分
-    # accuracy(准确性): 25%, banned_words(观点性): 20%,
-    # sentence_variance(可读性): 15%, paragraph_rhythm(可读性): 10%,
-    # adverb_density(实用性): 15%, vocabulary_diversity(实用性): 15%
+    # 计算机械特征加权平均分。权重不代表编辑价值或内容质量。
     weights = {
-        "accuracy": 0.25,
-        "banned_words": 0.20,
-        "sentence_variance": 0.15,
-        "paragraph_rhythm": 0.10,
+        "banned_words": 0.30,
+        "sentence_variance": 0.20,
+        "paragraph_rhythm": 0.20,
         "adverb_density": 0.15,
         "vocabulary_diversity": 0.15,
     }
 
     total_score = sum(checks[k]["score"] * weights[k] for k in weights.keys())
-    quality_score = round(total_score * 100, 2)
+    mechanical_score = (
+        round(total_score * 100, 2)
+        if not insufficient_reasons
+        else None
+    )
 
     return {
-        "quality_score": quality_score,
+        "score_type": "mechanical_style",
+        "status": "scored" if mechanical_score is not None else "insufficient_data",
+        "sufficient_data": mechanical_score is not None,
+        "mechanical_score": mechanical_score,
+        # 兼容 writing-rewrite 和现有调用方；新代码应读取 mechanical_score。
+        "quality_score": mechanical_score,
         "dimensions": checks,
         "weights": weights,
         "char_count": len(clean),
+        "input_stats": input_stats,
+        "insufficient_reasons": insufficient_reasons,
+        "findings": findings,
+        "manual_review_required": [
+            "factual_accuracy",
+            "claim_support",
+            "editorial_judgment",
+            "voice_fidelity",
+        ],
     }
 
 
 def print_verbose(result: dict):
     """打印详细报告。"""
-    score = result["quality_score"]
+    score = result["mechanical_score"]
     print(f"\n{'=' * 60}")
-    print(f"写作质量评分: {score:.1f}/100")
+    if score is None:
+        print("机械文本检查: 样本不足")
+    else:
+        print(f"机械文本检查: {score:.1f}/100")
     print(f"{'=' * 60}\n")
 
     dims = result["dimensions"]
@@ -216,17 +345,32 @@ def print_verbose(result: dict):
             print(f"         示例: {', '.join(data['found'])}")
 
     print(f"\n字符数: {result['char_count']}")
-    print(f"综合得分: {score:.1f}/100")
-
-    if score >= 60:
-        print("✅ 通过质量门槛（≥60分）")
+    if score is None:
+        print("当前输入不足以形成完整文章的机械基线")
+        print("原因: " + ", ".join(result["insufficient_reasons"]))
     else:
-        print("❌ 未达到质量门槛（需≥60分）")
+        print(f"机械检查得分: {score:.1f}/100")
+    print("编辑审查仍需覆盖: 事实、证据、论证、原创判断与作者风格")
+
+    if result["findings"]:
+        print("\n过程泄漏候选（不计入机械检查得分，需人工复核）:")
+        for finding in result["findings"]:
+            print(
+                f"  [{finding['rule_id']}] 第 {finding['line_number']} 行: "
+                f"{finding['original_text']}"
+            )
+
+    if score is None:
+        print("⚠️ 请提供更完整的正文后再比较机械检查结果")
+    elif score >= 60:
+        print("✅ 通过机械检查门槛（≥60分）")
+    else:
+        print("❌ 机械检查发现较多预警（门槛: 60分）")
 
 
 def main(argv=None) -> int:
     """主函数入口。"""
-    parser = argparse.ArgumentParser(description="写作质量评分工具")
+    parser = argparse.ArgumentParser(description="机械文本检查工具")
     parser.add_argument("input", help="Markdown 文章文件")
     parser.add_argument("--verbose", "-v", action="store_true", help="显示详细报告")
     parser.add_argument("--json", action="store_true", help="JSON 格式输出")
@@ -240,9 +384,15 @@ def main(argv=None) -> int:
     elif args.verbose:
         print_verbose(result)
     else:
-        score = result["quality_score"]
-        print(f"{score:.1f}")
-        print(f"{'✅ 通过' if score >= 60 else '❌ 不通过'} (阈值: 60)")
+        score = result["mechanical_score"]
+        if score is None:
+            print("N/A")
+            print("⚠️ 样本不足，暂时没有机械检查基线")
+        else:
+            print(f"{score:.1f}")
+            print(f"{'✅ 通过机械检查' if score >= 60 else '❌ 机械预警较多'} (阈值: 60)")
+        if result["findings"]:
+            print(f"⚠️ 发现 {len(result['findings'])} 条过程泄漏候选，需人工复核")
 
     return 0
 
