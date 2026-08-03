@@ -43,7 +43,8 @@ issues:
     location: "章节、段落或 claim_id"
     problem: "问题"
     evidence:
-      profile_rule: "voice.<field>[n] 或 avoid[n]"
+      rule_id: "PROCESS-*、claim_id、voice.<field>[n] 或 avoid[n]"
+      line_number: 123
       excerpt: "正文原句"
     required_change: "修订边界"
 verdict: pass | revise

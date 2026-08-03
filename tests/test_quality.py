@@ -40,7 +40,7 @@ class MechanicalQualityTests(unittest.TestCase):
         self.assertEqual(result["mechanical_score"], result["quality_score"])
         self.assertGreaterEqual(len(result["findings"]), 2)
         self.assertTrue(all(f["line_number"] == 1 for f in result["findings"]))
-        self.assertTrue(all(f["original_text"] == text.splitlines()[0] for f in result["findings"]))
+        self.assertTrue(all(f["original_text"] == "要不要介绍 Qwen API？" or f["original_text"] == "可以，但别写成广告" for f in result["findings"]))
         self.assertTrue(all(f["rule_id"].startswith("PROCESS-") for f in result["findings"]))
         self.assertTrue(all(f["severity"] == "blocking" for f in result["findings"]))
 
@@ -55,6 +55,35 @@ class MechanicalQualityTests(unittest.TestCase):
 
     def test_technical_api_key_reminder_is_not_editorial_meta_language(self):
         result = score_article("# API 安全\n\n不要把 API key 写进仓库。" + ("补充说明。" * 80))
+
+        self.assertEqual(result["findings"], [])
+
+    def test_spec_categories_have_narrow_high_confidence_findings(self):
+        samples = (
+            "根据用户的要求，我们先介绍 Qwen API。",
+            "按你的要求，本文不介绍安装过程。",
+            "发布时标题要短一些。",
+            "这里需要配一张图。",
+            "来源策略：优先官方文档。",
+            "是否应该介绍 Qwen API？",
+            "这部分是否需要写 Qwen API？",
+        )
+
+        for sample in samples:
+            with self.subTest(sample=sample):
+                result = score_article(sample + "\n\n" + "正文。" * 80)
+                self.assertTrue(result["findings"])
+                self.assertEqual(result["findings"][0]["original_text"], sample)
+
+    def test_finding_preserves_only_the_matching_sentence_on_a_multi_sentence_line(self):
+        line = "这句属于正常正文。根据用户要求，这里需要补充 API。后一句也属于正常正文。"
+        result = score_article(line + "\n\n" + "正文。" * 80)
+
+        self.assertEqual(result["findings"][0]["line_number"], 1)
+        self.assertEqual(result["findings"][0]["original_text"], "根据用户要求，这里需要补充 API。")
+
+    def test_normal_product_user_intent_is_not_process_leakage(self):
+        result = score_article("用户希望导出 PDF。\n\n" + "正文。" * 80)
 
         self.assertEqual(result["findings"], [])
 

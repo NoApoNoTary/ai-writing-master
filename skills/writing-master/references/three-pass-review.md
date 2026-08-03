@@ -54,7 +54,10 @@ issues:
     layer: evidence | editorial | voice
     location: "章节、段落、原句或 claim_id"
     problem: "可观察的问题"
-    evidence: "来源、原句、任务合同或风格对照"
+    evidence:
+      rule_id: "PROCESS-*、claim_id、voice.<field>[n] 或 avoid[n]"
+      line_number: 123
+      excerpt: "正文原句"
     required_change: "必须怎样修，哪些内容保持不动"
 verdict: pass | revise | needs_input
 application_check:

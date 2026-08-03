@@ -708,6 +708,10 @@ class WritingSkillContractTests(unittest.TestCase):
             self.assertIn("高置信", document)
             self.assertIn("blocking", document)
         self.assertIn("未解决的 blocking issue 必须为 0", main)
+        for document in (review, auditor):
+            self.assertIn("rule_id:", document)
+            self.assertIn("line_number:", document)
+            self.assertIn("excerpt:", document)
 
 
 if __name__ == "__main__":

@@ -49,9 +49,31 @@ MIN_PARAGRAPH_COUNT = 3
 
 # 高置信编辑元语言与内部产物名。它们是独立候选，不参与机械分数。
 PROCESS_LEAKAGE_RULES = (
-    ("PROCESS-META-001", re.compile(r"要不要(?:介绍|写|加入|提及|展开)")),
+    ("PROCESS-META-001", re.compile(r"(?:要不要|是否应该)(?:介绍|写|加入|提及|展开)")),
     ("PROCESS-META-002", re.compile(r"(?:别|不要)写成(?:广告|软文|宣传稿|营销文)")),
-    ("PROCESS-META-003", re.compile(r"(?:用户(?:要求|让我|希望)|按用户(?:要求|指示))")),
+    (
+        "PROCESS-META-003",
+        re.compile(
+            r"(?:根据用户(?:的)?要求|用户(?:的)?要求|按(?:用户|你)(?:的)?(?:要求|指示))"
+            r"|用户(?:让我|希望)(?:我|我们|本文|文章)?(?:介绍|写|加入|提及|展开|删除|修改)"
+        ),
+    ),
+    (
+        "PROCESS-META-004",
+        re.compile(r"(?:这部分|这一部分|这里|本文|文章)?(?:是否需要|该不该)(?:介绍|写|加入|提及|展开)"),
+    ),
+    (
+        "PROCESS-PUBLISH-001",
+        re.compile(r"(?:发布|发稿|推送)(?:时|前|后)?(?:，|,|：|:)?(?:标题|摘要|正文|封面)(?:要|需要|应|不要|保持)"),
+    ),
+    (
+        "PROCESS-VISUAL-001",
+        re.compile(r"(?:这里|此处|这一节|本段)(?:要|需要|应|不要)(?:配|放|加|生成)(?:一张|图片|配图|封面|图表|截图)"),
+    ),
+    (
+        "PROCESS-SOURCE-001",
+        re.compile(r"(?:来源|引用|资料)(?:展示)?策略(?:是|为|：|:)"),
+    ),
 )
 INTERNAL_ARTIFACT_RULE = (
     "PROCESS-ARTIFACT-001",
@@ -174,23 +196,38 @@ def find_process_leakage(text: str) -> list[dict]:
         if not original:
             continue
         for rule_id, pattern in PROCESS_LEAKAGE_RULES:
-            if pattern.search(original):
+            match = pattern.search(original)
+            if match:
                 findings.append({
                     "rule_id": rule_id,
                     "severity": "blocking",
                     "line_number": line_number,
-                    "original_text": original,
+                    "original_text": _containing_sentence(original, match.start(), match.end()),
                     "kind": "prompt_process_leakage",
                 })
-        if INTERNAL_ARTIFACT_RULE[1].search(original):
+        artifact_match = INTERNAL_ARTIFACT_RULE[1].search(original)
+        if artifact_match:
             findings.append({
                 "rule_id": INTERNAL_ARTIFACT_RULE[0],
                 "severity": "blocking",
                 "line_number": line_number,
-                "original_text": original,
+                "original_text": _containing_sentence(original, artifact_match.start(), artifact_match.end()),
                 "kind": "internal_artifact_name",
             })
     return findings
+
+
+def _containing_sentence(line: str, match_start: int, match_end: int) -> str:
+    """Return the sentence containing one match while retaining Markdown heading context."""
+    boundaries = "。！？；!?;"
+    start = max((line.rfind(mark, 0, match_start) for mark in boundaries), default=-1) + 1
+    ends = [line.find(mark, match_end) for mark in boundaries]
+    ends = [position for position in ends if position >= 0]
+    end = min(ends) + 1 if ends else len(line)
+    sentence = line[start:end].strip()
+    if start == 0:
+        sentence = re.sub(r"^#{1,6}\s+", "", sentence)
+    return sentence
 
 
 # ============================================================
