@@ -4,7 +4,9 @@
 
 ## 输入
 
+- `spec.md`
 - `brief.md`
+- `failure-case-snapshot.md`（只含选中的 guardrail 与 audit check）
 - `channel-contract.yaml`
 - `claims.yaml`
 - `sources.yaml`
@@ -27,7 +29,8 @@
 5. `writing-master quality` 只提供套话、句长、段落、副词和词汇等机械预警，不验证事实、论证、原创性或作者声音。
 6. 对用户报告结论、问题和已完成修改，不展示隐藏推理过程。
 7. `author` Persona 模式允许 Brief 明确采用的构造性第一人称背景；`reference` 模式保持当前作者身份。两种模式下的外部主题事实仍要求 accepted claim。
-8. Auditor 按 `application_depth` 检查：`scenario` 要有具体场景、明确输入和可观察结果，合成示例必须标注；`actionable` 要有前置条件、步骤、示例输入、预期输出、失败信号、适用边界；`reproducible` 还要有实际验证环境/版本、验证方法、回滚和已知限制。没有真实测试证据时标为 `partial` 或 `blocked`，不声称 reproducible。
+8. `source_display=endnotes` 时，正文只在来源身份会改变结论处首次标明“官方来源”或“独立来源”；相邻段落不得重复身份标签，其他来源信息进入尾注。该规则不改变 claim、证据边界或来源可追溯性。
+9. Auditor 按 `application_depth` 检查：`scenario` 要有具体场景、明确输入和可观察结果，合成示例必须标注；`actionable` 要有前置条件、步骤、示例输入、预期输出、失败信号、适用边界；`reproducible` 还要有实际验证环境/版本、验证方法、回滚和已知限制。没有真实测试证据时标为 `partial` 或 `blocked`，不声称 reproducible。
 
 ## 用户动作与阻断问题
 

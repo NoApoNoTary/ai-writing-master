@@ -636,12 +636,17 @@ def publish_json_once_at(directory_fd: int, name: str, value: dict) -> bool:
             pass
 
 
-def atomic_write_json(path: Path | str, value: dict) -> None:
-    """Fsync a temporary canonical JSON document, then atomically replace it."""
+def atomic_write_bytes(path: Path | str, value: bytes) -> None:
+    """Fsync bytes and atomically replace one ordinary managed file."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with _directory_fd(path.parent) as directory_fd:
-        atomic_write_json_at(directory_fd, path.name, value)
+        atomic_write_bytes_at(directory_fd, path.name, value)
+
+
+def atomic_write_json(path: Path | str, value: dict) -> None:
+    """Fsync a temporary canonical JSON document, then atomically replace it."""
+    atomic_write_bytes(path, canonical_json_bytes(value))
 
 
 @contextmanager

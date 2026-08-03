@@ -8,7 +8,9 @@
 
 实际读取范围以 Manifest `allowed_inputs` 为准；下列是该角色通常需要的输入类型：
 
+- `spec.md`
 - `brief.md`
+- `failure-case-snapshot.md`（仅选中案例的 guardrail 与 audit check）
 - `channel-contract.yaml`
 - accepted `claims.yaml`
 - `editorial-brief.md`
@@ -41,6 +43,7 @@
 ## 完成条件
 
 - 关键事实可通过 `claim_id` 追溯。
+- `source_display=endnotes` 时，只在来源身份改变结论处首次写“官方来源”或“独立来源”；相邻段落不重复身份标签，其余来源信息归尾注。
 - 观点、推断、引用和个人经验身份清晰。
 - 全文服务于一个编辑判断。
 - 修订报告逐项对应 accepted issue。
@@ -56,4 +59,5 @@
 - 不修改 `status.json`、`state.json` 或 Manifest。
 - 不读取全局 personal-context 目录或父对话全文。
 - 不回读全局 Voice Registry；Voice Snapshot hash、结构或任务 ID 校验失败时停止本轮，不能自行切换 Voice。
+- 不读取完整 failure-cases.jsonl、source_session 或历史会话；只执行任务 `failure-case-snapshot.md` 的 guardrail。
 - 不回读外部 Persona Skill，不修改任务 `persona-brief.md`；主题事实仍只来自 accepted claims。

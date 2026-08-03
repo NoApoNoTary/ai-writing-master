@@ -30,12 +30,14 @@ class CliTests(unittest.TestCase):
         self.assertIn("research", output.getvalue())
         self.assertIn("voice", output.getvalue())
         self.assertIn("persona", output.getvalue())
+        self.assertIn("failure-cases", output.getvalue())
 
         for command, token in (
             ("learn", "propose"),
             ("research", "verify"),
             ("voice", "snapshot"),
             ("persona", "snapshot"),
+            ("failure-cases", "propose"),
         ):
             output = StringIO()
             with redirect_stdout(output), self.assertRaises(SystemExit) as captured:
