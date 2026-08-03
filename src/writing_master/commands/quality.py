@@ -47,6 +47,22 @@ MIN_CHAR_COUNT = 100
 MIN_SENTENCE_COUNT = 5
 MIN_PARAGRAPH_COUNT = 3
 
+# 高置信编辑元语言与内部产物名。它们是独立候选，不参与机械分数。
+PROCESS_LEAKAGE_RULES = (
+    ("PROCESS-META-001", re.compile(r"要不要(?:介绍|写|加入|提及|展开)")),
+    ("PROCESS-META-002", re.compile(r"(?:别|不要)写成(?:广告|软文|宣传稿|营销文)")),
+    ("PROCESS-META-003", re.compile(r"(?:用户(?:要求|让我|希望)|按用户(?:要求|指示))")),
+)
+INTERNAL_ARTIFACT_RULE = (
+    "PROCESS-ARTIFACT-001",
+    re.compile(
+        r"(?:brief|editorial-brief|channel-contract|asset-manifest|review-report|"
+        r"revision-report|acceptance-report|claims|sources|storyboard|draft-v[12]|"
+        r"final)\.(?:md|yaml|json)|canonical\s+final|recommended_combo",
+        re.IGNORECASE,
+    ),
+)
+
 
 # ============================================================
 # 辅助函数
@@ -150,6 +166,33 @@ def check_vocabulary_diversity(text: str) -> dict:
     }
 
 
+def find_process_leakage(text: str) -> list[dict]:
+    """返回可定位的过程泄漏候选；标题和正文使用同一套检查。"""
+    findings = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        original = line.strip()
+        if not original:
+            continue
+        for rule_id, pattern in PROCESS_LEAKAGE_RULES:
+            if pattern.search(original):
+                findings.append({
+                    "rule_id": rule_id,
+                    "severity": "blocking",
+                    "line_number": line_number,
+                    "original_text": original,
+                    "kind": "prompt_process_leakage",
+                })
+        if INTERNAL_ARTIFACT_RULE[1].search(original):
+            findings.append({
+                "rule_id": INTERNAL_ARTIFACT_RULE[0],
+                "severity": "blocking",
+                "line_number": line_number,
+                "original_text": original,
+                "kind": "internal_artifact_name",
+            })
+    return findings
+
+
 # ============================================================
 # 综合评分
 # ============================================================
@@ -162,9 +205,12 @@ def score_article(text: str) -> dict:
             "mechanical_score": 0-100分（越高表示机械预警越少）,
             "quality_score": mechanical_score 的兼容字段,
             "dimensions": {...各维度详情},
-            "char_count": 字符数
+            "char_count": 字符数,
+            "findings": 独立的过程泄漏候选
         }
     """
+    # 标题只从机械统计中排除；过程泄漏检查必须包含标题。
+    findings = find_process_leakage(text)
     # 去除标题
     clean = re.sub(r'^#+\s+.*$', '', text, flags=re.MULTILINE).strip()
     sentences = _split_sentences(clean)
@@ -221,6 +267,7 @@ def score_article(text: str) -> dict:
         "char_count": len(clean),
         "input_stats": input_stats,
         "insufficient_reasons": insufficient_reasons,
+        "findings": findings,
         "manual_review_required": [
             "factual_accuracy",
             "claim_support",
@@ -261,6 +308,14 @@ def print_verbose(result: dict):
         print(f"机械检查得分: {score:.1f}/100")
     print("编辑审查仍需覆盖: 事实、证据、论证、原创判断与作者风格")
 
+    if result["findings"]:
+        print("\n过程泄漏候选（不计入机械检查得分，需人工复核）:")
+        for finding in result["findings"]:
+            print(
+                f"  [{finding['rule_id']}] 第 {finding['line_number']} 行: "
+                f"{finding['original_text']}"
+            )
+
     if score is None:
         print("⚠️ 请提供更完整的正文后再比较机械检查结果")
     elif score >= 60:
@@ -292,6 +347,8 @@ def main(argv=None) -> int:
         else:
             print(f"{score:.1f}")
             print(f"{'✅ 通过机械检查' if score >= 60 else '❌ 机械预警较多'} (阈值: 60)")
+        if result["findings"]:
+            print(f"⚠️ 发现 {len(result['findings'])} 条过程泄漏候选，需人工复核")
 
     return 0
 

@@ -29,6 +29,35 @@ class MechanicalQualityTests(unittest.TestCase):
         self.assertIsNone(result["quality_score"])
         self.assertIn("char_count_below_100", result["insufficient_reasons"])
 
+    def test_process_leakage_findings_are_independent_and_include_title(self):
+        body = "\n\n".join(["正文。" * 40] * 3)
+        text = "# 要不要介绍 Qwen API？可以，但别写成广告\n\n" + body
+        baseline = score_article(body)
+        result = score_article(text)
+
+        self.assertEqual(result["status"], "scored")
+        self.assertEqual(result["mechanical_score"], baseline["mechanical_score"])
+        self.assertEqual(result["mechanical_score"], result["quality_score"])
+        self.assertGreaterEqual(len(result["findings"]), 2)
+        self.assertTrue(all(f["line_number"] == 1 for f in result["findings"]))
+        self.assertTrue(all(f["original_text"] == text.splitlines()[0] for f in result["findings"]))
+        self.assertTrue(all(f["rule_id"].startswith("PROCESS-") for f in result["findings"]))
+        self.assertTrue(all(f["severity"] == "blocking" for f in result["findings"]))
+
+    def test_internal_artifact_name_has_a_located_finding(self):
+        result = score_article("先检查 review-report.yaml。\n\n" + "\n\n".join(["正文。" * 40] * 3))
+
+        self.assertEqual(len(result["findings"]), 1)
+        finding = result["findings"][0]
+        self.assertEqual(finding["rule_id"], "PROCESS-ARTIFACT-001")
+        self.assertEqual(finding["line_number"], 1)
+        self.assertEqual(finding["original_text"], "先检查 review-report.yaml。")
+
+    def test_technical_api_key_reminder_is_not_editorial_meta_language(self):
+        result = score_article("# API 安全\n\n不要把 API key 写进仓库。" + ("补充说明。" * 80))
+
+        self.assertEqual(result["findings"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
