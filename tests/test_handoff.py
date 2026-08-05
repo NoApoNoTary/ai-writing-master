@@ -211,6 +211,26 @@ class HandoffTests(unittest.TestCase):
             handoff.complete(self.run)
         self.assertEqual(handoff.show(self.run)["handoff"]["status"], "failed")
 
+        invalid_utf8 = self.prepare()
+        handoff.mark_running(self.run, "agent-3")
+        (self.run / invalid_utf8["manifest"]["result_path"]).write_bytes(b"\xff")
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["handoff"]["status"], "failed")
+        self.assertIn("output_validation", shown["state_reason"])
+
+        oversized_integer = self.prepare()
+        handoff.mark_running(self.run, "agent-4")
+        (self.run / oversized_integer["manifest"]["result_path"]).write_text(
+            '{"value": ' + "9" * 10_000 + "}", encoding="utf-8"
+        )
+        with self.assertRaises(handoff.HandoffError):
+            handoff.complete(self.run)
+        shown = handoff.show(self.run)
+        self.assertEqual(shown["handoff"]["status"], "failed")
+        self.assertIn("output_validation", shown["state_reason"])
+
     def test_extra_or_symlinked_staged_outputs_are_rejected(self):
         prepared = self.prepare()
         handoff.mark_running(self.run, "agent")
