@@ -21,6 +21,8 @@ requested_capabilities:
   - cover
   - wechat_html
 handoff_runtime: available | unavailable
+visual_execution_mode: claude_inline | gpt_handoff
+visual_execution_reason: null
 available_skills:
   baoyu-url-to-markdown: true
   baoyu-article-illustrator: true
@@ -29,6 +31,8 @@ available_skills:
 selected_routes: []
 missing_routes: []
 ```
+
+`visual_execution_mode` 默认为 `claude_inline`；用户明确要求"交给 GPT"、"GPT 完成"、"Codex 执行"或"外部配合 Codex"时设为 `gpt_handoff`。
 
 预检只确认“这次可能用到什么、当前有哪些能力、需要哪些输入”，不触发图像生成、排版或发布。
 
@@ -95,6 +99,17 @@ missing_routes: []
 
 从 Writing Master 任务进入本层时，`source_ref` 必须是 `accepted_final`：同一任务中的 `final.md` 存在，且 `acceptance-report.md` 内容明确验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或未通过验收的 `final.md` 都不得作为视觉、格式或发布来源。
 
+#### 执行模式识别
+
+进入 Level 3 时先识别用户意图：
+
+| 用户表述 | 执行模式 | 行为 |
+|---|---|---|
+| "交给 GPT"、"GPT 完成"、"Codex 执行"、"外部配合 Codex" | `gpt_handoff` | 生成交付文档，停在当前会话 |
+| 其他或默认 | `claude_inline` | 当前 Agent 调用 Baoyu Skills 完成视觉和发布 |
+
+#### claude_inline 模式（默认）
+
 | 任务 | Baoyu Skill | 主要输入 | 输出 |
 |---|---|---|---|
 | 分析文章并生成正文配图 | `baoyu-article-illustrator` | `final.md`（只读）、`storyboard.md`、视觉约束 | 视觉资产与 manifest 记录 |
@@ -116,6 +131,110 @@ missing_routes: []
 Markdown 格式化和 HTML 转换不属于图像类视觉生产：它们在 canonical final 通过内容验收后，读取 `channel-contract.yaml` 的主题和外链策略即可执行；不要求 storyboard、`asset-manifest.yaml` 或图像生成意图。
 
 当 `target_id=wechat` 时，`channel-contract.yaml.required_derivatives` 中的 `formatted.md`、`wechat.html` 与 `cover.png` 属于渠道完整交付；Lead 组合现有 Baoyu 能力完成它们。`x-post` 与 `x-thread` 不因此增加图像或 HTML 产物。
+
+#### gpt_handoff 模式
+
+用户明确要求"交给 GPT"或"Codex 执行"时，生成两份交付文档后停止：
+
+**1. `visual-handoff-for-gpt.md`** — 配图设计规格
+
+从 `storyboard.md` 转写，每个视觉位包含：
+
+```markdown
+## 图 {N}：{slot_id}
+
+**视觉角色**：{role}  
+**对应文章阶段**：{section}  
+**设计意图**：{purpose}  
+**内容描述**：{从 final.md 提取该位置的上下文，描述应该呈现什么内容}  
+**素材来源要求**：{preferred_source}  
+**尺寸要求**：{从 channel-contract 提取}  
+**输出路径**：attachments/{slot_id}.png  
+**是否必需**：{required}
+
+---
+```
+
+**2. `wechat-publish-spec.md`** — 发布参数清单
+
+从 `final.md`、`channel-contract.yaml` 和 `acceptance-report.md` 提取：
+
+```markdown
+## 微信公众号发布规格
+
+### 元数据
+- **标题**：{final.md 最终标题}
+- **摘要**：{channel-contract 或自动生成}
+- **作者**：{channel-contract.author 或 EXTEND.md default_author}
+- **封面图片**：attachments/cover.png
+- **原文链接**：{channel-contract.content_source_url 如有}
+
+### 正文文件
+- **Markdown 源**：final.md（只读，不可修改）
+- **HTML 输出**：wechat.html（待生成）
+
+### 视觉资产
+{从 storyboard.md 列出所有视觉位及其输出路径}
+
+### 发布配置
+- **主题**：{EXTEND.md default_theme 或 default}
+- **主题色**：{EXTEND.md default_color 如有}
+- **外链处理**：转换为底部引用（默认）
+- **评论设置**：
+  - need_open_comment: {EXTEND.md 或默认 1}
+  - only_fans_can_comment: {EXTEND.md 或默认 0}
+
+### 执行步骤（供 GPT/Codex 参考）
+
+1. 根据 `visual-handoff-for-gpt.md` 使用 `baoyu-image-gen` 或 `codex imagegen` 生成所有图片
+2. 使用 `baoyu-markdown-to-html` 转换 final.md → wechat.html（传入主题、主题色）
+3. 使用 `baoyu-post-to-wechat` 发布：
+   ```bash
+   bun {baoyu-post-to-wechat}/scripts/wechat-api.ts wechat.html \
+     --theme {theme} \
+     --color {color if set} \
+     --title "{title}" \
+     --summary "{summary}" \
+     --author "{author}" \
+     --cover attachments/cover.png \
+     --source-url "{source_url if set}"
+   ```
+
+### 时区与发布窗口
+- **账号时区**：{EXTEND.md timezone 或 Asia/Shanghai}
+- **推荐发布时间**：待 draft/add 成功后由脚本自动生成
+
+---
+
+**注意**：
+- final.md 已通过内容验收，任何阶段都不可修改
+- 图片生成失败不影响 HTML 转换和草稿创建
+- 草稿创建成功后必须记录 `recommended_publish_time` 到 wechat-draft-report.json
+```
+
+生成两份文档后，向用户输出：
+
+```
+✓ 已生成 GPT/Codex 交付文档
+
+文档位置：
+• {run_dir}/visual-handoff-for-gpt.md — 配图设计规格（{N} 个视觉位）
+• {run_dir}/wechat-publish-spec.md — 微信发布参数清单
+
+输入文件（只读）：
+• {run_dir}/final.md — 已验收正文
+• {run_dir}/storyboard.md — 视觉规划
+• {run_dir}/channel-contract.yaml — 渠道约定
+
+后续步骤：
+1. 将上述文档交给 GPT 或 Codex
+2. GPT/Codex 按照 wechat-publish-spec.md 执行图片生成、HTML 转换和草稿发布
+3. 确认微信草稿创建成功并获取推荐发布时间
+
+Writing Master 当前任务已完成交付准备，等待外部执行。
+```
+
+不在当前会话执行 `baoyu-image-gen`、`baoyu-markdown-to-html` 或 `baoyu-post-to-wechat`。
 
 ### Level 4：Publish（验收之后）
 
