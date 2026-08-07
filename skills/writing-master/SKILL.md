@@ -197,14 +197,14 @@ persona_snapshot: {none | pending | ready | unavailable}
 
 产物：
 
-- `spec.md`
+- `spec.md`（快速模式简化）
 - `brief.md`
 - `channel-contract.yaml`
-- `capability-preflight.md`
+- `capability-preflight.md`（快速模式不生成，除非有复杂素材需要处理）
 - `status.json`
 - 选择 Persona 时追加 `persona-skill.md` 与 `persona-brief.md`
 
-`capability-preflight.md` 先记录 `selected_mode`、`mode_readiness` 和诊断编号，再记录外部能力、deep 所需的 `handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。
+`capability-preflight.md` 先记录 `selected_mode`、`mode_readiness` 和诊断编号，再记录外部能力、deep 所需的 `handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。快速模式只在用户提供了需要提取的复杂素材（网页、YouTube、文件）时才生成此文件；简单文本素材直接进入 brief.md。
 
 `channel-contract.yaml` 只记录本次目标，并保留所选平台 YAML 的长度、输出类型、视觉和必要派生产物字段；至少补充：
 
@@ -242,12 +242,12 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 产物：
 
-- `sources.yaml`
-- `claims.yaml`
+- `sources.yaml`（快速模式可选，只在有明确来源素材时生成）
+- `claims.yaml`（快速模式不生成）
 - `asset-manifest.yaml`
-- `research-summary.md`
+- `research-summary.md`（快速模式简化为 `references.md`）
 
-快速模式只维护实际会进入正文的关键主张；标准和深度模式维护完整证据链。涉及近期变化、产品能力、数据、政策或版本时，执行实时检索。素材提取成功不等于事实确认；失败或待确认的素材继续保留在 `capability-preflight.md`，并在任务摘要中说明影响。
+快速模式只维护实际会进入正文的关键主张，不生成完整的 sources.yaml 和 claims.yaml；标准和深度模式维护完整证据链。涉及近期变化、产品能力、数据、政策或版本时，执行实时检索。素材提取成功不等于事实确认；失败或待确认的素材继续保留在 `capability-preflight.md`，并在任务摘要中说明影响。
 
 标准写作如有个人上下文，只读取任务 Snapshot（`personal-context-snapshot.json`）和 `context-materials/`；不得在调研阶段回读全局个人素材目录。
 
@@ -312,7 +312,12 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 审校结果必须按严重程度汇总给用户：阻断问题需要补充来源、缩小表述、修改要求或重新生成受影响部分；主要和次要问题可以接受、带理由忽略或请求重写。先集中询问真正需要用户决定的方向性问题，再统一修订，避免每条小问题打断写作。
 
-产物：`review-report.yaml`、`draft-v2.md`、`revision-report.yaml`、`final.md`。`revision-report.yaml` 逐项对应已接受的问题和处理结果。阻断问题未关闭前，任务不得进入已完成、视觉生产或发布状态。
+产物：
+
+- **快速模式**：`suggestions.md`（2-3 条可选改进建议）、`final.md`（直接从 draft.md 修订）
+- **标准/深度模式**：`review-report.yaml`、`draft-v2.md`、`revision-report.yaml`、`final.md`
+
+`revision-report.yaml` 逐项对应已接受的问题和处理结果。阻断问题未关闭前，任务不得进入已完成、视觉生产或发布状态。
 
 ### Phase 5：标题与 canonical final 验收
 
@@ -333,8 +338,19 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 6：交付包、视觉、排版与发布
 
-任务只在核心交付包有效时标记完成。所有模式的核心交付包至少包含：
+任务只在核心交付包有效时标记完成。核心交付包根据模式不同：
 
+**快速模式**：
+- `final.md`
+- `references.md`（如果有素材）
+
+**标准模式**：
+- `final.md`
+- `sources.yaml`
+- `claims.yaml`（简化版，只包含核心数据）
+- `review-notes.md`
+
+**深度模式**：
 - `final.md`
 - `sources.yaml`
 - `claims.yaml`
@@ -343,7 +359,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `revision-report.yaml`
 - `acceptance-report.md`
 
-`acceptance-report.md` 必须列出交付包清单、缺失项、canonical final 的内容验收结果、当前渠道必要产物的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
+快速模式不生成 `acceptance-report.md`；标准模式生成简化的验收确认；只有深度模式生成完整的 `acceptance-report.md`，必须列出交付包清单、缺失项、canonical final 的内容验收结果、当前渠道必要产物的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
 
 主写作的完整交付还必须满足当前 `channel-contract.yaml`：
 
