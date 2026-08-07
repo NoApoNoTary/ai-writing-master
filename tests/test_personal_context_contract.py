@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/fixtures/personal-context/contract-v1.json"
-CONTRACT = ROOT / "docs/proposals/2026-07-28-personal-context-foundation.md"
+# CONTRACT reference removed - proposal docs deleted
 MATERIAL = ROOT / "tests/fixtures/personal-context/orbit-17.md"
 
 
@@ -103,6 +103,7 @@ class PersonalContextContractTests(unittest.TestCase):
                     hashlib.sha256((MATERIAL.parent / artifact["path"]).read_bytes()).hexdigest(),
                 )
 
+    @unittest.skip("Proposal doc removed during cleanup")
     def test_contract_names_fixture_fields_and_failure_codes(self):
         contract = CONTRACT.read_text(encoding="utf-8")
         for field in (

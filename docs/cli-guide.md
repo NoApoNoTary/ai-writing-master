@@ -268,7 +268,7 @@ Candidate 记录：
 
 `propose` 只创建 `proposed` observation。终态为 `accepted` 或 `rejected`；重复相同决定幂等，相反决定返回 revision conflict。Style Profile 只由 accepted observations 确定性重建，每条规则保留 observation ID/revision/hash 引用。全局 Style 更新只影响之后创建的新 Snapshot，既有任务不变化。`--run-dir RUN_DIR` 必须绑定来源任务并执行 Voice 隔离校验；非默认 Voice 任务的表达变化不进入 Style Observation。
 
-完整 Candidate schema 见 [`Goal B Contract`](goals/2026-07-28-v0.2b-goal-contract.md)。
+Candidate 包含 observation_id、pattern、evidence 等字段，通过 `writing-master learn propose` 提交。
 
 ## `failure-cases`：失败案例库与任务快照
 
