@@ -188,8 +188,8 @@ persona_snapshot: {none | pending | ready | unavailable}
 7. 只完成 capability/material preflight，不生成图片、不排版、不发布。
 8. 读取 `references/persona-skills.md`，每次询问人格使用方式：不使用、让这个人格来写、参考这个人格写。选择后读取用户明确提供的内置模板 ID、Skill 名称或路径；不扫描目录、不导入外部 Registry、不联网。用户同时选择人格背景：使用人格默认背景、补充项目背景，或本次不生成背景。
 9. 根据 `content_type` 生成当前任务的人格角色侧重，并在用户可见内容契约摘要中展示 Persona 选择与背景选项。研究用 `brief.md` 只保留主题、读者、渠道、内容目的和证据要求，不写入 Persona Skill 原文、拟采用部分、人格背景或角色侧重；这些细节在确认后只进入 `persona-brief.md`。项目背景只影响当前任务，不回写 Persona Skill。
-10. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，展示当前选择与可用写作声音。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
-11. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。用户回复”确认”同时确认当前 `persona_mode` 与 `voice_id`；可用”修改：人格=参考它写””修改：写作声音=清晰分析”更新选择。
+10. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，**不单独询问**。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。快速和标准模式使用默认 Voice，深度模式才展示可选项。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
+11. **简化内容契约确认**：合并已知信息，只追问阻断字段（渠道、主题不明确时）；素材接收不逐个确认，批量展示”已接收 {N} 项素材”即可。展示一次内容契约摘要并等待确认后才进入调研。快速模式的契约摘要更简短：主题 + 渠道 + 模式，不展示 Persona/Voice 细节。用户回复”确认”同时确认当前 `persona_mode` 与 `voice_id`；可用”修改：人格=参考它写””修改：写作声音=清晰分析”更新选择。
 12. 内容契约确认后，已选择 Persona 时保留所选内置或外部 `SKILL.md` 的原始字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读或从任何内置、外部来源重建当前版本。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
 13. 内容契约确认后立即读取 `references/run-spec.md`，生成冻结的 `{run_dir}/spec.md`；从 Spec 投影 Persona-neutral 的 `brief.md`。
 14. 内容契约确认后、任何初稿前创建或确认 `voice-profile-snapshot.json`。显式非默认 Voice 不可用、无效或创建失败时停留在”等待契约确认”，展示可用项并阻止进入 Phase 3；`natural-default` 运行异常记录 `voice_snapshot: unavailable`，继续既有自然写作而不声称已应用 Voice。
