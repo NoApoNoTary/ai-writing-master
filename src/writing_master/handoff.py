@@ -102,7 +102,7 @@ def _json_hash(value: object) -> str:
 def _read_json(path: Path) -> dict:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, ValueError) as error:
         raise HandoffError(f"invalid JSON: {path}") from error
     if not isinstance(value, dict):
         raise HandoffError(f"JSON object required: {path}")

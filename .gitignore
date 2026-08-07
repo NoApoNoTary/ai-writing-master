@@ -1,5 +1,3 @@
-# .gitignore
-
 # Python
 __pycache__/
 *.py[cod]
@@ -21,16 +19,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
+
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Virtual environments
-venv/
-ENV/
-env/
-.venv
 
 # IDE
 .vscode/
@@ -38,12 +31,27 @@ env/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# User data (不上传个人数据)
+# Runtime data (user's local state)
 .writing-master/
+personal_materials/
+exemplars/
+themes/
+output/
 
 # Temporary files
 *.log
 *.tmp
-.cache/
+.DS_Store
+
+# Development plans and internal notes (keep in repo for context, but mark clearly)
+# These are historical/planning docs, not user-facing documentation
+docs/goals/
+docs/plans/
+docs/handoffs/
+docs/proposals/
+docs/research/
+
+# Build artifacts
+*.whl
+*.tar.gz

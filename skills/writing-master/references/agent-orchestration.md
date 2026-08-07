@@ -85,8 +85,8 @@ Host 只把 **角色卡 + Manifest + Manifest 的 `allowed_inputs` 文件**交�
 - 只读取 `allowed_inputs`；角色卡中的“读取”是该角色通常需要的文件类型，不是绕过 Manifest 的额外权限。
 - 只写入 Manifest `output_root` 内、属于 `write_scope` 的文件；把 Result 写入 Manifest `result_path`。
 - 不修改 `status.json`、`state.json`、Manifest 或其他 attempt。Result 不包含隐藏推理过程。
-- Lead 先生成本次唯一的 `task_name`，把它原样作为 `agent_ref`；执行 `writing-master handoff start RUN_DIR --agent-ref AGENT_REF` 成功后，才创建专项 Agent。专项 Agent 把这个精确 `agent_ref` 写入 Result；返回后由 Lead 调用 `handoff complete` 校验 Result、提升输出并更新状态。
-- 会话恢复时，Host 先按精确 `agent_ref` 查询宿主 liveness：仍存在则继续等待；已丢失则执行 `writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF`。该宿主命令只接受当前 `running` 的同一 `agent_ref`，把旧 attempt 记录为 `failed` / `host_failure`，再用同一 Manifest 合同创建下一 attempt。
+- Lead 为每个 attempt 生成本次运行内唯一、不可解释且不复用的 `agent_ref`；执行 `writing-master handoff start RUN_DIR --agent-ref AGENT_REF` 成功后，才创建专项 Agent。宿主调用 identity 如何映射到这个 `agent_ref` 由具体 adapter 定义：例如 Codex 使用 `task_name == agent_ref`，Claude Code foreground 不使用 `Agent.name`。专项 Agent 把这个精确 `agent_ref` 写入 Result；宿主调用明确终止后由 Lead 调用 `handoff complete` 校验 Result、提升输出并更新状态。
+- 是否支持宿主恢复、如何判定 liveness 以及何时调用 `recover-lost`，由具体 Host adapter 定义；不得从通用 Handoff 状态或角色名猜测 liveness。
 - Manifest 创建后不可修改；输入 hash 变化使 prepared/running attempt 过期，重试创建新 attempt。每次 `show` 也会复核 completed attempt 的 canonical Result、暂存输出和已提升输出；历史状态保留 `completed`，但损坏会显示为 `effective_status: stale` 并阻断下游，直到最早受影响阶段重试。
 
 `Result` 是 JSON，必须包含 `schema_version: 1`、Manifest 的 `handoff_id` 和 `attempt`、`agent_ref`、`status`、`outputs`、`blocking_issues`、`summary`、`completed_at`。完成时每项 output 使用 `{"logical_name":"final.md","path":"outputs/final.md","sha256":"..."}`（也可使用完整的 Manifest `output_root/final.md`）；失败时额外使用 `failure_type: input_error | host_failure | role_failure | output_validation | cancelled`。
@@ -112,7 +112,27 @@ writing-master handoff prepare RUN_DIR ...
 → writing-master handoff complete RUN_DIR
 ```
 
-Lead 将角色卡、Manifest 和 Manifest 列出的输入内容写进 `spawn_agent.message`；`fork_turns` 固定为 `"none"`，不把父对话隐式传给专项 Agent。`task_name` 在当前 Codex 线程树内唯一，重试使用新的名称；旧 `agent_ref` 只用于 `recover-lost` 校验。上述调用是 Codex 编排协议，不属于 Handoff 或 Voice Runtime。
+Lead 将角色卡、Manifest 和 Manifest 列出的输入内容写进 `spawn_agent.message`；`fork_turns` 固定为 `"none"`，不把父对话隐式传给专项 Agent。`task_name` 在当前 Codex 线程树内唯一，重试使用新的名称；旧 `agent_ref` 只用于 `recover-lost` 校验。会话恢复时，Host 先按精确 `agent_ref` 查询宿主 liveness：仍存在则继续等待；已丢失则执行 `writing-master handoff recover-lost RUN_DIR --agent-ref AGENT_REF`。该宿主命令只接受当前 `running` 的同一 `agent_ref`，把旧 attempt 记录为 `failed` / `host_failure`，再用同一 Manifest 合同创建下一 attempt。上述调用是 Codex 编排协议，不属于 Handoff 或 Voice Runtime。
+
+### Claude Code foreground host adapter
+
+Claude Code 使用普通前台 subagent `Agent` 调用，不使用 experimental agent team teammate。每个 attempt 由 Lead 在调用前生成一个当前运行内唯一、不可解释且不复用的 `AGENT_REF`；它只进入 Handoff 状态与 Agent prompt/Result，不作为 `Agent.name`。`run_in_background=false` 是等待普通 subagent 完成并返回单一最终报告的同步边界；`name` 只用于地址标识，不能作为完成信号。适配器固定执行以下顺序：
+
+```text
+writing-master handoff prepare RUN_DIR ...
+→ 生成唯一 opaque AGENT_REF，并把它写入 Handoff 状态与 Agent prompt
+→ writing-master handoff start RUN_DIR --agent-ref AGENT_REF
+→ Agent(run_in_background=false, prompt=包含 AGENT_REF、角色卡、Manifest 与 allowed_inputs)
+→ Agent 只写 Manifest output_root 和 Result，且 Result.agent_ref == AGENT_REF
+→ 前台调用产生明确终止结果后，调用 writing-master handoff complete RUN_DIR
+→ Runtime 以 Result 与暂存输出为事实源，将 attempt 原子推进到 completed 或 failed
+```
+
+`start` 成功前禁止调用 `Agent`。前台调用产生明确终止结果（正常返回、显式失败或已确认取消）后，Lead 必须且只能调用一次 `complete`；`complete` 是终止化与校验屏障，不是“成功专用”命令。适配器不得先以最终报告文本或自行重复校验来决定是否调用它：合法的 `Result.status == completed` 且输出校验通过时，Runtime 推进到 `completed`；合法的 `Result.status == failed` 时，Runtime 推进到 `failed`；缺少或格式错误的 Result、`agent_ref` 不匹配、输出缺失或 hash 校验失败时，`complete` 原子地将当前 attempt 标记为 `failed`（`output_validation`），并返回错误。`Agent` 抛错、被明确中止、返回被截断或未完成的报告时仍调用 `complete`，由 Runtime 根据磁盘上的 Result 进行最终判定；若没有可用 Result，则按上述校验失败处理。之后立即 fail-stop：不由 Lead 补做角色，不降级到其他模式；保留当前 attempt 和诊断，按 `WM-RUN-001` 停止。
+
+前台调用尚未返回，或 Host 尚未明确确认调用已终止时，不得把“等待中”判为丢失，不得按超时、`unknown`、瞬时宿主错误或角色名猜测 liveness，也不得调用 `recover-lost`。普通前台 `Agent` 调用不会向 Handoff 提供可恢复的 teammate identity；如果 Host 在返回前丢失，当前适配器不能证明原调用不存在，因此必须保留 running attempt 并按 `WM-RUN-001` 停止，交由人工按宿主实际状态处理，不得自动重放或创建第二个 Agent。
+
+`recover-lost` 仍只适用于具有宿主可查询 invocation identity 的编排适配器（例如 Codex 的 `agent_ref` 协议），不适用于本节的普通 Claude Code foreground 调用。Claude Code 重试必须在 `complete` 或明确的 Host 丢失处置已将旧 attempt 终止后，生成新的 opaque `AGENT_REF`，重新执行 `start → Agent`；不得复用旧 ref，也不得恢复 `prepared`、`completed`、`failed` 或 `stale` attempt。
 
 ### Personal context
 

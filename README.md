@@ -129,7 +129,7 @@ Baoyu Skills 是独立安装的能力，本仓库不复制它们的实现。`wri
 
 详细规则见 [`baoyu-integration.md`](skills/writing-master/references/baoyu-integration.md)。
 
-单渠道双入口的产品合同见[渠道适配 P0 PRD](docs/proposals/2026-07-29-channel-adaptation-p0-prd.md)。
+单渠道双入口：每次新建文章只确定一个 `target_id`（wechat / x-post / x-thread），需要第二个渠道时创建新的 Rewrite 任务。
 
 ## 安装
 
