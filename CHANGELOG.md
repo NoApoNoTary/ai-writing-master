@@ -6,6 +6,22 @@
 
 ### Added
 
+- 增加 evidence_level 三级证据等级系统：relaxed（快速草稿）、balanced（标准写作，默认）、strict（深度写作）。
+- 标准和深度模式增加 Auto Research 自动调研功能：遇到 AI 热点主题时自动搜索最新信息，无需用户手动提供素材。
+- Quick Mode 文件生成策略优化：只生成 4-5 个必要文件（status.json、draft.md、suggestions.md、references.md），不生成内部 YAML 报告。
+- Standard Mode 审校优化：只验证核心数据（价格、日期、版本号、性能指标），作者观点和常识性陈述不需要 claim_id。
+
+### Changed
+
+- **产品定位转型**：从"证据审查系统"转向"为读者提供价值的写作系统"；价值包括信息、决策、情绪、社交、时间等多维度，AI 可灵活识别读者需要的价值类型。
+- **质量标准重新定义**：从"真人级写作"（像真人）转向"读者愿意读下去、读完有收获、愿意转发、下次还来"；"真人级"是质量基线（不写 AI 味废话），不是目的本身。
+- 用户体验语言优化：使用"准备、撰写、打磨、定稿"等创作语言，避免"验收、审计、预检、合同"等合规部门语言。
+- 内容契约简化：不逐个确认素材接收，批量展示"已接收 N 项素材"；Voice Preset 默认 natural-default，不单独询问。
+- 证据追溯机制定位调整：作为内部质量保障基础设施，不暴露给用户；claim_id、source_sha256、diagnostic_id 等实现细节不再出现在用户可见输出中。
+- 审校输出格式优化：给出可选的编辑建议（纯文本），不生成带数值评分的 YAML 报告。
+
+### Added
+
 - 为新建完整文章增加用户显式模式选择：快速草稿、标准写作和深度写作。
 - 增加深度写作的 Researcher、Editorial Strategist、Writer、Auditor 角色卡和文件化 Context Packet 协议。
 - 增加 `sources.yaml`、`claims.yaml`、`asset-manifest.yaml` 与 `storyboard.md` 的证据/素材契约。
