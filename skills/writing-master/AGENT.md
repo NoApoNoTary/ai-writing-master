@@ -1,14 +1,40 @@
 # Agent Instructions for Writing Master
 
-**Purpose**: Guidelines for AI agents (Claude, GPT, etc.) working on this skill to prevent drift toward "证据审查系统" (evidence auditing system).
+**Purpose**: Guidelines for AI agents (Claude, GPT, etc.) working on this skill to stay focused on delivering value to readers.
 
 ## Core Product Identity
 
-You are implementing a **writing assistant for hot-topic speed writing**, not an investigative journalism tool or compliance system.
+You are implementing a **writing system that delivers value to readers**, not an evidence auditing system or "human-like writing" simulator.
 
-**Target experience**: User says "write an article about Claude 5 launch for WeChat" → System auto-researches → Writes in author's voice → User reviews → Publishes. Total time: 15-20 minutes.
+**Target experience**: User says "write an article about Claude 5 launch for WeChat" → System auto-researches → Writes to provide value → User reviews → Publishes. Total time: 15-20 minutes.
 
-## Critical Rule: Internal ≠ User-Facing
+## Critical Rule: Value First, Everything Else Serves It
+
+**为读者提供价值是唯一目的。** Everything else—evidence tracking, writing quality, author voice—exists to serve this goal.
+
+### What is "Value"?
+
+Value is **multi-dimensional and open-ended**. Examples include (but are not limited to):
+- **Information value**: Quickly understand hot topics, tech trends, product updates
+- **Decision value**: Help readers judge "Is this worth my attention?" "Should I follow this trend?"
+- **Emotional value**: Resonance, inspiration, "I'm not the only one thinking this way"
+- **Social value**: Worth sharing to friends/groups, demonstrates reader's insight
+- **Time value**: Get a quality article in 15-20 minutes instead of hours
+- **Any other value you identify that readers need**
+
+**Do NOT limit yourself to these categories.** If you identify other ways to provide value, pursue them.
+
+### Quality Metrics
+
+**The ONLY measure of quality**:
+- ✅ Readers want to keep reading (not close after scanning)
+- ✅ Readers feel they gained something (not wasted time)
+- ✅ Readers want to share it (not forget after reading)
+- ✅ Readers come back (not unsubscribe)
+
+**"Human-like" is just a quality baseline**: Don't write "AI-flavored nonsense"—empty, repetitive, no viewpoint, feels assembled. But mimicking humans is NOT the goal; providing value IS.
+
+## Internal Mechanisms vs User Experience
 
 **Evidence tracking is quality infrastructure. It must NOT become visible product surface.**
 
@@ -76,15 +102,31 @@ deep_writing:
 - User confirmation of "素材接收", "内容契约", "大纲", "验收"
 - Personal experiences and opinions logged as "evidence items"
 
+**But evidence tracking is still important**—it's how we ensure accuracy (information value). Just keep it internal.
+
 ## Implementation Patterns
 
-### ✅ Good: Suggestions, Not Scores
+### ✅ Good: Value-Focused Review
 
 ```python
-def review_article(draft):
-    issues = check_accuracy_and_readability(draft)
-    return format_as_plain_text_suggestions(issues)
-    # Output: "Paragraph 3: consider being more specific..."
+def review_article(draft, reader_context):
+    """Ask: Does this provide value to readers?"""
+    issues = []
+    
+    # Information value: Is this accurate?
+    if has_factual_errors(draft):
+        issues.append("Paragraph 3: 'performance improvement 40%' - official blog says '35-45%', be more precise")
+    
+    # Readability value: Will readers keep reading?
+    if paragraph_too_long(draft, 5):
+        issues.append("Paragraph 5: quite dense, consider splitting")
+    
+    # Decision value: Does this help readers judge?
+    if missing_practical_context(draft):
+        issues.append("Add: what does this mean for typical users?")
+    
+    return format_as_suggestions(issues)
+    # Output: Plain text suggestions that help provide more value
 ```
 
 ### ❌ Bad: Scores and Reports
@@ -98,6 +140,7 @@ def review_article(draft):
     }
     return generate_yaml_report(scores)
     # Output: review-report.yaml with numerical grades
+    # Problem: Scores don't tell us if readers will find value
 ```
 
 ### ✅ Good: Auto-Research
@@ -197,6 +240,8 @@ If answer is "evidence report", stop and reconsider the approach.
 
 Before submitting changes that affect user experience:
 
+- [ ] **Value-focused**: Does this help provide more value to readers?
+- [ ] **Not just "human-like"**: Avoid confusing "mimicking humans" with "providing value"
 - [ ] No compliance language in user-facing text (验收, 审计, 预检)
 - [ ] No internal state fields shown to users (_sha256, _snapshot, _readiness)
 - [ ] No YAML reports as user deliverables
@@ -207,8 +252,14 @@ Before submitting changes that affect user experience:
 
 ## Summary
 
-**Goal**: Writing assistant that feels like a helpful editor, not a compliance department.
+**Goal**: A writing system that delivers value to readers.
 
-**Core principle**: Evidence tracking is infrastructure (keep it), not product surface (hide it).
+**Core principle**: 
+- **为读者提供价值是唯一目的。** Value is multi-dimensional and open-ended—discover what readers need.
+- Evidence tracking is infrastructure (keep it internal), not product surface (hide it).
+- "Human-like" is a quality baseline (avoid AI nonsense), not the goal itself.
 
-**Test**: If a feature makes articles read more like audit reports than blog posts, it's moving in the wrong direction.
+**Test**: 
+- If a feature makes articles read more like audit reports than blog posts, it's wrong.
+- If an article doesn't provide value to readers, being "human-like" doesn't save it.
+- Always ask: **Does this help readers?** Not: "Does this look like a human wrote it?"

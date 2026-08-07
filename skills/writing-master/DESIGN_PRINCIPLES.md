@@ -1,28 +1,51 @@
 # Writing Master Design Principles
 
-**Purpose**: Prevent feature drift toward "证据审查系统" (evidence auditing system). Read this before implementing any new feature.
+**Purpose**: Keep the system focused on delivering value to readers. Read this before implementing any new feature.
 
 ## Core Question
 
-**"Does this make the output feel more like an evidence report, or more like something a real author would write?"**
+**"Does this help provide more value to readers?"**
 
-If answer is "evidence report", stop and rethink.
+If answer is no, or if it makes output feel more like an evidence report, stop and rethink.
 
 ## The Product We're Building
 
-**Goal**: AI writing assistant that produces articles feeling like the author wrote them.
+**Goal**: A writing system that delivers value to readers.
 
-**Primary Scenario**: Hot-topic speed writing
+**Value is multi-dimensional and open-ended**, including but not limited to:
+- Information value (understand hot topics quickly)
+- Decision value (help readers judge "is this worth my attention?")
+- Emotional value (resonance, inspiration)
+- Social value (worth sharing)
+- Time value (15-20 min to high-quality article)
+- Any other value you identify that readers need
+
+**Quality measurement**: Readers want to keep reading, feel they gained something, want to share it, come back for more.
+
+**Primary Scenario**: Hot-topic writing
 - User: "Write about Claude 5 launch for WeChat"
-- System: Auto-research → Write in author's voice → Generate images
+- System: Auto-research → Write to provide value → Generate images
 - User: Quick review → Publish
 - Timeline: 15-20 minutes total
 
-**NOT building**: Investigative journalism tools, academic paper generators, compliance document systems.
+**NOT building**: Investigative journalism tools, academic paper generators, compliance document systems, or "human mimicry simulators".
 
 ## Design Principles
 
-### 1. Evidence Tracking is Internal Infrastructure
+### 1. Value First, Everything Else Serves It
+
+**Right**: 
+- Evidence tracking ensures accuracy (information value)
+- Author voice makes content relatable (emotional value)
+- Clear structure helps readers follow (readability value)
+- All mechanisms exist to serve reader value
+
+**Wrong**:
+- Pursuing "human-like writing" as goal itself
+- Adding evidence tracking because "it's rigorous" without asking if it helps readers
+- Optimizing for "looks authentic" instead of "provides value"
+
+### 2. Evidence Tracking is Internal Infrastructure
 
 **Right**: 
 - System verifies facts while writing
@@ -34,7 +57,7 @@ If answer is "evidence report", stop and rethink.
 - Draft includes footnotes like `[claim_001: verified, confidence: high]`
 - User sees "证据层审校报告" as part of deliverables
 
-### 2. Use Creative Language, Not Compliance Language
+### 3. Use Creative Language, Not Compliance Language
 
 | ❌ Compliance Language | ✅ Creative Language |
 |----------------------|---------------------|
@@ -49,7 +72,7 @@ If answer is "evidence report", stop and rethink.
 
 **Why it matters**: Language shapes how users perceive the tool. "验收" makes it feel like submitting homework to a teacher; "定稿" makes it feel like finishing a creative work.
 
-### 3. Three Evidence Levels, Not One-Size-Fits-All
+### 4. Three Evidence Levels, Not One-Size-Fits-All
 
 ```yaml
 evidence_level: strict | balanced | relaxed
@@ -59,11 +82,13 @@ evidence_level: strict | balanced | relaxed
 - Every key claim requires verified source
 - Three-pass review with detailed reporting
 - Full `claims.yaml` with confidence scores
+- **Purpose**: Maximum information value for critical content
 
 **balanced** (standard mode, hot-topics, DEFAULT):
 - Core data verified automatically
 - Opinions and personal experiences allowed without sourcing
 - One-pass review focusing on accuracy and readability
+- **Purpose**: Deliver value efficiently—accurate information, readable content, 15-20 min turnaround
 
 **relaxed** (quick draft, internal discussion):
 - Prevent obvious fabrication only
