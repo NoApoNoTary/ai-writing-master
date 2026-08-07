@@ -55,6 +55,7 @@ class InstallContractTests(unittest.TestCase):
             legacy.write_text("legacy remains explicit", encoding="utf-8")
 
             env = os.environ.copy()
+            env.pop("WRITING_MASTER_HOME", None)
             env["HOME"] = str(home)
             env["PATH"] = "/usr/bin:/bin"
             result = subprocess.run(

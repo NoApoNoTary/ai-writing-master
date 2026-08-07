@@ -61,7 +61,7 @@ allowed-tools:
 模式确定后只创建最小运行目录，并先写入 `capability-preflight.md` 的 `selected_mode`、`mode_readiness`、`diagnostic_id` 与版本。此时不创建 Brief、素材副本或其他写作产物；就绪后 Phase 0 在同一文件追加能力与素材结果，未就绪时保留该诊断记录后结束。
 
 - `mode_readiness=ready`：保持现有入口、状态摘要和 Phase 0–6 流程不变。
-- `mode_readiness=unavailable`：使用 `WM-CAP-001` 用户正文，立即结束当前任务。调研和生成调用次数为 0，不切换到 quick、standard 或其他模式，不询问用户是否改用其他模式。
+- `mode_readiness=unavailable`：使用 `WM-CAP-001` 用户正文，在调研和写作前暂停当前所选模式。调研和生成调用次数为 0，不自动替用户切换到 quick、standard 或其他模式；向用户展示实际可用模式（如有）及其明确损失，并提供“改用可用模式继续”“保留任务”“取消”三项选择，等待用户明确回复。只有用户明确选择可用模式后，才记录模式变更并重新执行该模式的就绪检查；不创建模拟结果。
 
 只允许把技术原因写入诊断详情；普通错误正文不得出现 Runtime、Handoff、Agent、multi-agent 或内部异常栈。只提醒用户提交 Issue，不调用 Issue 工具，也不生成 Issue 草稿。
 
@@ -84,6 +84,7 @@ allowed-tools:
   "source_change_sha256": null,
   "entry": "writing",
   "mode": "quick | standard | deep",
+  "evidence_level": "relaxed | balanced | strict",
   "execution": "single_agent | multi_agent",
   "target_id": "wechat | x-post | x-thread",
   "persona_mode": "none | author | reference",
@@ -179,30 +180,31 @@ persona_snapshot: {none | pending | ready | unavailable}
 仅在所选模式就绪闸门通过后进入本阶段；模式未就绪的失败分支不得执行下面任何一步。
 
 1. 收集主题、目标读者、时效、字数、内容目的、已有素材和视觉/排版/发布意图，并确认本次唯一的 `target_id`。未指定时只让用户在 `wechat`、`x-post`、`x-thread` 中选择一个；一次给出多个目标时不创建批量任务。
-2. 读取 `references/reader-value.md`；仅对解释、判断、解决问题和行动指导类内容定义读者价值。
-3. 读取 `{skill_dir}/../writing-rewrite/platforms/<target_id>.yaml`，将共享渠道字段复制为任务内 `channel-contract.yaml`，并将主写作入口的 `output_filename` 规范为 `final.md`；YAML 中的 `rewrite_output_filename` 只供 Rewrite 使用。再读取 `references/baoyu-integration.md`，按渠道合同和 Skill 名称检查本次任务需要的能力。
-4. 对用户已经给出的网页、YouTube、文件、图片或历史文章建立素材入口；需要提取时立即路由到对应读取能力。
-5. 按 `references/evidence-and-assets.md` 将每项素材与素材接收结果写入 `capability-preflight.md`，并先向用户返回：已接收、已提取、等待处理、失败、需要你确认的项目及其影响。失败项不阻塞无关素材。
-6. 只完成 capability/material preflight，不生成图片、不排版、不发布。
-7. 读取 `references/persona-skills.md`，每次询问人格使用方式：不使用、让这个人格来写、参考这个人格写。选择后读取用户明确提供的内置模板 ID、Skill 名称或路径；不扫描目录、不导入外部 Registry、不联网。用户同时选择人格背景：使用人格默认背景、补充项目背景，或本次不生成背景。
-8. 根据 `content_type` 生成当前任务的人格角色侧重，并在用户可见内容契约摘要中展示 Persona 选择与背景选项。研究用 `brief.md` 只保留主题、读者、渠道、内容目的和证据要求，不写入 Persona Skill 原文、拟采用部分、人格背景或角色侧重；这些细节在确认后只进入 `persona-brief.md`。项目背景只影响当前任务，不回写 Persona Skill。
-9. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，展示当前选择与可用写作声音。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
-10. 合并已知信息，只追问阻断字段；展示一次内容契约摘要并等待确认后才进入调研。用户回复“确认”同时确认当前 `persona_mode` 与 `voice_id`；可用“修改：人格=参考它写”“修改：写作声音=清晰分析”更新选择。
-11. 内容契约确认后，已选择 Persona 时保留所选内置或外部 `SKILL.md` 的原始字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读或从任何内置、外部来源重建当前版本。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
-12. 内容契约确认后立即读取 `references/run-spec.md`，生成冻结的 `{run_dir}/spec.md`；从 Spec 投影 Persona-neutral 的 `brief.md`。
-13. 内容契约确认后、任何初稿前创建或确认 `voice-profile-snapshot.json`。显式非默认 Voice 不可用、无效或创建失败时停留在“等待契约确认”，展示可用项并阻止进入 Phase 3；`natural-default` 运行异常记录 `voice_snapshot: unavailable`，继续既有自然写作而不声称已应用 Voice。
-14. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。Voice Snapshot、Persona Snapshot 与 Personal Context Snapshot 独立，互不写入。
+2. 根据所选 `mode` 设置默认 `evidence_level`：quick → relaxed，standard → balanced，deep → strict。用户明确指定证据等级时优先使用用户选择。将 evidence_level 写入 status.json 和 channel-contract.yaml。
+3. 读取 `references/reader-value.md`；仅对解释、判断、解决问题和行动指导类内容定义读者价值。
+4. 读取 `{skill_dir}/../writing-rewrite/platforms/<target_id>.yaml`，将共享渠道字段复制为任务内 `channel-contract.yaml`，并将主写作入口的 `output_filename` 规范为 `final.md`；YAML 中的 `rewrite_output_filename` 只供 Rewrite 使用。再读取 `references/baoyu-integration.md`，按渠道合同和 Skill 名称检查本次任务需要的能力。
+5. 对用户已经给出的网页、YouTube、文件、图片或历史文章建立素材入口；需要提取时立即路由到对应读取能力。
+6. 按 `references/evidence-and-assets.md` 将每项素材与素材接收结果写入 `capability-preflight.md`，并先向用户返回：已接收、已提取、等待处理、失败、需要你确认的项目及其影响。失败项不阻塞无关素材。
+7. 只完成 capability/material preflight，不生成图片、不排版、不发布。
+8. 读取 `references/persona-skills.md`，每次询问人格使用方式：不使用、让这个人格来写、参考这个人格写。选择后读取用户明确提供的内置模板 ID、Skill 名称或路径；不扫描目录、不导入外部 Registry、不联网。用户同时选择人格背景：使用人格默认背景、补充项目背景，或本次不生成背景。
+9. 根据 `content_type` 生成当前任务的人格角色侧重，并在用户可见内容契约摘要中展示 Persona 选择与背景选项。研究用 `brief.md` 只保留主题、读者、渠道、内容目的和证据要求，不写入 Persona Skill 原文、拟采用部分、人格背景或角色侧重；这些细节在确认后只进入 `persona-brief.md`。项目背景只影响当前任务，不回写 Persona Skill。
+10. 读取 `references/voice-presets.md`，将 `voice_id` 并入内容契约：默认 `natural-default`，**不单独询问**。用户已指定有效名称、ID 或序号时直接展示该选择；这不是独立等待点。快速和标准模式使用默认 Voice，深度模式才展示可选项。Persona 与 Voice Preset 可以同时使用：Persona 负责身份、判断和观察方式，Voice 只负责表层表达。
+11. **简化内容契约确认**：合并已知信息，只追问阻断字段（渠道、主题不明确时）；素材接收不逐个确认，批量展示”已接收 {N} 项素材”即可。展示一次内容契约摘要并等待确认后才进入调研。快速模式的契约摘要更简短：主题 + 渠道 + 模式，不展示 Persona/Voice 细节。用户回复”确认”同时确认当前 `persona_mode` 与 `voice_id`；可用”修改：人格=参考它写””修改：写作声音=清晰分析”更新选择。
+12. 内容契约确认后，已选择 Persona 时保留所选内置或外部 `SKILL.md` 的原始字节不变，写入任务内 `persona-skill.md`；另生成自由格式 `persona-brief.md`，记录本次采用部分、背景、角色侧重、边界，以及来源路径、版本和 SHA-256。确认两份文件的 hash；恢复任务只复用这两份任务内文件，不回读或从任何内置、外部来源重建当前版本。未选择 Persona 时写入 `persona_mode: none`，不创建人格文件。
+13. 内容契约确认后立即读取 `references/run-spec.md`，生成冻结的 `{run_dir}/spec.md`；从 Spec 投影 Persona-neutral 的 `brief.md`。
+14. 内容契约确认后、任何初稿前创建或确认 `voice-profile-snapshot.json`。显式非默认 Voice 不可用、无效或创建失败时停留在”等待契约确认”，展示可用项并阻止进入 Phase 3；`natural-default` 运行异常记录 `voice_snapshot: unavailable`，继续既有自然写作而不声称已应用 Voice。
+15. **标准或深度写作**在内容契约确认后、Phase 1 前读取 `references/personal-context.md`：在既有 `{run_dir}` 创建或确认 `personal-context-snapshot.json`。只把用户明确选择且已满足 visibility/approval 的素材写入 Snapshot；失败时摘要写 `personal_context: unavailable`，不扫描全局个人目录，也不把未读取资料写成已使用。深度写作只由 Lead 创建/确认 Snapshot，并通过后续 Manifest 将任务内文件交给 Writer 或 Auditor。Voice Snapshot、Persona Snapshot 与 Personal Context Snapshot 独立，互不写入。
 
 产物：
 
-- `spec.md`
+- `spec.md`（快速模式简化）
 - `brief.md`
 - `channel-contract.yaml`
-- `capability-preflight.md`
+- `capability-preflight.md`（快速模式不生成，除非有复杂素材需要处理）
 - `status.json`
 - 选择 Persona 时追加 `persona-skill.md` 与 `persona-brief.md`
 
-`capability-preflight.md` 先记录 `selected_mode`、`mode_readiness` 和诊断编号，再记录外部能力、deep 所需的 `handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。
+`capability-preflight.md` 先记录 `selected_mode`、`mode_readiness` 和诊断编号，再记录外部能力、deep 所需的 `handoff_runtime: available | unavailable` 和素材接收结果。每项素材至少记录输入名称、类型、状态、提取产物、失败影响、是否需要用户确认和下一步；素材接收状态使用 `received | extracting | extracted | pending | failed`。快速模式只在用户提供了需要提取的复杂素材（网页、YouTube、文件）时才生成此文件；简单文本素材直接进入 brief.md。
 
 `channel-contract.yaml` 只记录本次目标，并保留所选平台 YAML 的长度、输出类型、视觉和必要派生产物字段；至少补充：
 
@@ -213,7 +215,7 @@ output_filename: final.md
 content_type: release | analysis | review | opinion | tutorial | story
 application_depth: none | scenario | actionable | reproducible
 application_depth_source: user | ai
-evidence_level: light | standard | strict
+evidence_level: relaxed | balanced | strict
 source_display: inline | footnote | endnotes | none
 asset_policy: source_first | mixed | text_only
 ai_editorial_visuals: allowed | ask | excluded
@@ -223,6 +225,19 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 ### Phase 1：事实与素材双轨调研
 
 读取 `references/evidence-and-assets.md`。
+
+**自动调研（Auto Research）**：当满足以下条件时，自动执行实时检索，无需等待用户明确提供素材：
+- 主题涉及近期 AI 产品发布、技术更新、热点事件（如"Claude 5"、"GPT-5"、"最新 AI 新闻"）
+- 用户明确要求"最新信息"、"热点"、"近期动态"
+- 标准或深度模式，且主题明确需要时效性数据
+
+自动调研流程：
+1. 检查实时检索能力（web_search 或相关 MCP 工具）
+2. 基于主题自动构造搜索查询
+3. 提取关键信息并写入 `sources.yaml` 和 `brief.md`
+4. 向用户展示"已自动搜集：{来源列表}"，直接进入写作，不等待"素材已接收"确认
+
+快速模式的自动调研更激进：只要主题需要最新信息，立即执行；标准模式在主题明确时执行；深度模式在 Topic Research 阶段执行完整调研。
 
 本阶段不得读取 `voice-profile-snapshot.json`、`persona-brief.md`、`persona-skill.md` 或来源 Persona Skill；传给 Researcher 的 `brief.md` 是 Persona-neutral 研究投影，不含 Persona 原文、背景、拟采用部分或角色侧重。Voice 和 Persona 不影响来源、事实、素材和 accepted claim 的判断。
 
@@ -240,12 +255,12 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 产物：
 
-- `sources.yaml`
-- `claims.yaml`
+- `sources.yaml`（快速模式可选，只在有明确来源素材时生成）
+- `claims.yaml`（快速模式不生成）
 - `asset-manifest.yaml`
-- `research-summary.md`
+- `research-summary.md`（快速模式简化为 `references.md`）
 
-快速模式只维护实际会进入正文的关键主张；标准和深度模式维护完整证据链。涉及近期变化、产品能力、数据、政策或版本时，执行实时检索。素材提取成功不等于事实确认；失败或待确认的素材继续保留在 `capability-preflight.md`，并在任务摘要中说明影响。
+快速模式只维护实际会进入正文的关键主张，不生成完整的 sources.yaml 和 claims.yaml；标准和深度模式维护完整证据链。涉及近期变化、产品能力、数据、政策或版本时，执行实时检索。素材提取成功不等于事实确认；失败或待确认的素材继续保留在 `capability-preflight.md`，并在任务摘要中说明影响。
 
 标准写作如有个人上下文，只读取任务 Snapshot（`personal-context-snapshot.json`）和 `context-materials/`；不得在调研阶段回读全局个人素材目录。
 
@@ -301,6 +316,9 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 三层职责：
 
 1. **证据层**：事实、日期、版本、因果、引用身份和主张边界，以及 `source_display=endnotes` 的正文身份标签与尾注分工。
+   - **relaxed**（快速模式）：只检查明显错误，不要求来源
+   - **balanced**（标准模式，默认）：只验证**核心数据**（价格、日期、版本号、性能指标、统计数字），作者观点、常识性陈述、个人经历不需要 claim_id
+   - **strict**（深度模式）：逐个验证所有事实性陈述的 claim_id、来源可达性、内容一致性、时效性
 2. **编辑层**：观点、结构、段落作用、反例、读者决策和冗余。
 3. **声音层**：用户风格偏差、模板句、虚假口语、节奏和平台适配。
 
@@ -310,7 +328,12 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 审校结果必须按严重程度汇总给用户：阻断问题需要补充来源、缩小表述、修改要求或重新生成受影响部分；主要和次要问题可以接受、带理由忽略或请求重写。先集中询问真正需要用户决定的方向性问题，再统一修订，避免每条小问题打断写作。
 
-产物：`review-report.yaml`、`draft-v2.md`、`revision-report.yaml`、`final.md`。`revision-report.yaml` 逐项对应已接受的问题和处理结果。阻断问题未关闭前，任务不得进入已完成、视觉生产或发布状态。
+产物：
+
+- **快速模式**：`suggestions.md`（2-3 条可选改进建议）、`final.md`（直接从 draft.md 修订）
+- **标准/深度模式**：`review-report.yaml`、`draft-v2.md`、`revision-report.yaml`、`final.md`
+
+`revision-report.yaml` 逐项对应已接受的问题和处理结果。阻断问题未关闭前，任务不得进入已完成、视觉生产或发布状态。
 
 ### Phase 5：标题与 canonical final 验收
 
@@ -331,8 +354,19 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 ### Phase 6：交付包、视觉、排版与发布
 
-任务只在核心交付包有效时标记完成。所有模式的核心交付包至少包含：
+任务只在核心交付包有效时标记完成。核心交付包根据模式不同：
 
+**快速模式**：
+- `final.md`
+- `references.md`（如果有素材）
+
+**标准模式**：
+- `final.md`
+- `sources.yaml`
+- `claims.yaml`（简化版，只包含核心数据）
+- `review-notes.md`
+
+**深度模式**：
 - `final.md`
 - `sources.yaml`
 - `claims.yaml`
@@ -341,7 +375,7 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 - `revision-report.yaml`
 - `acceptance-report.md`
 
-`acceptance-report.md` 必须列出交付包清单、缺失项、canonical final 的内容验收结果、当前渠道必要产物的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
+快速模式不生成 `acceptance-report.md`；标准模式生成简化的验收确认；只有深度模式生成完整的 `acceptance-report.md`，必须列出交付包清单、缺失项、canonical final 的内容验收结果、当前渠道必要产物的状态，以及最终验收结论。用户收到简洁交付摘要和全部文件位置。
 
 主写作的完整交付还必须满足当前 `channel-contract.yaml`：
 
@@ -399,7 +433,12 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 ### 用户正文：所选模式未就绪
 
 ```text
-所选的{模式显示名}当前未就绪，任务已停止，尚未进入调研或写作。
+所选的{模式显示名}当前未就绪，尚未进入调研或写作。系统不会自动替你切换模式。
+
+你可以选择：
+1. 改用可用模式继续：仅显示实际可用的模式，并先说明相对所选模式将减少或改变的调研、审校或协作能力；只有你明确选择后才继续。
+2. 保留任务：保留当前任务和诊断记录，不继续执行，之后可在所选模式就绪的环境中处理。
+3. 取消：取消当前任务，不再继续执行。
 
 如需反馈，请提交 Issue，并附上：
 诊断编号：WM-CAP-001
