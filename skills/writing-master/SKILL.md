@@ -226,6 +226,19 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 读取 `references/evidence-and-assets.md`。
 
+**自动调研（Auto Research）**：当满足以下条件时，自动执行实时检索，无需等待用户明确提供素材：
+- 主题涉及近期 AI 产品发布、技术更新、热点事件（如"Claude 5"、"GPT-5"、"最新 AI 新闻"）
+- 用户明确要求"最新信息"、"热点"、"近期动态"
+- 标准或深度模式，且主题明确需要时效性数据
+
+自动调研流程：
+1. 检查实时检索能力（web_search 或相关 MCP 工具）
+2. 基于主题自动构造搜索查询
+3. 提取关键信息并写入 `sources.yaml` 和 `brief.md`
+4. 向用户展示"已自动搜集：{来源列表}"，直接进入写作，不等待"素材已接收"确认
+
+快速模式的自动调研更激进：只要主题需要最新信息，立即执行；标准模式在主题明确时执行；深度模式在 Topic Research 阶段执行完整调研。
+
 本阶段不得读取 `voice-profile-snapshot.json`、`persona-brief.md`、`persona-skill.md` 或来源 Persona Skill；传给 Researcher 的 `brief.md` 是 Persona-neutral 研究投影，不含 Persona 原文、背景、拟采用部分或角色侧重。Voice 和 Persona 不影响来源、事实、素材和 accepted claim 的判断。
 
 当用户明确只要选题、内容契约仍是宽主题，或要求近期热点/值得关注的话题时，先读取 `references/research-brief.md` 并执行 Topic Research：
