@@ -21,7 +21,6 @@
 - `draft-v1.md`
 - 需要个人上下文时，Manifest 列出的任务内 `personal-context-snapshot.json` 与 `context-materials/ITEM_ID.md` 副本
 - 选择 Persona（内置或外部）时，任务内 `persona-brief.md` 与其 `sha256`（与 Editorial Strategist、Writer 使用同一任务文件）
-- `voice-profile-snapshot.json` 与其 `sha256`（仅当 Manifest 明确列出；与 Writer 使用同一任务 Snapshot）
 
 首轮不读取 Writer 的解释、父对话全文、历史表现数据和其他审计结论。
 

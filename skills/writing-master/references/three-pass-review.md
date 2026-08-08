@@ -14,7 +14,6 @@
 - `outline.md`
 - `draft-v1.md`
 - 用户风格档案与少量代表性正反例
-- 当前任务的 `voice-profile-snapshot.json`（仅 Voice Audit；不得用全局 Registry 替代）
 - 选择 Persona（内置或外部）时，当前任务的 `persona-brief.md`（Editorial、Writer、Auditor 共用同一份）
 - `editorial-brief.md` 中的 `recommended_combo`
 
@@ -177,7 +176,7 @@ Persona 身份、背景、`author/reference` 模式或 Brief 采用边界违规�
 
 让表达与用户的可观察写作习惯和目标平台一致，同时保持准确、自然和完整。
 
-Voice Preset 已选择时，Auditor 使用 Writer 的同一份任务 `voice-profile-snapshot.json`；它只影响表达检查，不得覆盖事实、证据边界、核心判断、作者立场或真实经历。Snapshot 结构、任务 ID 或 hash 失败时，停止 Voice Audit 和后续验收/发布，不读取当前 Registry 代替。
+Voice Audit 使用与 Writer 相同的任务输入：用户风格档案，以及选择 Persona 时的任务内 `persona-brief.md`。它只检查表层表达，不得覆盖事实、证据边界、核心判断、作者立场或真实经历。
 
 ### 检查项
 

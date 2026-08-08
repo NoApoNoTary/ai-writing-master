@@ -17,8 +17,7 @@
 - 原有限定条件、反例和不确定性得到保留。
 - 作者立场保持一致，表达方式可以变化。
 - 没有新增来源不明的个人经历、测试结果或数据。
-- Rewrite 不重新选择 Voice，也不以渠道刻板话术覆盖 source 的已验收声音。
-- `accepted_final` 的 `voice_snapshot=ready` 时，source analysis 必须绑定同一任务的冻结 Voice Snapshot hash。
+- Rewrite 不重新选择表达风格，也不以渠道刻板话术覆盖 source 的已验收声音。
 
 该门槛由编辑审查完成。
 

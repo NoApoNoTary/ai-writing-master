@@ -18,7 +18,6 @@
 - `storyboard.md`
 - 需要个人上下文时，Manifest 列出的任务内 `personal-context-snapshot.json` 与 `context-materials/ITEM_ID.md` 副本
 - 选择 Persona（内置或外部）时，任务内 `persona-brief.md` 与其 `sha256`
-- `voice-profile-snapshot.json` 与其 `sha256`（仅当 Manifest 明确列出；Deep 模式的唯一 Voice 输入）
 
 不读取父对话全文、未采用方向、原始搜索噪声、其他 Reviewer 讨论或历史表现数据。
 
