@@ -102,7 +102,7 @@ Agent：[不询问确认，直接开始]
 ### 实现要点
 
 **✅ 做什么**:
-- 能推断的默认值都用上（渠道格式、Persona、Voice Preset）
+- 能推断的默认值都用上（渠道格式、Persona）
 - 最少文件：只生成必要的
 - 快速验证：只检查明显错误
 
@@ -113,7 +113,6 @@ Agent：[不询问确认，直接开始]
 - 不生成 acceptance-report.md
 - 不分证据层/编辑层/声音层审校
 - 不逐个确认素材
-- 不询问 Voice Preset
 - 不问"内容契约是否满意"
 
 ## Standard Mode — 标准写作（**推荐**）
@@ -529,7 +528,6 @@ Deep:     strict   （完整证据链）
 - [ ] 不生成 capability-preflight.md
 - [ ] 不生成 sources.yaml / claims.yaml
 - [ ] 一次性审校 → suggestions.md
-- [ ] 不询问 Voice Preset（用默认）
 - [ ] 总耗时 < 5 分钟
 
 ### Standard Mode
