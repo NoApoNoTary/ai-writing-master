@@ -25,4 +25,4 @@ writing-master = "writing_master.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-writing_master = ["voice_profiles/*.json", "persona_templates/*/SKILL.md"]
+writing_master = ["persona_templates/*/SKILL.md"]

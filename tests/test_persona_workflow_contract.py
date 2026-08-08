@@ -29,7 +29,6 @@ class PersonaWorkflowContractTests(unittest.TestCase):
         self.editorial = read("skills/writing-master/agents/editorial-strategist.md")
         self.writer = read("skills/writing-master/agents/writer.md")
         self.auditor = read("skills/writing-master/agents/auditor.md")
-        self.voice = read("skills/writing-master/references/voice-presets.md")
         self.review = read("skills/writing-master/references/three-pass-review.md")
         self.context = read("skills/writing-master/references/personal-context.md")
 
@@ -93,13 +92,12 @@ class PersonaWorkflowContractTests(unittest.TestCase):
         self.assertIn("同一份 Persona Brief", self.orchestration)
 
     def test_persona_and_voice_stay_composable_and_separate(self):
-        combined = self.contract + self.voice + self.main
+        combined = self.contract + self.main
         for token in (
             "两者可以组合",
-            "Persona 负责身份",
-            "Voice 只负责表层表达",
-            "互不转换",
-            "voice-profile-snapshot.json",
+            "职责保持分离",
+            "Voice Snapshot：词汇、句式",
+            "不写入 `voice-profile-snapshot.json`",
         ):
             self.assertIn(token, combined)
 
@@ -111,18 +109,16 @@ class PersonaWorkflowContractTests(unittest.TestCase):
         self.assertIn("不回读来源", self.orchestration)
         self.assertIn("不得读取 `persona-skill.md`、`persona-brief.md`", self.researcher)
         self.assertIn("Persona 来源 Skill（内置或外部）", self.researcher)
-        self.assertIn("所选 Persona Skill（内置或外部）", self.voice)
         self.assertIn("选择 Persona（内置或外部）", self.review)
         self.assertIn("所选 Persona（内置或外部）", self.context)
 
-    def test_ready_persona_or_voice_change_creates_a_new_run_without_overwrite(self):
+    def test_ready_persona_change_creates_a_new_run_without_overwrite(self):
         for token in (
             "`persona_snapshot=ready`",
-            "`voice_snapshot=ready`",
             "展示同样的差异",
             "创建新 Writing run",
             "新 run 的 `source_task_id` 记录当前 `task_id`",
-            "`source_change_kind` 记录 `persona` 或 `voice`",
+            "`source_change_kind` 记录 `persona`",
             "`source_change_sha256` 记录变更摘要 hash",
             "当前 run 的关联字段和冻结 Snapshot 均不改写",
         ):
@@ -139,12 +135,10 @@ class PersonaWorkflowContractTests(unittest.TestCase):
 
     def test_voice_snapshot_controls_overlapping_surface_expression(self):
         surface = "词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比"
-        for document in (self.contract, self.main, self.writer):
+        for document in (self.contract, self.writer):
             self.assertIn(surface, document)
             self.assertIn("显式非默认 Voice", document)
             self.assertIn("不得覆盖", document)
-        self.assertIn("词汇、句式、节奏、段落形态、开场", self.voice)
-        self.assertIn("显式非默认 Voice 以 Voice Snapshot 为准", self.voice)
         self.assertIn("Persona 决定身份、判断与背景", self.contract)
         self.assertIn("`natural-default` 时 Persona 的表达建议", self.contract)
         template = read("src/writing_master/persona_templates/khazix-writer/SKILL.md")

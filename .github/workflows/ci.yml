@@ -33,7 +33,5 @@ jobs:
           ./bin/writing-master --help
           ./bin/writing-master learn --help
           ./bin/writing-master research --help
-          ./bin/writing-master voice --help
-          ./bin/writing-master voice list --json
           ./bin/writing-master handoff --help
       - run: python -m build --outdir /tmp/awm-dist

@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "src/writing_master"
-DOMAIN_MODULES = {"handoff", "persona", "personal_context", "research_brief", "voice_presets"}
+DOMAIN_MODULES = {"handoff", "persona", "personal_context", "research_brief"}
 PLATFORM_PRIMITIVE_ALLOWLIST = {
     "_runfs.py",
     "handoff.py",
@@ -78,16 +78,6 @@ class ArchitectureContractTests(unittest.TestCase):
                     violations.append(f"{relative}:{node.lineno}: dir_fd")
         self.assertEqual(violations, [])
 
-    def test_voice_depends_on_runfs_not_handoff_or_research_internals(self):
-        source = (PACKAGE / "voice_presets.py").read_text(encoding="utf-8")
-        handoff_source = (PACKAGE / "handoff.py").read_text(encoding="utf-8")
-        self.assertIn("from writing_master._runfs import", source)
-        self.assertNotIn("writing_master.handoff", source)
-        self.assertNotIn("writing_master.research_brief", source)
-        self.assertNotIn("_publish_json_once_at", source)
-        self.assertIn("from writing_master.voice_presets import VoiceError, validate_snapshot", handoff_source)
-        self.assertNotIn("/proc/self/fd", handoff_source)
-
     def test_codex_host_calls_stay_out_of_runtime_modules(self):
         runtime = "\n".join(path.read_text(encoding="utf-8") for path in PACKAGE.glob("*.py"))
         for token in ("spawn_agent", "fork_turns", "task_name"):
@@ -98,7 +88,6 @@ class ArchitectureContractTests(unittest.TestCase):
             "handoff.py": "SCHEMA_VERSION",
             "personal_context.py": "SCHEMA_VERSION",
             "research_brief.py": "RESEARCH_BRIEF_SCHEMA_VERSION",
-            "voice_presets.py": "SCHEMA_VERSION",
         }
         for filename, constant in expected.items():
             tree = ast.parse((PACKAGE / filename).read_text(encoding="utf-8"))

@@ -21,7 +21,7 @@ requested_capabilities:
   - cover
   - wechat_html
 handoff_runtime: available | unavailable
-visual_execution_mode: claude_inline | gpt_handoff
+visual_execution_mode: null
 visual_execution_reason: null
 available_skills:
   baoyu-url-to-markdown: true
@@ -32,7 +32,7 @@ selected_routes: []
 missing_routes: []
 ```
 
-`visual_execution_mode` 默认为 `claude_inline`；用户明确要求"交给 GPT"、"GPT 完成"、"Codex 执行"或"外部配合 Codex"时设为 `gpt_handoff`。
+`visual_execution_mode` 在 Phase 0（Level 1 预检）时保持 `null`；只有在用户于 Phase 6 明确回复执行方式后，才由 Writing Master 将其设为 `claude_inline` 或 `gpt_handoff`，并同步写入 `status.json`。Phase 0 阶段不默认任何执行模式，也不假设用户选择。
 
 预检只确认“这次可能用到什么、当前有哪些能力、需要哪些输入”，不触发图像生成、排版或发布。
 
@@ -103,12 +103,14 @@ missing_routes: []
 
 进入 Level 3 时先识别用户意图：
 
-| 用户表述 | 执行模式 | 行为 |
-|---|---|---|
-| "交给 GPT"、"GPT 完成"、"Codex 执行"、"外部配合 Codex" | `gpt_handoff` | 生成交付文档，停在当前会话 |
-| 其他或默认 | `claude_inline` | 当前 Agent 调用 Baoyu Skills 完成视觉和发布 |
+进入 Level 3 前，`visual_execution_mode` 必须已由用户在 Phase 6 明确回复，且已写入 `status.json`（值为 `claude_inline` 或 `gpt_handoff`，`visual_execution_selected: true`）。未收到明确回复时不得进入 Level 3 视觉生产。
 
-#### claude_inline 模式（默认）
+| 用户表述（Phase 6 回复） | 执行模式 | 行为 |
+|---|---|---|
+| 回复 1、"Claude 做" 或等效表述 | `claude_inline` | 当前 Agent 调用 Baoyu Skills 完成视觉和发布 |
+| "交给 GPT"、"GPT 完成"、"Codex 执行"、"外部配合 Codex" | `gpt_handoff` | 生成交付文档，停在当前会话 |
+
+#### claude_inline 模式
 
 | 任务 | Baoyu Skill | 主要输入 | 输出 |
 |---|---|---|---|

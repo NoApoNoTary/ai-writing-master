@@ -21,15 +21,9 @@ from writing_master.persona import (
     PersonaError,
     verify_task_files_at,
 )
-from writing_master.voice_presets import VoiceError, validate_snapshot
-
-
 SCHEMA_VERSION = 1
 ROLES = {"lead", "researcher", "editorial_strategist", "writer", "auditor"}
 FAILURE_TYPES = {"input_error", "host_failure", "role_failure", "output_validation", "cancelled"}
-VOICE_SNAPSHOT_FILE = "voice-profile-snapshot.json"
-VOICE_ROLES = {"writer", "auditor"}
-VOICE_FREE_ROLES = {"researcher", "editorial_strategist"}
 PERSONA_ROLES = {"editorial_strategist", "writer", "auditor"}
 PERSONA_FREE_ROLES = {"researcher"}
 TRANSITIONS = {
@@ -398,42 +392,6 @@ def _write_status(run_dir: Path, status: dict, *, directory_fd: int | None = Non
         _atomic_write_json_at(directory_fd, "status.json", status)
 
 
-def _voice_scoped_inputs(status: dict, to_role: str, inputs: list[str]) -> list[str]:
-    """Apply the task Voice boundary before manifest hashes are frozen."""
-    scoped = list(inputs)
-    state = status.get("voice_snapshot")
-    if to_role in VOICE_FREE_ROLES and VOICE_SNAPSHOT_FILE in scoped:
-        raise HandoffError(f"{to_role} must not receive {VOICE_SNAPSHOT_FILE}")
-    if state not in {None, "pending", "ready", "legacy", "unavailable"}:
-        raise HandoffError("status.json has an invalid Voice Snapshot state")
-    if state == "pending" and to_role in VOICE_ROLES:
-        raise HandoffError("Voice Snapshot must be ready before Writer or Auditor handoff")
-    if state != "ready":
-        if VOICE_SNAPSHOT_FILE in scoped:
-            raise HandoffError(f"{VOICE_SNAPSHOT_FILE} requires voice_snapshot=ready")
-        return scoped
-    if to_role in VOICE_ROLES and VOICE_SNAPSHOT_FILE not in scoped:
-        scoped.append(VOICE_SNAPSHOT_FILE)
-    return scoped
-
-
-def _validate_ready_voice_snapshot(run_fd: int, status: dict) -> None:
-    """Validate the frozen Voice contract without consulting the mutable registry."""
-    try:
-        snapshot = read_json_at(run_fd, VOICE_SNAPSHOT_FILE)
-        validate_snapshot(snapshot)
-    except (ContextError, VoiceError) as error:
-        raise HandoffError(f"invalid Voice Snapshot: {error}") from error
-    expected = {
-        "voice_id": snapshot["profile_id"],
-        "voice_profile_version": snapshot["profile_version"],
-        "voice_snapshot": "ready",
-        "voice_snapshot_sha256": snapshot["snapshot_sha256"],
-    }
-    if snapshot["task_id"] != status["task_id"] or any(status.get(key) != value for key, value in expected.items()):
-        raise HandoffError("status.json does not match Voice Snapshot")
-
-
 def _persona_state(status: dict) -> tuple[object, object]:
     state = status.get("persona_snapshot")
     mode = status.get("persona_mode")
@@ -600,10 +558,7 @@ def prepare(
             elif current_state and current_state["status"] in {"failed", "stale"}:
                 if retry != (current_manifest["phase"], current_manifest["to_role"]):
                     raise HandoffError("retry the current failed or stale handoff before downstream work")
-            scoped_inputs = _voice_scoped_inputs(status, to_role, inputs)
-            scoped_inputs = _persona_scoped_inputs(status, to_role, scoped_inputs)
-            if status.get("voice_snapshot") == "ready" and to_role in VOICE_ROLES:
-                _validate_ready_voice_snapshot(run_fd, status)
+            scoped_inputs = _persona_scoped_inputs(status, to_role, inputs)
             if status.get("persona_snapshot") == "ready" and to_role in PERSONA_ROLES:
                 _validate_ready_persona_snapshot(run_fd, status)
             for raw in scoped_inputs:

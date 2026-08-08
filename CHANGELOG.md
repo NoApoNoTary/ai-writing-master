@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Removed
+
+- 移除 `writing-master voice` 命令、内置 Voice Registry 与 `voice_presets` 模块：写作声音不再是独立可选项，自然表达由 Persona 与 Style Observation 决定。
+- 移除 `writing-master learn propose` 的 `--run-dir` 参数：不再需要 Voice 隔离校验。
+
 ### Added
 
 - 增加 evidence_level 三级证据等级系统：relaxed（快速草稿）、balanced（标准写作，默认）、strict（深度写作）。

@@ -622,9 +622,7 @@ class WritingSkillContractTests(unittest.TestCase):
             "任一 hash 不一致时为当前 source 重新分析",
         )
         self.assertIn("是否复用及其 hash", delivery)
-        self.assertIn("voice_basis:", analysis)
         self.assertIn("supporting_artifacts:", analysis)
-        self.assertIn("冻结 Voice Snapshot", analysis)
         self.assertIn("短渠道 final 不会丢掉已经完成的研究依据", analysis)
         self.assertIn("不写 `target_id`、渠道结构或渠道输出决定", analysis)
 
@@ -722,35 +720,16 @@ class WritingSkillContractTests(unittest.TestCase):
         self.assertFalse(any("channel" in path or "adapter" in path for path in python_files))
         self.assertFalse((runtime / "channels").exists())
 
-    def test_voice_selection_is_part_of_the_content_contract_not_a_waiting_gate(self):
-        main = read("skills/writing-master/SKILL.md")
-        phase0 = section(main, "### Phase 0：内容契约、能力预检与素材接收")
-        waiting = section(main, "## 用户等待与继续方式")
-        voice = read("skills/writing-master/references/voice-presets.md")
-
-        self.assertIn("`voice_id` 并入内容契约", phase0)
-        self.assertIn("默认 `natural-default`", phase0)
-        self.assertIn("这不是独立等待点", phase0)
-        self.assertIn("Voice 选择属于内容契约，不增加独立等待点", voice)
-        self.assertNotIn("| 写作声音 |", waiting)
-
-    def test_rewrite_keeps_the_accepted_voice_without_a_selector(self):
-        rewrite = read("skills/writing-rewrite/SKILL.md")
-
-        self.assertIn("Rewrite 不新增、展示或解析 Voice Selector", rewrite)
-        self.assertIn("保留源稿已验收的写作声音，不重新选择 Voice", rewrite)
-
     def test_confirmed_contract_reverts_to_pending_after_material_change(self):
         main = read("skills/writing-master/SKILL.md")
 
         for field in (
-            "主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求或视觉范围，以及尚未 `ready` 的 Persona/Voice 选择",
+            "主题、受众、渠道、篇幅、结构、正文必含内容、应用深度、Evidence 要求或视觉范围，以及尚未 `ready` 的 Persona 选择",
             "变更前后差异",
             "保持不变项",
             "受影响阶段",
             "`current_phase` 退回 `contract`、`phases.contract` 退回 `pending`",
             "`persona_snapshot=ready`",
-            "`voice_snapshot=ready`",
             "创建新 Writing run",
             "新 run 的 `source_task_id` 记录当前 `task_id`",
             "当前 run 的关联字段和冻结 Snapshot 均不改写",

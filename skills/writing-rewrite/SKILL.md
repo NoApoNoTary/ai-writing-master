@@ -1,7 +1,7 @@
 ---
 name: writing-rewrite
 description: |
-  将一份已有 canonical source 改写为一个经过渠道审查的完整成品。每次 Rewrite 只接受一个 target_id；需要第二个渠道时新建一次 Rewrite，并复用相同的 source hash 与 source-analysis。编辑审查负责事实、立场、声音和渠道价值，CLI 只提供机械文本与源稿相似度预警。触发词：改写、渠道适配、公众号版、X 单帖、X Thread、再生成一个渠道版本。
+  将一份已有 canonical source 改写为一个经过渠道审查的完整成品。每次 Rewrite 只接受一个 target_id；需要第二个渠道时新建一次 Rewrite，并复用相同的 source hash 与 source-analysis。编辑审查负责事实、立场和渠道价值，CLI 只提供机械文本与源稿相似度预警。触发词：改写、渠道适配、公众号版、X 单帖、X Thread、再生成一个渠道版本。
 allowed-tools:
   - Bash
   - Read
@@ -15,7 +15,7 @@ allowed-tools:
 
 ## 目标
 
-保留源稿的事实、证据边界、作者立场、真实案例和已验收声音，同时只为本次选择的一个渠道重新决定：
+保留源稿的事实、证据边界、作者立场和真实案例，同时只为本次选择的一个渠道重新决定：
 
 - 内容顺序；
 - 开头与收束；
@@ -34,14 +34,14 @@ allowed-tools:
 - P0 的 `target_id` 只能是 `wechat`、`x-post` 或 `x-thread`
 - 一个 run 只接受一个 `target_id`，不创建目标列表或批处理状态
 - P0 默认并始终使用当前 Agent；深度或多 Agent 改写尚未定义真实渠道角色与 Handoff 合同，收到该请求时说明受影响能力并等待用户确认标准改写或取消
-- Rewrite 不新增、展示或解析 Voice Selector；来自 Writing Master 的 canonical source 保持其已验收声音，只按渠道合同做必要适配，绝不回写来源 `final.md`
+- 来自 Writing Master 的 canonical source 保持其已验收表达，只按渠道合同做必要适配，绝不回写来源 `final.md`
 - 用户需要第二个渠道时新建一次 Rewrite；复用相同 `source_sha256` 和已验证的 `source-analysis.md`，不重复调研，也不把前一个渠道正文作为输入
 
 ## Phase 0：输入、单目标与任务目录
 
 先确定来源，不根据“当前任务存在”自动挑选源稿：
 
-1. `accepted_final`：使用同一 Writing Master 任务的已验收 canonical package。必须读取 `final.md`、`acceptance-report.md`、`sources.yaml` 与 `claims.yaml`；存在时同时读取同一任务的 `editorial-brief.md`、`outline.md` 和 `research-summary.md`。任务状态为 `voice_snapshot=ready` 时，还要读取并校验同一任务的 `voice-profile-snapshot.json`。`acceptance-report.md` 必须确认内容验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或 `final.md` 不得进入 Rewrite，也不得作为视觉、格式或发布来源。
+1. `accepted_final`：使用同一 Writing Master 任务的已验收 canonical package。必须读取 `final.md`、`acceptance-report.md`、`sources.yaml` 与 `claims.yaml`；存在时同时读取同一任务的 `editorial-brief.md`、`outline.md` 和 `research-summary.md`。`acceptance-report.md` 必须确认内容验收通过。未验收的 `draft-v1.md`、`draft-v2.md` 或 `final.md` 不得进入 Rewrite，也不得作为视觉、格式或发布来源。
 2. `standalone_input`：用户直接提供的文件或当前对话中的完整正文。它可作为本次 Rewrite 的独立 canonical source，不要求 Writing Master 的验收报告。
 
 将获准输入复制为本次 run 的 `source.md`，计算 SHA-256；之后 `source.md` 只读。`standalone_input` 不应被描述成已验收的 Writing Master final。
@@ -109,15 +109,13 @@ boundaries:
   - "限制条件或不确定性"
 author_position:
   - "作者明确立场"
-voice_basis:
-  - "来自冻结 Voice Snapshot 或源稿的词汇、句式、节奏和确定性边界"
 personal_materials:
   - "真实经历及其源稿位置"
 optional_details:
   - "不影响核心判断的源稿旁支"
 ```
 
-`accepted_final` 的分析从 `final.md` 与同一只读 canonical package 的 accepted claims、来源边界、编辑判断和冻结 Voice Snapshot 中抽取，因此短渠道 final 不会丢掉已经完成的研究依据或任务级声音；`standalone_input` 只分析用户正文。分析阶段不生成目标渠道文案，也不重新做 Article Research。`source-analysis.md` 不写 `target_id`、渠道结构或渠道输出决定；首次保存后立即计算 SHA-256，并写入 `rewrite-status.json.source_analysis_sha256`。
+`accepted_final` 的分析从 `final.md` 与同一只读 canonical package 的 accepted claims、来源边界和编辑判断中抽取，因此短渠道 final 不会丢掉已经完成的研究依据；`standalone_input` 只分析用户正文。分析阶段不生成目标渠道文案，也不重新做 Article Research。`source-analysis.md` 不写 `target_id`、渠道结构或渠道输出决定；首次保存后立即计算 SHA-256，并写入 `rewrite-status.json.source_analysis_sha256`。
 
 再次基于同一 canonical source 发起 Rewrite 时，优先复制前一 Rewrite 包中的 `source-analysis.md`。复用必须同时满足：分析内记录的 `source_sha256` 与本次 `source.md` 完全一致；`supporting_artifacts` 中每个文件的当前 hash 一致；分析文件当前 SHA-256 与前一 run 的 `rewrite-status.json.source_analysis_sha256` 一致。校验通过后把同一分析 hash 写入新 run，并保持分析文件只读。任一 hash 不一致时为当前 source 重新分析，不继承旧渠道正文或旧分析结论。
 
@@ -130,7 +128,7 @@ optional_details:
 3. 重新建立结构，不沿用源稿段落顺序；
 4. 保留事实、边界和作者立场；
 5. 第一人称只使用源稿或用户提供的真实素材；
-6. 保留源稿已验收的写作声音，不重新选择 Voice；
+6. 保留源稿已验收的写作表达；
 7. 按 YAML 生成正文、标签及必要的格式或视觉需求；
 8. 保存为 YAML 中的 `rewrite_output_filename`。
 
@@ -140,13 +138,13 @@ optional_details:
 
 先执行语义层面的编辑审查，再运行 CLI。
 
-### 事实、立场与声音
+### 事实与立场
 
 - 关键事实与源稿一致；
 - 限制条件得到保留；
 - 没有新增来源不明的经历、数据或测试；
 - 作者立场没有因渠道化而反转；
-- 渠道适配没有覆盖 source 中已经验收的 Voice。
+- 渠道适配没有破坏 source 中已经验收的表达风格。
 
 ### 渠道价值
 
@@ -172,7 +170,6 @@ optional_details:
   "editorial_decision": "pass | revise",
   "fact_issues": [],
   "channel_issues": [],
-  "voice_issues": [],
   "required_changes": []
 }
 ```

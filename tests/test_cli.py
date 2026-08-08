@@ -28,14 +28,12 @@ class CliTests(unittest.TestCase):
             self.assertEqual(main(["--help"]), 0)
         self.assertIn("learn", output.getvalue())
         self.assertIn("research", output.getvalue())
-        self.assertIn("voice", output.getvalue())
         self.assertIn("persona", output.getvalue())
         self.assertIn("failure-cases", output.getvalue())
 
         for command, token in (
             ("learn", "propose"),
             ("research", "verify"),
-            ("voice", "snapshot"),
             ("persona", "snapshot"),
             ("failure-cases", "propose"),
         ):
