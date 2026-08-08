@@ -352,7 +352,59 @@ publish_intent: draft_only | prepare | publish_after_confirmation
 
 验收通过后，`final.md` 成为本次所选渠道的只读 canonical final；本次验收引用的 `sources.yaml`、`claims.yaml`、`editorial-brief.md`、`outline.md` 与 `research-summary.md` 同时冻结为 canonical package 的只读支持产物。此时向 `channel-contract.yaml` 写入 `source_ref: accepted_final` 和 `source_sha256`；后续 Rewrite 可从该 package 建立渠道中立分析，但视觉、排版、Rewrite 和发布都绝不反向改写 canonical package。
 
+**用户审核闸门**：
+
+验收完成后，**必须等待用户明确批准**才能进入 Phase 6。输出：
+
+```
+✓ 定稿已完成并通过内容验收
+
+文件位置：{run_dir}/final.md
+
+请审阅定稿内容。确认无误后，选择下一步：
+• "确认定稿" 或 "进入打包" — 继续视觉生产和渠道交付
+• "修改 [具体部分]" — 重新修订指定内容
+• "重写 [段落/章节]" — 局部重写
+
+当前已停止，等待你的确认。不会自动进入视觉生产或发布。
+```
+
+未收到明确批准（"确认定稿"、"进入打包"、"开始视觉"或等效表述）前，不得进入 Phase 6。
+
 ### Phase 6：交付包、视觉、排版与发布
+
+**入口条件**：
+- `final.md` 已通过 Phase 5 内容验收
+- 用户已明确批准进入打包（见 Phase 5 用户审核闸门）
+
+**视觉执行方式选择**：
+
+进入 Phase 6 后，如果任务需要视觉生产（封面、配图），先询问执行方式：
+
+```
+视觉生产方式：
+1. **Claude 内联生成**（默认）— 当前会话直接调用 baoyu-image-gen 生成图片
+2. **GPT 外部执行** — 生成交付文档（配图规格 + 发布参数），交给 GPT/Codex 完成
+
+选择方式 2 或回复"交给 GPT"/"GPT 完成"/"Codex 执行"时，进入 gpt_handoff 模式。
+默认或回复 1 时，使用 claude_inline 模式。
+```
+
+**claude_inline 模式**（默认）：
+
+当前 Agent 按 `references/baoyu-integration.md` 调用 Baoyu Skills 完成视觉、排版和发布。
+
+**gpt_handoff 模式**：
+
+读取 `references/baoyu-integration.md` 的 `gpt_handoff` 章节，生成两份交付文档：
+- `visual-handoff-for-gpt.md` — 配图设计规格
+- `wechat-publish-spec.md` — 微信发布参数清单
+
+生成后停止当前会话，输出交付文档位置和后续步骤说明。不在当前会话执行 `baoyu-image-gen`、`baoyu-markdown-to-html` 或 `baoyu-post-to-wechat`。
+
+---
+
+**核心交付包**：
 
 任务只在核心交付包有效时标记完成。核心交付包根据模式不同：
 
