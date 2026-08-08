@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
+import re
 import shutil
 from typing import Any, Callable, Literal, Mapping
 
@@ -64,6 +65,51 @@ def classify_generation_failure(error: object) -> str:
     return "generation_error"
 
 
+_REDACTED = "[redacted]"
+_MAX_FAILURE_MESSAGE = 500
+
+# Image backends echo the failing request back in their error text, so an auth
+# failure is exactly the case most likely to carry a live credential. Strip the
+# known secret shapes before the message is stored or surfaced anywhere.
+_SECRET_PATTERNS = (
+    # Authorization header schemes. Runs first so the scheme word survives and
+    # the key=value rule below cannot swallow it and orphan the token.
+    re.compile(r"(?i)\b(bearer|basic|digest)\s+[A-Za-z0-9._\-+/=]{8,}"),
+    # Vendor-prefixed keys: sk-..., xoxb-..., ghp_..., AIza...
+    re.compile(
+        r"\b(?:sk|pk|rk|xox[abprs]|ghp|gho|ghs|github_pat)[-_][A-Za-z0-9_\-]{8,}"
+        r"|\bAIza[A-Za-z0-9_\-]{10,}"
+    ),
+    # key=value and "key": "value" forms. The lookahead keeps an already-masked
+    # value from being matched a second time.
+    re.compile(
+        r"(?i)\b(api[-_]?key|secret[-_]?access[-_]?key|access[-_]?token|refresh[-_]?token"
+        r"|client[-_]?secret|authorization|auth[-_]?token|session[-_]?token|signature"
+        r"|password|passwd|apikey|secret|token|sig)\b([\"']?\s*[:=]\s*[\"']?)"
+        r"(?!\[redacted\]|bearer\b|basic\b|digest\b)[^\s\"'&,;}\]]+"
+    ),
+    # Credentials embedded in a URL userinfo segment.
+    re.compile(r"(?i)\b([a-z][a-z0-9+.\-]*://)[^\s/:@]+:[^\s/@]+@"),
+)
+
+
+def redact_secrets(text: str) -> str:
+    """Mask credential-shaped substrings in provider error text."""
+    redacted = _SECRET_PATTERNS[0].sub(rf"\1 {_REDACTED}", text)
+    redacted = _SECRET_PATTERNS[1].sub(_REDACTED, redacted)
+    redacted = _SECRET_PATTERNS[2].sub(rf"\1\2{_REDACTED}", redacted)
+    redacted = _SECRET_PATTERNS[3].sub(rf"\1{_REDACTED}@", redacted)
+    return redacted
+
+
+def safe_failure_message(error: object) -> str:
+    """Build the stored failure message: redacted, then length-capped."""
+    redacted = redact_secrets(str(error))
+    if len(redacted) > _MAX_FAILURE_MESSAGE:
+        return redacted[:_MAX_FAILURE_MESSAGE] + "…(truncated)"
+    return redacted
+
+
 @dataclass
 class CoverPipeline:
     provider: str
@@ -100,7 +146,7 @@ class CoverPipeline:
         if selected not in _FAILURE_CATEGORIES:
             selected = "generation_error"
         self.failure_category = selected
-        self.failure_message = str(error)
+        self.failure_message = safe_failure_message(error)
         if self.attempts <= self.max_retries:
             self.transition("retrying")
         else:
@@ -192,10 +238,10 @@ class CoverPipeline:
                 if self.state == "generated_raw":
                     self.transition("retrying" if self.attempts <= self.max_retries else "blocked_waiting_user")
                     self.failure_category = classify_generation_failure(error)
-                    self.failure_message = str(error)
+                    self.failure_message = safe_failure_message(error)
                 else:
                     self.failure_category = classify_generation_failure(error)
-                    self.failure_message = str(error)
+                    self.failure_message = safe_failure_message(error)
                     if self.state == "generating":
                         self.transition("retrying" if self.attempts <= self.max_retries else "blocked_waiting_user")
                     elif self.state == "visual_qa_passed":
