@@ -155,6 +155,13 @@ Markdown 格式化和 HTML 转换不属于图像类视觉生产：它们在 cano
 ---
 ```
 
+**严格限制**：`visual-handoff-for-gpt.md` 只包含上述字段。禁止添加：
+- "生成命令参考"或任何 bash 命令示例
+- API key、token 或任何凭据（即使是"示例"）
+- "Prompt 文件"字段或 prompts/ 路径引用
+- "状态"字段或 Visual QA Checklist
+- 任何未在模板中定义的额外节
+
 **2. `wechat-publish-spec.md`** — 发布参数清单
 
 从 `final.md`、`channel-contract.yaml` 和 `acceptance-report.md` 提取：
