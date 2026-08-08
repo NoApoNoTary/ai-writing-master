@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Security
+
+- 封面图管线不再原样保存图像后端的报错文本：`failure_message` 先经过凭据脱敏（API key、Authorization 头、URL userinfo、password/secret/token 等键值形式）再落库，并限长 500 字符。`auth` 类失败恰好最可能携带有效密钥，此前会被原样写入失败报告。
+
 ### Removed
 
 - 移除 `writing-master voice` 命令、内置 Voice Registry 与 `voice_presets` 模块：写作声音不再是独立可选项，自然表达由 Persona 与 Style Observation 决定。
