@@ -2,7 +2,7 @@
 
 **为读者提供价值的 AI 写作系统**
 
-面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定作者人格（可选）与任务级写作声音，完成事实与素材调研、写作、审校和交付。
+面向 AI Agent 的文件化写作工作流：先由用户选择执行模式，再在同一份内容契约中确定作者人格（可选），完成事实与素材调研、写作、审校和交付。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab.svg)](pyproject.toml)
@@ -95,7 +95,7 @@
 ```text
 模式选择
   → 所选模式就绪检查
-  → 单一 target_id + 内容契约（含内置/外部 Persona 与写作声音）+ 能力/素材预检
+  → 单一 target_id + 内容契约（含内置/外部 Persona）+ 能力/素材预检
   → 事实轨 + 素材轨调研
   → 角度、读者决策、大纲和 storyboard
   → 初稿
@@ -124,8 +124,6 @@
 任务：TASK_ID（已建立任务目录时显示）
 模式：标准写作
 渠道：wechat
-写作声音：自然默认
-voice_snapshot：ready
 阶段：等待内容契约确认
 已完成：素材接收结果
 下一步：回复“确认”，或说明要修改的字段
@@ -133,9 +131,9 @@ voice_snapshot：ready
 
 素材接收先报告已接收、已提取、等待处理、失败和待确认项；接收或提取不表示其中事实已经接受。进入正文的陈述仍关联来源和 `claim_id`，真实素材与后续生成的编辑视觉也保持不同身份。
 
-内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、一个 `target_id`、目的、篇幅、时效、证据等级、写作声音及视觉、排版和发布意图。写作声音默认是“自然默认”，可按序号、稳定 ID 或显示名称修改，不增加独立等待点。用户可以确认、指出修改字段或取消。
+内容契约合并请求中已明确的信息，只追问阻断字段，并确认主题、读者、一个 `target_id`、目的、篇幅、时效、证据等级及视觉、排版和发布意图。用户可以确认、指出修改字段或取消。
 
-内容契约每次也会询问是否使用作者人格：不使用、让这个人格来写，或参考这个人格写。人格来源可以是内置的 `khazix-writer` 模板，也可以是用户给出的 Nuwa 等 Persona Skill 名称或路径。原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责身份、背景、观察和判断方式；Voice Snapshot 负责词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比。自然默认声音可采纳人格的表达建议；显式非默认声音覆盖同维度建议。
+内容契约每次也会询问是否使用作者人格：不使用、让这个人格来写，或参考这个人格写。人格来源可以是内置的 `khazix-writer` 模板，也可以是用户给出的 Nuwa 等 Persona Skill 名称或路径。原始 `SKILL.md` 原样保存到任务目录，并生成仅供本次任务使用的 `persona-brief.md`。人格负责身份、背景、观察和判断方式，也可以提供词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比等表达建议；事实、证据边界、核心判断、作者立场和真实经历始终优先。
 
 先完成内容验收，使 `final.md` 成为所选渠道的 canonical final；仅在其后生成渠道 YAML 要求的必要产物。交付包验收再列出文件位置和缺失项：核心包为 `final.md`、`sources.yaml`、`claims.yaml`、`asset-manifest.yaml`、`review-report.yaml`、`revision-report.yaml`、`acceptance-report.md`，外加当前渠道必要产物。微信完整交付包含格式化 Markdown、HTML 和封面；X 单帖与 X Thread 交付各自经过逐项渠道审查的正文。
 
@@ -247,11 +245,6 @@ writing-master research verify RUN_DIR --json
 writing-master failure-cases list --status active --json
 writing-master failure-cases snapshot RUN_DIR --tag wechat --limit 5 --json
 
-# 列出声音并冻结任务 Snapshot
-writing-master voice list --json
-writing-master voice snapshot RUN_DIR clear-analytical --source content-contract --json
-writing-master voice verify-run RUN_DIR --json
-
 # 列出并冻结人格模板
 writing-master persona list --json
 writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md --mode reference --content-type analysis --background project --json
@@ -259,7 +252,7 @@ writing-master persona snapshot RUN_DIR khazix-writer persona-brief-draft.md --m
 writing-master persona snapshot RUN_DIR /path/to/SKILL.md persona-brief-draft.md --mode author --content-type analysis --background project --json
 writing-master persona verify-run RUN_DIR --json
 
-# Persona/Voice ready 后变更：新 run 的 status.json 追踪 source_task_id、source_change_kind、source_change_sha256
+# Persona ready 后变更：新 run 的 status.json 追踪 source_task_id、source_change_kind、source_change_sha256
 
 # 生成或校验公众号发布时间建议
 writing-master wechat-timing recommend --timezone Asia/Shanghai --content-type article --timeliness evergreen --length medium
@@ -272,15 +265,9 @@ writing-master wechat-timing verify wechat-draft-report.json
 
 完整说明见 [CLI 工具指南](docs/cli-guide.md)。
 
-## Voice Preset：任务级写作声音
-
-Voice Preset 当前有五个内置 Profile，只控制词汇、句式、节奏、段落、开场、转折、确定性、幽默和类比，不改变事实、证据边界、核心判断、作者立场或真实经历。内置声音继续作为独立表层表达选项；内容契约确认后写入不可变的 `voice-profile-snapshot.json`，后续恢复只读任务快照，不回读已变化的 Registry。
-
-Quick / Standard 只在初稿和 Voice Audit 读取该 Snapshot。Deep 模式仅 Writer 与 Auditor 的 Manifest 可列出它；Researcher 与 Editorial Strategist 不读取。非默认 Voice 任务默认不作为长期 Style Observation 的 baseline/evidence，平台 Rewrite 继续从已验收 canonical final 开始，不重新选择 Voice。
-
 ## 作者人格：内置模板或直接复用 Persona Skill
 
-项目内置 `khazix-writer` / 卡兹克科技观察（实验）模板；Nuwa 等工具产出的作者人格也可以直接以原始 `SKILL.md` 接入，不转换成固定 Voice JSON。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时只校验并使用任务副本及 hash，不回读或从已变化的内置、外部来源重建当前版本。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
+项目内置 `khazix-writer` / 卡兹克科技观察（实验）模板；Nuwa 等工具产出的作者人格也可以直接以原始 `SKILL.md` 接入，不转换成固定 Persona Schema。每次任务可选择“不使用”“让这个人格来写”或“参考这个人格写”，并选择使用默认背景、追加本次项目背景或本次不生成背景。任务目录保存原始副本和自由格式 `persona-brief.md`；恢复时只校验并使用任务副本及 hash，不回读或从已变化的内置、外部来源重建当前版本。Researcher 保持事实中立，Editorial Strategist、Writer 与 Auditor 使用同一份 Brief。
 
 ## Personal Context：显式、可追溯的个人上下文
 
@@ -298,7 +285,7 @@ writing-master context material add experience.md \
   --visibility ask_before_use --tag example
 
 # Candidate 只进入 proposed；接受或拒绝都需要显式决定
-writing-master learn propose style-candidate.json --run-dir RUN_DIR --json
+writing-master learn propose style-candidate.json --json
 writing-master learn decide OBSERVATION_ID --accept --json
 ```
 

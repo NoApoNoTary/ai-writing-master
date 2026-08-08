@@ -48,3 +48,25 @@ Read `docs/PRODUCT_VISION.md` and `skills/writing-master/DESIGN_PRINCIPLES.md` f
 - If `.codegraph/` exists, use CodeGraph first (`codegraph explore "..."`) before grep/find.
 - Shared runtime is `~/.writing-master`; resume with an explicit `task_id`/`run_dir`, and never have two writers modify the same run.
 - Validation: `PYTHONPATH=src python -m unittest discover -s tests -v`; `PYTHONPYCACHEPREFIX=/tmp/awm-pyc python -m compileall -q src tests`; `bash -n install.sh`; `./bin/writing-master --help`.
+
+### ⚠️ Workflow Tool Usage — CRITICAL
+
+**When writing Workflow scripts that spawn subagents:**
+
+- ❌ **NEVER instruct subagents to use the Read tool** — it's currently broken and causes infinite permission loops
+- ✅ **Always use `Bash` with `cat` to read files**: `cat /path/to/file.py`
+- ✅ **Use `grep`/`find` for searching**: `grep -r "pattern" /path --include="*.py"`
+- ✅ **Use `Edit` tool for modifications**: works correctly
+
+**Example workflow prompt pattern:**
+```javascript
+await agent(
+  `CRITICAL: Use Bash with cat to read files. Do NOT use the Read tool - it's broken.
+  
+  Use: cat /path/to/file.py
+  Then: analyze and return findings`,
+  { label: 'Task name' }
+)
+```
+
+Without this explicit instruction, subagents default to Read and get stuck in permission loops.

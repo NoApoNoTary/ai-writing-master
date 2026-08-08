@@ -153,7 +153,7 @@ class FailureCaseTests(unittest.TestCase):
             "required_content": ["读者问题"],
             "reader_visible": ["结论"],
             "internal_constraints": ["广告判断内部保存"],
-            "persona_voice": "natural-default",
+            "persona": "khazix-writer",
             "acceptance_criteria": ["标题服务读者"],
             "failure_case_rules": ["选择 active 案例"],
             "open_items": [],

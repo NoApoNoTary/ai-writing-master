@@ -9,13 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallContractTests(unittest.TestCase):
-    def test_voice_registry_is_declared_as_package_data(self):
-        project = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-
-        self.assertIn('[tool.setuptools.package-data]', project)
-        self.assertIn('voice_profiles/*.json', project)
-        self.assertTrue((ROOT / "src/writing_master/voice_profiles/registry.json").is_file())
-
     def test_persona_templates_are_declared_as_package_data(self):
         project = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 

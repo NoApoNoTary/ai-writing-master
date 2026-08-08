@@ -11,7 +11,6 @@ from unittest import mock
 from writing_master import handoff
 import writing_master.persona as persona
 from writing_master.persona import PersonaError, PersonaStore
-from writing_master.voice_presets import SNAPSHOT_FILE, VoicePresetStore
 
 
 class PersonaStoreTests(unittest.TestCase):
@@ -626,33 +625,6 @@ class PersonaHandoffTests(unittest.TestCase):
         self.assertEqual(state["status"], "stale")
         self.assertIn("Persona selection changed", state["reason"])
 
-    def test_persona_and_voice_snapshots_are_both_preserved_for_writer(self) -> None:
-        run = self.root / "TASK-COMBINED"
-        run.mkdir()
-        (run / "brief.md").write_text("brief", encoding="utf-8")
-        (run / "status.json").write_text(json.dumps({
-            "task_id": "TASK-COMBINED",
-            "mode": "deep",
-            "execution": "multi_agent",
-            "status": "in_progress",
-            "voice_snapshot": "pending",
-        }), encoding="utf-8")
-        PersonaStore().create_snapshot(
-            run,
-            self.skill,
-            self.brief,
-            mode="author",
-            content_type="opinion",
-            background_mode="default",
-        )
-        VoicePresetStore().create_snapshot(run, "clear-analytical")
-
-        paths = [
-            item["path"]
-            for item in self.prepare(run, "writer")["manifest"]["allowed_inputs"]
-        ]
-        self.assertIn("persona-brief.md", paths)
-        self.assertIn(SNAPSHOT_FILE, paths)
 
 
 if __name__ == "__main__":

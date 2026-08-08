@@ -24,7 +24,7 @@ SPEC_FIELDS = (
     ("正文必含", "required_content"),
     ("读者可见内容", "reader_visible"),
     ("内部执行约束", "internal_constraints"),
-    ("Persona / Voice", "persona_voice"),
+    ("Persona", "persona"),
     ("验收条件", "acceptance_criteria"),
     ("采用的失败案例规则", "failure_case_rules"),
     ("待确认项", "open_items"),

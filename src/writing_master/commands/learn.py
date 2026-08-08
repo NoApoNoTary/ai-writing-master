@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 from writing_master.personal_context import ContextError, ContextStore
-from writing_master.voice_presets import VoiceError, ensure_learning_allowed
 
 
 def _print_json(value: dict) -> None:
@@ -45,7 +44,6 @@ def main(argv=None) -> int:
 
     propose = commands.add_parser("propose", help="提交一条风格候选")
     propose.add_argument("candidate", metavar="CANDIDATE.json")
-    propose.add_argument("--run-dir", metavar="RUN_DIR", required=True, help="校验候选来源任务的 Voice 隔离")
     propose.add_argument("--json", action="store_true", help="JSON 格式输出")
 
     decide = commands.add_parser("decide", help="确认或拒绝一条候选")
@@ -75,7 +73,6 @@ def main(argv=None) -> int:
             task_id = source.get("task_id") if isinstance(source, dict) else None
             if not isinstance(task_id, str) or not task_id:
                 raise ContextError("invalid_input", "candidate source task_id is required")
-            ensure_learning_allowed(args.run_dir, task_id=task_id)
             result = store.propose_style_observation(candidate)
         elif args.operation == "decide":
             result = store.decide_style_observation(args.observation_id, decision=args.decision)
@@ -84,7 +81,7 @@ def main(argv=None) -> int:
                 "style": store.read_style(),
                 "observations": store.list_style_observations(),
             }
-    except (ContextError, VoiceError) as error:
+    except ContextError as error:
         if args.json:
             _print_json({"error": {"code": error.code, "message": str(error)}})
         else:

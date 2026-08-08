@@ -21,7 +21,7 @@ Deep 模式由 Lead 在内容契约确认后创建或确认同一 Snapshot；需
 
 ## Voice Preset 独立边界
 
-`voice-profile-snapshot.json` 与 `personal-context-snapshot.json` 是两个独立任务文件：Voice Profile 不写入 Personal Context Snapshot，Personal Context 也不成为 Voice Profile 的来源。Voice 的选择、版本、hash、Phase 3/Voice Audit 读取和失败语义见 `voice-presets.md`。
+`voice-profile-snapshot.json` 与 `personal-context-snapshot.json` 是两个独立任务文件：任务 Voice Snapshot 不写入 Personal Context Snapshot，Personal Context 也不成为它的来源。
 
 所选 Persona（内置或外部）的 `persona-skill.md` 与 `persona-brief.md` 同样不写入 Personal Context Snapshot，不自动生成 Style Observation，也不回写 Author Profile。项目补充背景只属于当前任务。
 
@@ -48,7 +48,7 @@ pending_approvals: N
 风格学习不是自动动作。只有用户明确要求从一次可追溯编辑中学习时，Agent 才生成 candidate：
 
 ```text
-writing-master learn propose CANDIDATE.json --run-dir RUN_DIR --json
+writing-master learn propose CANDIDATE.json --json
 writing-master learn decide OBSERVATION_ID --accept --json
 writing-master learn decide OBSERVATION_ID --reject --json
 writing-master learn show --json

@@ -316,7 +316,6 @@ def score_article(text: str) -> dict:
             "factual_accuracy",
             "claim_support",
             "editorial_judgment",
-            "voice_fidelity",
         ],
     }
 
